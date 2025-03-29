@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": []
+		"ignore": ["node_modules"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -19,6 +19,9 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
+			"complexity": {
+				"useArrowFunction": "off"
+			},
 			"recommended": true
 		}
 	},
