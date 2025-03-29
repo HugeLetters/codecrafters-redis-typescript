@@ -1,13 +1,16 @@
 {
-	"name": "@codecrafters/redis",
-	"description": "Build your own Redis challenge, from CodeCrafters",
-	"type": "module",
-	"scripts": {
-		"dev": "bun run app/main.ts",
-		"format": "biome format --write ."
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
-		"@types/bun": "latest"
-	}
+  "name": "@codecrafters/redis",
+  "description": "Build your own Redis challenge, from CodeCrafters",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run app/main.ts",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "latest"
+  },
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ]
 }
