@@ -6,7 +6,10 @@ const startServer = Effect.gen(function* () {
 	const config = yield* Config;
 
 	return yield* Effect.async(function (resume) {
-		const server = createServer(handleConnection);
+		const server = createServer(async (c) => {
+			const message = await Effect.runPromise<string, never>(getResponse(c));
+			c.end(message);
+		});
 
 		server.listen(config.PORT, config.HOST).on("listening", () => {
 			const message = `Server is listening on ${config.HOST}:${config.PORT}`;
@@ -21,11 +24,6 @@ const startServer = Effect.gen(function* () {
 
 startServer.pipe(Effect.runPromise);
 
-function handleConnection(c: Socket) {
-	return Effect.gen(function* () {
-		const message = "PONG\r\n";
-		return yield* Effect.async<null, never>((resume) => {
-			c.end(message, () => resume(Effect.succeed(null)));
-		});
-	});
+function getResponse(c: Socket) {
+	return Effect.succeed("PONG\r\n");
 }
