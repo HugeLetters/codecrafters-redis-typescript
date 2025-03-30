@@ -27,6 +27,7 @@
 		"noImplicitReturns": false,
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
+		"exactOptionalPropertyTypes": true,
 		"plugins": [
 			{
 				"name": "@effect/language-service"
