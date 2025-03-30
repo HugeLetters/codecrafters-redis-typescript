@@ -25,5 +25,5 @@ const startServer = Effect.gen(function* () {
 startServer.pipe(Effect.runPromise);
 
 function getResponse(c: Socket) {
-	return Effect.succeed("PONG\r\n");
+	return Effect.succeed("+PONG\r\n");
 }
