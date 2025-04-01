@@ -1,29 +1,29 @@
-import { Console, Effect, flow } from "effect";
-import { createServer, type Socket } from "node:net";
-import { Config } from "./config";
+import { BunRuntime } from "@effect/platform-bun";
+import { Console, Effect, Stream } from "effect";
+import { acquireSocketStream } from "./server";
+import { getSocketDataStream, getSocketWriter } from "./server/socket";
 
-const startServer = Effect.gen(function* () {
-	const config = yield* Config;
+const main = Effect.gen(function* () {
+	const socketStream = yield* acquireSocketStream;
+	const socketHandlerStream = socketStream.pipe(
+		Stream.mapEffect(
+			(c) => {
+				const write = getSocketWriter(c);
+				const dataStream = getSocketDataStream(c);
+				return dataStream.pipe(
+					Stream.map((b) => b.toString()),
+					Stream.tap((data) => Console.log("Received", data)),
+					Stream.mapEffect((_data) => write("+PONG\r\n")),
+					Stream.catchTag("SocketWrite", () => Effect.void),
+					Stream.runDrain,
+					Effect.tap(Console.log("Disconnected")),
+				);
+			},
+			{ concurrency: "unbounded" },
+		),
+	);
 
-	return yield* Effect.async(function (resume) {
-		const server = createServer(async (c) => {
-			const message = await Effect.runPromise<string, never>(getResponse(c));
-			c.end(message);
-		});
-
-		server.listen(config.PORT, config.HOST).on("listening", () => {
-			const message = `Server is listening on ${config.HOST}:${config.PORT}`;
-			Effect.succeed(null).pipe(Effect.tap(Console.log(message)), resume);
-		});
-
-		return Effect.async((resume) => {
-			server.close(flow(Effect.succeed, resume));
-		});
-	});
+	return yield* Stream.runDrain(socketHandlerStream);
 });
 
-startServer.pipe(Effect.runPromise);
-
-function getResponse(c: Socket) {
-	return Effect.succeed("+PONG\r\n");
-}
+main.pipe(Effect.scoped, BunRuntime.runMain);
