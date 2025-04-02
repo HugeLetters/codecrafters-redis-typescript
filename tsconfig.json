@@ -28,6 +28,11 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"exactOptionalPropertyTypes": true,
+		"paths": {
+			"$*": [
+				"./app*"
+			]
+		},
 		"plugins": [
 			{
 				"name": "@effect/language-service"
