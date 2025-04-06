@@ -63,3 +63,23 @@ export const Integer = Schema.TemplateLiteralParser(
 		strict: true,
 	}),
 );
+
+export const BulkString = Schema.Never;
+
+export const RespArray = Schema.Never;
+
+const NullPrefix = "_";
+const NullLiteral = `${NullPrefix}${CRLF}`;
+// todo - add null string and array
+export const Null = Schema.Literal(NullLiteral).pipe(
+	Schema.transform(Schema.Null, {
+		decode() {
+			return null;
+		},
+		encode(): typeof NullLiteral {
+			return NullLiteral;
+		},
+		strict: true,
+	}),
+);
+
