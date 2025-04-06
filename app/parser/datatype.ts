@@ -83,3 +83,19 @@ export const Null = Schema.Literal(NullLiteral).pipe(
 	}),
 );
 
+export const BooleanPrefix = "#";
+export const RespBoolean = Schema.TemplateLiteralParser(
+	BooleanPrefix,
+	Schema.Literal("t", "f"),
+	CRLF,
+).pipe(
+	Schema.transform(Schema.Boolean, {
+		decode(input) {
+			return input[1] === "t";
+		},
+		encode(input) {
+			return [BooleanPrefix, input ? "t" : "f", CRLF] as const;
+		},
+		strict: true,
+	}),
+);
