@@ -11,19 +11,21 @@ export const SimpleString = Schema.TemplateLiteralParser(
 	CRLF,
 ).pipe(
 	Schema.transform(Schema.String, {
-		decode(input) {
-			return input[1];
+		decode(template) {
+			const str = template[1];
+			return str;
 		},
-		encode(input) {
-			return [SimpleStringPrefix, input, CRLF] as const;
+		encode(str) {
+			return [SimpleStringPrefix, str, CRLF] as const;
 		},
 	}),
 );
 
-export class SimpleError extends Schema.TaggedError<SimpleError>("SimpleError")(
-	"SimpleError",
-	{ message: Schema.String },
-) {}
+const SimpleErrorTag = "SimpleError";
+const SimpleTaggedError = Schema.TaggedError<SimpleError>(SimpleErrorTag);
+export class SimpleError extends SimpleTaggedError(SimpleErrorTag, {
+	message: Schema.String,
+}) {}
 
 const decodeSimpleError = ParseResult.decode(SimpleError);
 const SimpleErrorPrefix = "-";
@@ -33,19 +35,14 @@ export const SimpleErrorFromString = Schema.TemplateLiteralParser(
 	CRLF,
 ).pipe(
 	Schema.transformOrFail(SimpleError, {
-		decode(input) {
-			const message = input[1];
-			return decodeSimpleError({ _tag: "SimpleError", message });
+		decode(template) {
+			const message = template[1];
+			return decodeSimpleError({ _tag: SimpleErrorTag, message });
 		},
-		encode(input) {
-			return Effect.succeed([SimpleErrorPrefix, input.message, CRLF] as const);
+		encode(err) {
+			return Effect.succeed([SimpleErrorPrefix, err.message, CRLF] as const);
 		},
 	}),
 );
 
-export const BulkStringPrefix = "$";
-export const BulkString = Schema.TemplateLiteralParser(
-	BulkStringPrefix,
-	CRLF,
-	CRLF,
-);
+export const BulkString = Schema.Never;
