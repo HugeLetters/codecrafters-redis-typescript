@@ -1,5 +1,6 @@
 import { BunRuntime } from "@effect/platform-bun";
 import { Console, Effect, Stream } from "effect";
+import { provideConfigService } from "./config";
 import { acquireSocketStream } from "./server";
 import { getSocketDataStream, getSocketWriter } from "./server/socket";
 
@@ -26,4 +27,4 @@ const main = Effect.gen(function* () {
 	return yield* Stream.runDrain(socketHandlerStream);
 });
 
-main.pipe(Effect.scoped, BunRuntime.runMain);
+main.pipe(provideConfigService(), Effect.scoped, BunRuntime.runMain);
