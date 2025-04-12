@@ -1,6 +1,6 @@
 import { inspect } from "bun";
 import { test as bunTest } from "bun:test";
-import { Effect } from "effect";
+import { Effect, flow } from "effect";
 import { fail } from "node:assert/strict";
 
 function effect(name: string, run: () => Effect.Effect<unknown, unknown>) {
@@ -12,13 +12,12 @@ function effect(name: string, run: () => Effect.Effect<unknown, unknown>) {
 
 export const test = Object.assign(bunTest, { effect });
 
-export function expectFail<A, E, R>(self: Effect.Effect<A, E, R>) {
-	return self.pipe(
-		Effect.map((value) => {
-			fail(
-				`Expected effect to fail. Received: ${inspect(value, { colors: true, depth: 10 })}`,
-			);
-		}),
-		Effect.flip,
-	);
+export function expectFail<E, R>(self: Effect.Effect<unknown, E, R>) {
+	return self.pipe(Effect.map(unexpectedSuccess), Effect.flip);
 }
+
+const unexpectedSuccess = flow(
+	(v) => inspect(v, { colors: true, depth: 10 }),
+	(v) => `Expected effect to fail. Received: ${v}`,
+	(m) => fail(m),
+);
