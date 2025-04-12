@@ -1,96 +1,96 @@
-import { describe, it } from "@effect/vitest";
-import { Effect, Schema } from "effect";
+import { test } from "$/test";
+import { describe, expect } from "bun:test";
+import { Effect } from "effect";
 import { SimpleError, SimpleErrorFromString, SimpleString } from "./string";
+import { createSchemaHelpers, expectParseError } from "./test";
 
 describe("SimpleString", () => {
-	const decode = Schema.decodeUnknown(SimpleString);
-	const encode = Schema.encodeUnknown(SimpleString);
+	const $string = createSchemaHelpers(SimpleString);
 
 	describe("with valid data", () => {
 		const EncodedString = "+string\r\n";
 		const DecodedString = "string";
 
-		it.effect("is decoded", ({ expect }) => {
+		test.effect("is decoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode(EncodedString);
+				const result = yield* $string.decode(EncodedString);
 				expect(result).toBe(DecodedString);
 			});
 		});
 
-		it.effect("is encoded", ({ expect }) => {
+		test.effect("is encoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* encode(DecodedString);
+				const result = yield* $string.encode(DecodedString);
 				expect(result).toBe(EncodedString);
 			});
 		});
 	});
 
 	describe("with invalid data", () => {
-		it.effect("is not decoded when doesnt conform to schema", ({ expect }) => {
+		test.effect("is not decoded when doesnt conform to schema", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("invalid").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $string.decodeFail("invalid");
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not decoded when contains \\r", ({ expect }) => {
+		test.effect("is not decoded when contains \\r", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("+O\nK\r\n").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $string.decodeFail("+O\nK\r\n");
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not decoded when contains \\n", ({ expect }) => {
+		test.effect("is not decoded when contains \\n", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("+O\rK\r\n").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $string.decodeFail("+O\rK\r\n");
+				expectParseError(result);
 			});
 		});
 	});
 });
 
 describe("SimpleErrorFromString", () => {
-	const decode = Schema.decodeUnknown(SimpleErrorFromString);
-	const encode = Schema.encodeUnknown(SimpleErrorFromString);
+	const $error = createSchemaHelpers(SimpleErrorFromString);
 
 	describe("with valid data", () => {
 		const EncodedError = "-Error message\r\n";
 		const DecodedError = new SimpleError({ message: "Error message" });
 
-		it.effect("is decoded", ({ expect }) => {
+		test.effect("is decoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode(EncodedError);
-				expect(result).toEqual(DecodedError);
+				const result = yield* $error.decode(EncodedError);
+				expect(result).toStrictEqual(DecodedError);
 			});
 		});
 
-		it.effect("is encoded", ({ expect }) => {
+		test.effect("is encoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* encode(DecodedError);
+				const result = yield* $error.encode(DecodedError);
 				expect(result).toBe(EncodedError);
 			});
 		});
 	});
 
 	describe("with invalid data", () => {
-		it.effect("is not decoded when doesnt conform to schema", ({ expect }) => {
+		test.effect("is not decoded when doesnt conform to schema", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("invalid").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $error.decodeFail("invalid");
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not decoded when contains \\r", ({ expect }) => {
+		test.effect("is not decoded when contains \\r", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("-err\nor\r\n").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $error.decodeFail("-err\nor\r\n");
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not decoded when contains \\n", ({ expect }) => {
+		test.effect("is not decoded when contains \\n", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode("-err\ror\r\n").pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* $error.decodeFail("-err\ror\r\n");
+				expectParseError(result);
 			});
 		});
 	});
