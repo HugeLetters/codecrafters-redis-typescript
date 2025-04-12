@@ -1,97 +1,85 @@
-import { describe, it } from "@effect/vitest";
-import { Effect, Schema } from "effect";
-import { ParseError } from "effect/ParseResult";
+import { Integer as IntSchema } from "$/schema/number";
+import { test } from "$/test";
+import { describe, expect } from "bun:test";
+import { Effect } from "effect";
 import { Integer } from "./number";
+import { createSchemaHelpers, expectParseError } from "./test";
 
 describe("Integer", () => {
-	const decode = Schema.decodeUnknown(Integer);
-	const encode = Schema.encodeUnknown(Integer);
+	const $int = createSchemaHelpers(Integer);
+	const i = IntSchema.make;
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {
-			it.effect("for integer", ({ expect }) => {
+			test.effect("for integer", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":1000\r\n");
-					expect(result).toBe(1000);
+					const result = yield* $int.decode(":1000\r\n");
+					expect(result).toBe(i(1000));
 				});
 			});
 
-			it.effect("for negative", ({ expect }) => {
+			test.effect("for negative", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":-1000\r\n");
-					expect(result).toBe(-1000);
+					const result = yield* $int.decode(":-1000\r\n");
+					expect(result).toBe(i(-1000));
 				});
 			});
 
-			it.effect("for positive", ({ expect }) => {
+			test.effect("for positive", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":+1000\r\n");
-					expect(result).toBe(1000);
+					const result = yield* $int.decode(":+1000\r\n");
+					expect(result).toBe(i(1000));
 				});
 			});
 
-			it.effect("for 0", ({ expect }) => {
+			test.effect("for 0", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":0\r\n");
-					expect(result).toBe(0);
+					const result = yield* $int.decode(":0\r\n");
+					expect(result).toBe(i(0));
 				});
 			});
 
-			it.effect("for -0", ({ expect }) => {
+			test.effect("for -0", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":-0\r\n");
-					expect(result).toBe(-0);
+					const result = yield* $int.decode(":-0\r\n");
+					expect(result).toBe(i(-0));
 				});
 			});
 
-			it.effect("for +0", ({ expect }) => {
+			test.effect("for +0", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":+0\r\n");
-					expect(result).toBe(0);
+					const result = yield* $int.decode(":+0\r\n");
+					expect(result).toBe(i(0));
 				});
 			});
 		});
 
 		describe("is encoded", () => {
-			it.effect("for integer", ({ expect }) => {
+			test.effect("for positive", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(1000);
+					const result = yield* $int.encode(i(1000));
 					expect(result).toBe(":1000\r\n");
 				});
 			});
 
-			it.effect("for negative", ({ expect }) => {
+			test.effect("for negative", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(-1000);
+					const result = yield* $int.encode(i(-1000));
 					expect(result).toBe(":-1000\r\n");
 				});
 			});
 
-			it.effect("for positive", ({ expect }) => {
+			test.effect("for 0", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(1000);
-					expect(result).toBe(":1000\r\n");
-				});
-			});
-
-			it.effect("for 0", ({ expect }) => {
-				return Effect.gen(function* () {
-					const result = yield* encode(0);
+					const result = yield* $int.encode(i(0));
 					expect(result).toBe(":0\r\n");
 				});
 			});
 
-			it.effect("for -0", ({ expect }) => {
+			test.effect("for -0", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(-0);
-					expect(result).toBe(":0\r\n");
-				});
-			});
-
-			it.effect("for +0", ({ expect }) => {
-				return Effect.gen(function* () {
-					const result = yield* encode(+0);
-					expect(result).toBe(":0\r\n");
+					const result = yield* $int.encode(i(-0));
+					expect(result).toBe(":-0\r\n");
 				});
 			});
 		});
@@ -99,61 +87,61 @@ describe("Integer", () => {
 
 	describe("with invalid data", () => {
 		describe("is not decoded", () => {
-			it.effect("when doesnt conform to schema", ({ expect }) => {
+			test.effect("when doesnt conform to schema", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode("invalid").pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.decodeFail("123");
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when doesnt end with crlf", ({ expect }) => {
+			test.effect("when doesnt end with crlf", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":123").pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.decodeFail(":123");
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when has invalid characters", ({ expect }) => {
+			test.effect("when has invalid characters", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":123a\r\n").pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.decodeFail(":123a\r\n");
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when is decimal", ({ expect }) => {
+			test.effect("when is decimal", () => {
 				return Effect.gen(function* () {
-					const result = yield* decode(":123.45\r\n").pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.decodeFail(":123.45\r\n");
+					expectParseError(result);
 				});
 			});
 		});
 
 		describe("is not encoded", () => {
-			it.effect("when input is string", ({ expect }) => {
+			test.effect("when input is string", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode("abc").pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.encodeFail("abc");
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when input is null", ({ expect }) => {
+			test.effect("when input is null", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(null).pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.encodeFail(null);
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when input is undefined", ({ expect }) => {
+			test.effect("when input is undefined", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(undefined).pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.encodeFail(undefined);
+					expectParseError(result);
 				});
 			});
 
-			it.effect("when input is decimal", ({ expect }) => {
+			test.effect("when input is decimal", () => {
 				return Effect.gen(function* () {
-					const result = yield* encode(123.45).pipe(Effect.flip);
-					expect(result).instanceof(ParseError);
+					const result = yield* $int.encodeFail(123.45);
+					expectParseError(result);
 				});
 			});
 		});
