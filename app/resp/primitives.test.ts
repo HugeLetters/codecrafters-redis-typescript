@@ -1,6 +1,8 @@
-import { describe, it } from "@effect/vitest";
+import { expectFail, test } from "$/test";
+import { describe, expect } from "bun:test";
 import { Effect, Schema } from "effect";
 import { Boolean_, Null } from "./primitives";
+import { expectParseError } from "./test";
 
 const Invalid = "invalid";
 
@@ -11,14 +13,14 @@ describe("null", () => {
 	describe("with valid data", () => {
 		const EncodedNull = "_\r\n";
 
-		it.effect("is decoded", ({ expect }) => {
+		test.effect("is decoded", () => {
 			return Effect.gen(function* () {
 				const result = yield* decode(EncodedNull);
 				expect(result).toBe(null);
 			});
 		});
 
-		it.effect("is encoded", ({ expect }) => {
+		test.effect("is encoded", () => {
 			return Effect.gen(function* () {
 				const result = yield* encode(null);
 				expect(result).toBe(EncodedNull);
@@ -27,17 +29,17 @@ describe("null", () => {
 	});
 
 	describe("with invalid data", () => {
-		it.effect("is not decoded", ({ expect }) => {
+		test.effect("is not decoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode(Invalid).pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* decode(Invalid).pipe(expectFail);
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not encoded", ({ expect }) => {
+		test.effect("is not encoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* encode(Invalid).pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* encode(Invalid).pipe(expectFail);
+				expectParseError(result);
 			});
 		});
 	});
@@ -51,47 +53,60 @@ describe("boolean", () => {
 		const EncodedTrue = "#t\r\n";
 		const EncodedFalse = "#f\r\n";
 
-		it.effect("is decoded to true", ({ expect }) => {
-			return Effect.gen(function* () {
-				const result = yield* decode(EncodedTrue);
-				expect(result).toBe(true);
+		describe("is decoded", () => {
+			test.effect("to true", () => {
+				return Effect.gen(function* () {
+					const result = yield* decode(EncodedTrue);
+					expect(result).toBe(true);
+				});
+			});
+
+			test.effect("to false", () => {
+				return Effect.gen(function* () {
+					const result = yield* decode(EncodedFalse);
+					expect(result).toBe(false);
+				});
 			});
 		});
 
-		it.effect("is decoded to false", ({ expect }) => {
-			return Effect.gen(function* () {
-				const result = yield* decode(EncodedFalse);
-				expect(result).toBe(false);
+		describe("is encoded", () => {
+			test.effect("from true", () => {
+				return Effect.gen(function* () {
+					const result = yield* encode(true);
+					expect(result).toBe(EncodedTrue);
+				});
 			});
-		});
 
-		it.effect("is encoded to true", ({ expect }) => {
-			return Effect.gen(function* () {
-				const result = yield* encode(true);
-				expect(result).toBe(EncodedTrue);
-			});
-		});
-
-		it.effect("is encoded to false", ({ expect }) => {
-			return Effect.gen(function* () {
-				const result = yield* encode(false);
-				expect(result).toBe(EncodedFalse);
+			test.effect("from false", () => {
+				return Effect.gen(function* () {
+					const result = yield* encode(false);
+					expect(result).toBe(EncodedFalse);
+				});
 			});
 		});
 	});
 
 	describe("with invalid data", () => {
-		it.effect("is not decoded", ({ expect }) => {
+		test.effect("is not decoded", () => {
 			return Effect.gen(function* () {
-				const result = yield* decode(Invalid).pipe(Effect.isFailure);
-				expect(result).toBe(true);
+				const result = yield* decode(Invalid).pipe(expectFail);
+				expectParseError(result);
 			});
 		});
 
-		it.effect("is not encoded", ({ expect }) => {
-			return Effect.gen(function* () {
-				const result = yield* encode(Invalid).pipe(Effect.isFailure);
-				expect(result).toBe(true);
+		describe("is not encoded", () => {
+			test.effect("from string", () => {
+				return Effect.gen(function* () {
+					const result = yield* encode(Invalid).pipe(expectFail);
+					expectParseError(result);
+				});
+			});
+
+			test.effect("from null", () => {
+				return Effect.gen(function* () {
+					const result = yield* encode(null).pipe(expectFail);
+					expectParseError(result);
+				});
 			});
 		});
 	});
