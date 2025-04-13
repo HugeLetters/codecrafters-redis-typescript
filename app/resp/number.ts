@@ -31,9 +31,10 @@ export const Integer = Schema.TemplateLiteralParser(
 			return sign * number;
 		},
 		encode(integer) {
+			const isNegative = integer < 0 || Object.is(integer, -0);
 			return [
 				IntegerPrefix,
-				integer < 0 ? "-" : "+",
+				isNegative ? "-" : "+",
 				Math.abs(integer),
 				CRLF,
 			] as const;
