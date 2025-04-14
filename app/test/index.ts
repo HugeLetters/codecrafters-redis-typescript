@@ -1,16 +1,8 @@
-import { inspect } from "bun";
-import { test as bunTest } from "bun:test";
-import { Effect, flow } from "effect";
 import { fail } from "node:assert/strict";
+import { inspect } from "bun";
+import { Effect, flow } from "effect";
 
-function effect(name: string, run: () => Effect.Effect<unknown, unknown>) {
-	return bunTest(name, () => {
-		// todo - prettier test fail error
-		return Effect.runPromise(run());
-	});
-}
-
-export const test = Object.assign(bunTest, { effect });
+export { test } from "./effect-buntest";
 
 export function expectFail<E, R>(self: Effect.Effect<unknown, E, R>) {
 	return self.pipe(Effect.map(unexpectedSuccess), Effect.flip);

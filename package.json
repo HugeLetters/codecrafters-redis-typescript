@@ -9,7 +9,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@effect/language-service": "^0.5.1",
-		"@types/bun": "latest",
+		"@types/bun": "^1.2.9",
 		"typescript": "^5.8.3"
 	},
 	"trustedDependencies": ["@biomejs/biome"],
