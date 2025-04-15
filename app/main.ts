@@ -12,7 +12,7 @@ const main = Effect.gen(function* () {
 				const write = getSocketWriter(c);
 				const dataStream = getSocketDataStream(c);
 				return dataStream.pipe(
-					Stream.map((b) => b.toString()),
+					Stream.map((b) => b.toString("utf8")),
 					Stream.tap((data) => Console.log("Received", data)),
 					Stream.mapEffect((_data) => write("+PONG\r\n")),
 					Stream.catchTag("SocketWrite", () => Effect.void),
