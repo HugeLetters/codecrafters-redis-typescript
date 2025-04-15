@@ -1,5 +1,5 @@
 import { Integer, IntegerFromString } from "$/schema/number";
-import { Config as C, ConfigProvider, Context, Effect, Schema } from "effect";
+import { Config as C, ConfigProvider, Effect, Schema, flow } from "effect";
 
 const HOST = Schema.Config("HOST", Schema.String).pipe(
 	C.withDefault("0.0.0.0"),
@@ -10,14 +10,13 @@ const PORT = Schema.Config("PORT", IntegerFromString).pipe(
 	C.withDefault(defaultPort),
 );
 
-const ConfigSchema = C.all({ HOST, PORT });
-type ConfigType = Effect.Effect.Success<typeof ConfigSchema>;
-
-export class Config extends Context.Tag("Config")<Config, ConfigType>() {}
+export class Config extends Effect.Service<Config>()("Config", {
+	effect: C.all({ HOST, PORT }),
+}) {}
 
 export function provideConfigService(provider = ConfigProvider.fromEnv()) {
-	return Effect.provideServiceEffect(
-		Config,
-		ConfigSchema.pipe(Effect.withConfigProvider(provider)),
+	return flow(
+		Effect.provide(Config.Default),
+		Effect.withConfigProvider(provider),
 	);
 }
