@@ -2,7 +2,7 @@ import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
 import { Boolean_, Null } from "./primitives";
-import { createSchemaHelpers, expectParseError } from "./test";
+import { createSchemaHelpers, expectParseError } from "../test";
 
 const Invalid = "invalid";
 

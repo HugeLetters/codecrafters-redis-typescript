@@ -3,7 +3,7 @@ import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
 import { Integer, Double } from "./number";
-import { createSchemaHelpers, expectParseError } from "./test";
+import { createSchemaHelpers, expectParseError } from "../test";
 
 describe("Integer", () => {
 	const $int = createSchemaHelpers(Integer);

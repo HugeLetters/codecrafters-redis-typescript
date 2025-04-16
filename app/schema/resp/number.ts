@@ -1,5 +1,5 @@
 import { Integer as IntegerSchema } from "$/schema/number";
-import { DigitString } from "$/schema/string/number";
+import { DigitString } from "$/schema/string";
 import { Schema } from "effect";
 import { CRLF } from "./constants";
 
