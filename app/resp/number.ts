@@ -1,4 +1,5 @@
 import { Integer as IntegerSchema } from "$/schema/number";
+import { DigitString } from "$/schema/string/number";
 import { Schema } from "effect";
 import { CRLF } from "./constants";
 
@@ -17,7 +18,6 @@ const ImplicitNumberSign = Schema.transform(
 	},
 );
 
-const DigitString = Schema.String.pipe(Schema.pattern(/^\d+$/));
 export const Integer = Schema.TemplateLiteralParser(
 	IntegerPrefix,
 	ImplicitNumberSign,

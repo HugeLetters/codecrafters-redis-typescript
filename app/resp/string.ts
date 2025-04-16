@@ -1,4 +1,4 @@
-import { notPattern } from "$/schema/string/filter";
+import { notPattern } from "$/schema/string";
 import { Effect, ParseResult, Schema } from "effect";
 import { CRLF } from "./constants";
 

@@ -25,3 +25,8 @@ export function notPattern<I extends string, A, R>(regex: RegExp) {
 		},
 	);
 }
+
+export const DigitString = Schema.String.pipe(
+	Schema.pattern(/^\d+$/),
+	Schema.brand("DigitString"),
+);
