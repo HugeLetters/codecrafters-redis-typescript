@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { DigitString } from "./string";
+import { DigitString, MinusSign, PlusSign } from "./string";
 
 export const Integer = Schema.Int.pipe(Schema.brand("INT"));
 
@@ -24,4 +24,9 @@ export const FractionFromDigitString = DigitString.pipe(
 		strict: false,
 	}),
 	Schema.compose(Fraction),
+);
+
+export const MultiplierFromNumberSign = Schema.transformLiterals(
+	[PlusSign, 1],
+	[MinusSign, -1],
 );

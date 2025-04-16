@@ -3,32 +3,27 @@ import { CRLF } from "./constants";
 
 const NullPrefix = "_";
 const NullLiteral = `${NullPrefix}${CRLF}`;
-type NullLiteral = typeof NullLiteral;
 // todo - add null string and array
-export const Null = Schema.transform(Schema.Literal(NullLiteral), Schema.Null, {
-	decode() {
-		return null;
-	},
-	encode(): NullLiteral {
-		return NullLiteral;
-	},
-});
+export const Null = Schema.transformLiteral(NullLiteral, null);
 
 const BooleanPrefix = "#";
 const True = "t";
 const False = "f";
+const BooleanFromLiteral = Schema.transformLiterals(
+	[True, true],
+	[False, false],
+);
 export const Boolean_ = Schema.TemplateLiteralParser(
 	BooleanPrefix,
 	Schema.Literal(True, False),
 	CRLF,
 ).pipe(
-	Schema.transform(Schema.Boolean, {
+	Schema.transform(BooleanFromLiteral, {
 		decode(template) {
-			const symbol = template[1];
-			return symbol === True;
+			return template[1];
 		},
 		encode(bool) {
-			return [BooleanPrefix, bool ? True : False, CRLF] as const;
+			return [BooleanPrefix, bool, CRLF] as const;
 		},
 	}),
 );

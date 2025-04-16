@@ -30,3 +30,19 @@ export const DigitString = Schema.String.pipe(
 	Schema.pattern(/^\d+$/),
 	Schema.brand("DigitString"),
 );
+
+export const PlusSign = "+";
+export const MinusSign = "-";
+export const NumberSign = Schema.Literal(PlusSign, MinusSign);
+export const ImplicitNumberSign = Schema.transform(
+	Schema.Literal(...NumberSign.literals, ""),
+	NumberSign,
+	{
+		decode(optionalSign) {
+			return optionalSign === MinusSign ? MinusSign : PlusSign;
+		},
+		encode(sign) {
+			return sign === PlusSign ? "" : MinusSign;
+		},
+	},
+);

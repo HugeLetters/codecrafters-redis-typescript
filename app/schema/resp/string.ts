@@ -1,5 +1,5 @@
 import { notPattern } from "$/schema/string";
-import { Effect, ParseResult, Schema } from "effect";
+import { Schema } from "effect";
 import { CRLF } from "./constants";
 
 const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
@@ -12,8 +12,7 @@ export const SimpleString = Schema.TemplateLiteralParser(
 ).pipe(
 	Schema.transform(Schema.String, {
 		decode(template) {
-			const str = template[1];
-			return str;
+			return template[1];
 		},
 		encode(str) {
 			return [SimpleStringPrefix, str, CRLF] as const;
@@ -21,26 +20,27 @@ export const SimpleString = Schema.TemplateLiteralParser(
 	}),
 );
 
-const SimpleErrorTag = "SimpleError";
-const SimpleTaggedError = Schema.TaggedError<SimpleError>(SimpleErrorTag);
-export class SimpleError extends SimpleTaggedError(SimpleErrorTag, {
-	message: Schema.String,
-}) {}
+export class SimpleError extends Schema.TaggedError<SimpleError>()(
+	"SimpleError",
+	{
+		message: Schema.String,
+	},
+) {}
 
-const decodeSimpleError = ParseResult.decode(SimpleError);
 const SimpleErrorPrefix = "-";
 export const SimpleErrorFromString = Schema.TemplateLiteralParser(
 	SimpleErrorPrefix,
 	CleanString,
 	CRLF,
 ).pipe(
-	Schema.transformOrFail(SimpleError, {
+	Schema.transform(SimpleError, {
 		decode(template) {
 			const message = template[1];
-			return decodeSimpleError({ _tag: SimpleErrorTag, message });
+			const { _tag } = SimpleError;
+			return { _tag, message };
 		},
 		encode(err) {
-			return Effect.succeed([SimpleErrorPrefix, err.message, CRLF] as const);
+			return [SimpleErrorPrefix, err.message, CRLF] as const;
 		},
 	}),
 );

@@ -79,7 +79,7 @@ describe("Integer", () => {
 			test.effect("for -0", () => {
 				return Effect.gen(function* () {
 					const result = yield* $int.encode(i(-0));
-					expect(result).toBe(":-0\r\n");
+					expect(result).toBe(":0\r\n");
 				});
 			});
 		});
