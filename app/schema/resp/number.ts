@@ -1,12 +1,15 @@
-import { Integer as Integer_, MultiplierFromNumberSign } from "$/schema/number";
-import { DigitString, ImplicitNumberSign } from "$/schema/string";
+import {
+	Integer as Integer_,
+	MultiplierFromImplicitNumberSign,
+} from "$/schema/number";
+import { DigitString } from "$/schema/string";
 import { Schema } from "effect";
 import { CRLF } from "./constants";
 
 const IntegerPrefix = ":";
 export const Integer = Schema.TemplateLiteralParser(
 	IntegerPrefix,
-	ImplicitNumberSign.pipe(Schema.compose(MultiplierFromNumberSign)),
+	MultiplierFromImplicitNumberSign,
 	DigitString.pipe(Schema.parseNumber),
 	CRLF,
 ).pipe(
