@@ -240,7 +240,7 @@ describe("Double", () => {
 			test.effect("for NaN", () => {
 				return Effect.gen(function* () {
 					const result = yield* $double.decode(",nan\r\n");
-					expect(Number.isNaN(result)).toBe(true);
+					expect(result).toBeNaN();
 				});
 			});
 		});
