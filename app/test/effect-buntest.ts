@@ -213,7 +213,7 @@ function makeTester<R>(
 	};
 
 	test.only = function (name, self) {
-		return V.test.failing(name, () => run([], self));
+		return V.test.only(name, () => run([], self));
 	};
 
 	test.each = function (cases) {
