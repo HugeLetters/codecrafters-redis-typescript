@@ -34,3 +34,8 @@ export const MultiplierFromNumberSign = Schema.transformLiterals(
 export const MultiplierFromImplicitNumberSign = ImplicitNumberSign.pipe(
 	Schema.compose(MultiplierFromNumberSign),
 );
+
+export const NaN_ = Schema.declare(
+	(value): value is number => Number.isNaN(value),
+	{ identifier: "NaN" },
+).pipe(Schema.brand("NaN"));
