@@ -1,10 +1,6 @@
-import {
-	Integer as Integer_,
-	MultiplierFromImplicitNumberSign,
-	NaN_,
-} from "$/schema/number";
+import { Integer as Integer_, NaN_ } from "$/schema/number";
 import { DigitString, ImplicitNumberSign } from "$/schema/string";
-import { Schema, flow } from "effect";
+import { BigInt as BigInt_, Schema, flow } from "effect";
 import { CRLF } from "./constants";
 
 const IntegerPrefix = ":";
@@ -93,4 +89,28 @@ const toOptimalExponential = flow(
 		const newExponent = Number.parseInt(exponent) - fraction.length;
 		return `${int}${fraction}e${newExponent}`;
 	},
+);
+
+const BigNumberPrefix = "(";
+export const BigNumber = Schema.TemplateLiteralParser(
+	BigNumberPrefix,
+	ImplicitNumberSign,
+	DigitString.pipe(Schema.compose(Schema.BigInt)),
+	CRLF,
+).pipe(
+	Schema.transform(Schema.BigIntFromSelf, {
+		decode(template) {
+			const biging = template[2];
+			const sign = template[1] === "+" ? 1n : -1n;
+			return sign * biging;
+		},
+		encode(bigint) {
+			return [
+				BigNumberPrefix,
+				bigint < 0 ? "-" : "+",
+				BigInt_.abs(bigint),
+				CRLF,
+			] as const;
+		},
+	}),
 );
