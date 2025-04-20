@@ -2,8 +2,8 @@ import { Integer as IntSchema } from "$/schema/number";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
-import { Integer, Double } from "./number";
 import { createSchemaHelpers, expectParseError } from "../test";
+import { Double, Integer } from "./number";
 
 describe("Integer", () => {
 	const $int = createSchemaHelpers(Integer);
@@ -167,7 +167,7 @@ describe("Double", () => {
 				});
 			});
 
-			test.effect("for positive integer with explicit sign", () => {
+			test.effect("for positive integer", () => {
 				return Effect.gen(function* () {
 					const result = yield* $double.decode(",+10\r\n");
 					expect(result).toBe(10);
@@ -188,7 +188,7 @@ describe("Double", () => {
 				});
 			});
 
-			test.effect("for positive fractional with explicit sign", () => {
+			test.effect("for positive fractional", () => {
 				return Effect.gen(function* () {
 					const result = yield* $double.decode(",+1.23\r\n");
 					expect(result).toBe(1.23);
@@ -197,29 +197,29 @@ describe("Double", () => {
 
 			test.effect("for exponent", () => {
 				return Effect.gen(function* () {
-					const result = yield* $double.decode(",1.23e2\r\n");
-					expect(result).toBe(123);
+					const result = yield* $double.decode(",1.23e10\r\n");
+					expect(result).toBe(1.23e10);
 				});
 			});
 
 			test.effect("for negative exponent", () => {
 				return Effect.gen(function* () {
-					const result = yield* $double.decode(",1.23e-2\r\n");
-					expect(result).toBe(0.0123);
+					const result = yield* $double.decode(",1.23e-10\r\n");
+					expect(result).toBe(1.23e-10);
 				});
 			});
 
-			test.effect("for positive exponent with explicit sign", () => {
+			test.effect("for positive exponent", () => {
 				return Effect.gen(function* () {
-					const result = yield* $double.decode(",1.23e+2\r\n");
-					expect(result).toBe(123);
+					const result = yield* $double.decode(",1.23e+10\r\n");
+					expect(result).toBe(1.23e10);
 				});
 			});
 
 			test.effect("for uppercase E exponent", () => {
 				return Effect.gen(function* () {
-					const result = yield* $double.decode(",1.23E2\r\n");
-					expect(result).toBe(123);
+					const result = yield* $double.decode(",1.23E10\r\n");
+					expect(result).toBe(1.23e10);
 				});
 			});
 
@@ -241,6 +241,34 @@ describe("Double", () => {
 				return Effect.gen(function* () {
 					const result = yield* $double.decode(",nan\r\n");
 					expect(result).toBeNaN();
+				});
+			});
+
+			test.effect("for exponent with leading zeroes", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.decode(",1.23e002\r\n");
+					expect(result).toBe(1.23e2);
+				});
+			});
+
+			test.effect("for exponent with negative sign and leading zeroes", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.decode(",1.23e-002\r\n");
+					expect(result).toBe(1.23e-2);
+				});
+			});
+
+			test.effect("for negative number with negative exponent", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.decode(",-12.34e-002\r\n");
+					expect(result).toBe(-12.34e-2);
+				});
+			});
+
+			test.effect("for negative number with positive exponent", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.decode(",-12.34e+002\r\n");
+					expect(result).toBe(-12.34e2);
 				});
 			});
 		});
@@ -276,8 +304,29 @@ describe("Double", () => {
 
 			test.effect("for exponent", () => {
 				return Effect.gen(function* () {
-					const result = yield* $double.encode(123 ** 100);
-					expect(result).toBe(",123e100\r\n");
+					const result = yield* $double.encode(123e10);
+					expect(result).toBe(",123e10\r\n");
+				});
+			});
+
+			test.effect("for negative exponent", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.encode(1.23e-2);
+					expect(result).toBe(",1.23e-2\r\n");
+				});
+			});
+
+			test.effect("for negative number with negative exponent", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.encode(-0.1234e-10);
+					expect(result).toBe(",-0.1234e-10\r\n");
+				});
+			});
+
+			test.effect("for negative number with positive exponent", () => {
+				return Effect.gen(function* () {
+					const result = yield* $double.encode(-1234e10);
+					expect(result).toBe(",-1234e10\r\n");
 				});
 			});
 
