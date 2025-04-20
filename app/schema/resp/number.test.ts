@@ -3,7 +3,7 @@ import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
 import { createSchemaHelpers, expectParseError } from "../test";
-import { Double, Integer } from "./number";
+import { BigNumber, Double, Integer } from "./number";
 
 describe("Integer", () => {
 	const $int = createSchemaHelpers(Integer);
@@ -409,6 +409,142 @@ describe("Double", () => {
 			test.effect("when input is undefined", () => {
 				return Effect.gen(function* () {
 					const result = yield* $double.encodeFail(undefined);
+					expectParseError(result);
+				});
+			});
+		});
+	});
+});
+
+describe("BigNumber", () => {
+	const $bigNumber = createSchemaHelpers(BigNumber);
+	const BigIntValue = 3492890328409238509324850943850943825024385n;
+
+	describe("with valid data", () => {
+		describe("is decoded", () => {
+			test.effect("for positive bigint", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decode(`(${BigIntValue}\r\n`);
+					expect(result).toBe(BigIntValue);
+				});
+			});
+
+			test.effect("for negative bigint", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decode(`(-${BigIntValue}\r\n`);
+					expect(result).toBe(-BigIntValue);
+				});
+			});
+
+			test.effect("for zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decode("(0\r\n");
+					expect(result).toBe(0n);
+				});
+			});
+
+			test.effect("for positive zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decode("(+0\r\n");
+					expect(result).toBe(0n);
+				});
+			});
+
+			test.effect("for negative zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decode("(-0\r\n");
+					expect(result).toBe(0n);
+				});
+			});
+		});
+
+		describe("is encoded", () => {
+			test.effect("for positive bigint", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encode(BigIntValue);
+					expect(result).toBe(`(${BigIntValue}\r\n`);
+				});
+			});
+
+			test.effect("for negative bigint", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encode(-BigIntValue);
+					expect(result).toBe(`(-${BigIntValue}\r\n`);
+				});
+			});
+
+			test.effect("for zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encode(0n);
+					expect(result).toBe("(0\r\n");
+				});
+			});
+		});
+	});
+
+	describe("with invalid data", () => {
+		describe("is not decoded", () => {
+			test.effect("when doesnt conform to schema", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decodeFail("123");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when doesnt end with crlf", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decodeFail("(123");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when has invalid characters", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decodeFail("(123a\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when is decimal", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decodeFail("(123.45\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing parenthesis", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.decodeFail("123\r\n");
+					expectParseError(result);
+				});
+			});
+		});
+
+		describe("is not encoded", () => {
+			test.effect("when input is string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encodeFail("abc");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when input is null", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encodeFail(null);
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when input is undefined", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encodeFail(undefined);
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when input is decimal", () => {
+				return Effect.gen(function* () {
+					const result = yield* $bigNumber.encodeFail(123.45);
 					expectParseError(result);
 				});
 			});
