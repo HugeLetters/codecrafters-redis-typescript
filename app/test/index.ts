@@ -1,4 +1,4 @@
-import { green, red } from "$/stdout";
+import { green, red } from "$/utils/stdout";
 import { inspect } from "bun";
 import { expect } from "bun:test";
 import { Effect, Equal, flow } from "effect";
