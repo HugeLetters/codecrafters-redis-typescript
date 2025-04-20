@@ -19,6 +19,10 @@ export const FractionFromDigitString = DigitString.pipe(
 			return `0.${x}`;
 		},
 		encode(x) {
+			if (x === "0") {
+				return x;
+			}
+
 			return x.slice(2);
 		},
 		strict: false,
