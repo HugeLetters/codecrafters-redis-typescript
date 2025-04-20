@@ -47,7 +47,7 @@ export const SimpleErrorFromString = Schema.TemplateLiteralParser(
 	}),
 );
 
-const BulkStringPrefix = "$";
+export const BulkStringPrefix = "$";
 const BulkStringRegex = /^(\d+)\r\n([\s\S]*)$/;
 const parseIntFromString = ParseResult.decode(IntegerFromString);
 const BulkStringTemplate = Schema.TemplateLiteralParser(

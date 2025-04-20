@@ -1,10 +1,14 @@
 import { Schema } from "effect";
 import { CRLF } from "./constants";
+import { BulkStringPrefix } from "./string";
+import { ArrayPrefix } from "./array";
 
 const NullPrefix = "_";
-const NullLiteral = `${NullPrefix}${CRLF}`;
-// todo - add null string and array
-export const Null = Schema.transformLiteral(NullLiteral, null);
+export const Null = Schema.transformLiterals(
+	[`${NullPrefix}${CRLF}`, null],
+	[`${BulkStringPrefix}-1${CRLF}`, null],
+	[`${ArrayPrefix}-1${CRLF}`, null],
+);
 
 const BooleanPrefix = "#";
 const True = "t";

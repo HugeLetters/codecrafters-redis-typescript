@@ -1,8 +1,8 @@
-import { test } from "$/test";
 import { describe, expect } from "bun:test";
+import { test } from "$/test";
 import { Effect } from "effect";
-import { Boolean_, Null } from "./primitives";
 import { createSchemaHelpers, expectParseError } from "../test";
+import { Boolean_, Null } from "./primitives";
 
 const Invalid = "invalid";
 
@@ -10,19 +10,33 @@ describe("null", () => {
 	const $null = createSchemaHelpers(Null);
 
 	describe("with valid data", () => {
-		const EncodedNull = "_\r\n";
+		describe("is decoded", () => {
+			test.effect("for null", () => {
+				return Effect.gen(function* () {
+					const result = yield* $null.decode("_\r\n");
+					expect(result).toBe(null);
+				});
+			});
 
-		test.effect("is decoded", () => {
-			return Effect.gen(function* () {
-				const result = yield* $null.decode(EncodedNull);
-				expect(result).toBe(null);
+			test.effect("for null nulk string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $null.decode("$-1\r\n");
+					expect(result).toBe(null);
+				});
+			});
+
+			test.effect("for null array", () => {
+				return Effect.gen(function* () {
+					const result = yield* $null.decode("*-1\r\n");
+					expect(result).toBe(null);
+				});
 			});
 		});
 
 		test.effect("is encoded", () => {
 			return Effect.gen(function* () {
 				const result = yield* $null.encode(null);
-				expect(result).toBe(EncodedNull);
+				expect(result).toBe("_\r\n");
 			});
 		});
 	});
