@@ -1,5 +1,5 @@
 import { BigDecimal, Schema } from "effect";
-import { DigitString, ImplicitNumberSign, MinusSign, PlusSign } from "./string";
+import { DigitString } from "./string";
 
 export const Integer = Schema.Int.pipe(Schema.brand("INT"));
 
@@ -27,15 +27,6 @@ export const FractionFromDigitString = DigitString.pipe(
 		strict: false,
 	}),
 	Schema.compose(Fraction),
-);
-
-export const MultiplierFromNumberSign = Schema.transformLiterals(
-	[PlusSign, 1],
-	[MinusSign, -1],
-);
-
-export const MultiplierFromImplicitNumberSign = ImplicitNumberSign.pipe(
-	Schema.compose(MultiplierFromNumberSign),
 );
 
 export const NaN_ = Schema.declare(
