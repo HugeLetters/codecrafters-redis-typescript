@@ -2,10 +2,11 @@
  * Port of `@effect/vitest` library
  */
 
-import * as V from "bun:test";
+import * as BunTest from "bun:test";
 import {
 	Arbitrary,
 	Cause,
+	Console,
 	Duration,
 	Effect,
 	Exit,
@@ -22,8 +23,8 @@ import type { NonEmptyArray } from "effect/Array";
 import { flow, identity } from "effect/Function";
 import { isObject } from "effect/Predicate";
 
-export namespace Buntest {
-	type API = V.Test;
+export namespace EffectBunTest {
+	type API = BunTest.Test;
 
 	export type TestFunction<A, E, R, TestArgs extends Array<unknown>> = (
 		...args: TestArgs
@@ -32,7 +33,7 @@ export namespace Buntest {
 	export type Test<R> = <A, E>(
 		name: string,
 		self: TestFunction<A, E, R, []>,
-		timeout?: number | V.TestOptions,
+		timeout?: number | BunTest.TestOptions,
 	) => void;
 
 	type Arbitrary = Schema.Schema.Any | FastCheck.Arbitrary<unknown>;
@@ -47,19 +48,19 @@ export namespace Buntest {
 		[K in keyof TArbs]: ArbitraryType<TArbs[K]>;
 	};
 
-	export interface Tester<R> extends Buntest.Test<R> {
-		skip: Buntest.Test<R>;
-		skipIf: (condition: boolean) => Buntest.Test<R>;
-		runIf: (condition: boolean) => Buntest.Test<R>;
-		only: Buntest.Test<R>;
+	export interface Tester<R> extends EffectBunTest.Test<R> {
+		skip: EffectBunTest.Test<R>;
+		skipIf: (condition: boolean) => EffectBunTest.Test<R>;
+		runIf: (condition: boolean) => EffectBunTest.Test<R>;
+		only: EffectBunTest.Test<R>;
 		each: <T>(
 			cases: NonEmptyArray<T>,
 		) => <A, E>(
 			name: string,
 			self: TestFunction<A, E, R, Array<T>>,
-			timeout?: number | V.TestOptions,
+			timeout?: number | BunTest.TestOptions,
 		) => void;
-		fails: Buntest.Test<R>;
+		fails: EffectBunTest.Test<R>;
 
 		prop: <const TArbs extends Arbitraries, A, E>(
 			name: string,
@@ -67,19 +68,19 @@ export namespace Buntest {
 			self: TestFunction<A, E, R, [ArbitrariesType<TArbs>]>,
 			timeout?:
 				| number
-				| (V.TestOptions & {
+				| (BunTest.TestOptions & {
 						fastCheck?: FastCheck.Parameters<ArbitrariesType<TArbs>>;
 				  }),
 		) => void;
 	}
 
 	export interface MethodsNonLive<R = never> extends API {
-		readonly effect: Buntest.Tester<TestServices.TestServices | R>;
+		readonly effect: EffectBunTest.Tester<TestServices.TestServices | R>;
 		readonly flakyTest: <A, E, R2>(
 			self: Effect.Effect<A, E, R2>,
 			timeout?: Duration.DurationInput,
 		) => Effect.Effect<A, never, R2>;
-		readonly scoped: Buntest.Tester<
+		readonly scoped: EffectBunTest.Tester<
 			TestServices.TestServices | Scope.Scope | R
 		>;
 		/**
@@ -128,7 +129,7 @@ export namespace Buntest {
 			},
 		) => (
 			name: string,
-			f: (test: Buntest.MethodsNonLive<R | R2>) => void,
+			f: (test: EffectBunTest.MethodsNonLive<R | R2>) => void,
 		) => void;
 
 		readonly prop: <const Arbs extends Arbitraries>(
@@ -137,15 +138,15 @@ export namespace Buntest {
 			self: (properties: ArbitrariesType<Arbs>) => void,
 			timeout?:
 				| number
-				| (V.TestOptions & {
+				| (BunTest.TestOptions & {
 						fastCheck?: FastCheck.Parameters<ArbitrariesType<Arbs>>;
 				  }),
 		) => void;
 	}
 
 	export interface Methods<R = never> extends MethodsNonLive<R> {
-		readonly live: Buntest.Tester<R>;
-		readonly scopedLive: Buntest.Tester<Scope.Scope | R>;
+		readonly live: EffectBunTest.Tester<R>;
+		readonly scopedLive: EffectBunTest.Tester<Scope.Scope | R>;
 	}
 }
 
@@ -156,9 +157,13 @@ function runTestPromise<E, A>(effect: Effect.Effect<A, E>) {
 			return () => exit.value;
 		}
 
-		const errors = Cause.prettyErrors(exit.cause);
+		const [mainError, ...restErrors] = Cause.prettyErrors(exit.cause);
+		for (const err of restErrors) {
+			yield* Console.error(err);
+		}
+
 		return () => {
-			throw errors;
+			throw mainError;
 		};
 	})
 		.pipe(Effect.runPromise)
@@ -169,22 +174,22 @@ const TestEnv = TestContext.TestContext.pipe(
 	Layer.provide(Logger.remove(Logger.defaultLogger)),
 );
 
-function testOptions(timeout?: number | V.TestOptions) {
+function testOptions(timeout?: number | BunTest.TestOptions) {
 	return typeof timeout === "number" ? { timeout } : (timeout ?? {});
 }
 
 function makeTester<R>(
 	mapEffect: <A, E>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, never>,
-	base = V.test,
+	base = BunTest.test,
 ) {
 	function run<A, E, TestArgs extends Array<unknown>>(
 		args: TestArgs,
-		self: Buntest.TestFunction<A, E, R, TestArgs>,
+		self: EffectBunTest.TestFunction<A, E, R, TestArgs>,
 	) {
 		return Effect.suspend(() => self(...args)).pipe(mapEffect, runTestPromise);
 	}
 
-	const test: Buntest.Tester<R> = (name, self, timeout) => {
+	const test: EffectBunTest.Tester<R> = (name, self, timeout) => {
 		return base(name, () => run([], self), testOptions(timeout));
 	};
 
@@ -213,7 +218,7 @@ function makeTester<R>(
 	};
 
 	test.only = function (name, self) {
-		return V.test.only(name, () => run([], self));
+		return BunTest.test.only(name, () => run([], self));
 	};
 
 	test.each = function (cases) {
@@ -227,7 +232,7 @@ function makeTester<R>(
 	};
 
 	test.fails = function (name, self) {
-		return V.test.failing(name, () => run([], self));
+		return BunTest.test.failing(name, () => run([], self));
 	};
 
 	test.prop = function (name, arbitraries, self, timeout) {
@@ -260,7 +265,12 @@ function makeTester<R>(
 	return test;
 }
 
-const prop: Buntest.Methods["prop"] = (name, arbitraries, self, timeout) => {
+const prop: EffectBunTest.Methods["prop"] = (
+	name,
+	arbitraries,
+	self,
+	timeout,
+) => {
 	const arbs = FastCheck.record(
 		Object.entries(arbitraries).reduce(
 			function (result, [key, arb]) {
@@ -271,7 +281,7 @@ const prop: Buntest.Methods["prop"] = (name, arbitraries, self, timeout) => {
 		),
 	);
 
-	return V.test(
+	return BunTest.test(
 		name,
 		() => {
 			const prop = FastCheck.property(arbs, (as) => self(as as never));
@@ -293,7 +303,7 @@ function layer<R, E>(
 ) {
 	return function (
 		name: string,
-		fn: (test: Buntest.MethodsNonLive<R>) => void,
+		fn: (test: EffectBunTest.MethodsNonLive<R>) => void,
 	) {
 		const withTestEnv = Layer.provideMerge(layer_, TestEnv);
 		const memoMap = options?.memoMap ?? Effect.runSync(Layer.makeMemoMap);
@@ -305,7 +315,7 @@ function layer<R, E>(
 			Effect.runSync,
 		);
 
-		function makeTest(test: V.Test): Buntest.MethodsNonLive<R> {
+		function makeTest(test: BunTest.Test): EffectBunTest.MethodsNonLive<R> {
 			return Object.assign(test, {
 				effect: makeTester<TestServices.TestServices | R>(
 					(effect) =>
@@ -339,10 +349,10 @@ function layer<R, E>(
 			});
 		}
 
-		V.beforeAll(() => runTestPromise(Effect.asVoid(runtimeEffect)));
-		V.afterAll(() => runTestPromise(Scope.close(scope, Exit.void)));
-		return V.describe(name, () => {
-			return fn(makeTest(V.test));
+		BunTest.beforeAll(() => runTestPromise(Effect.asVoid(runtimeEffect)));
+		BunTest.afterAll(() => runTestPromise(Scope.close(scope, Exit.void)));
+		return BunTest.describe(name, () => {
+			return fn(makeTest(BunTest.test));
 		});
 	};
 }
@@ -363,7 +373,7 @@ function flakyTest<A, E, R>(
 	);
 }
 
-function makeMethods(test: V.Test): Buntest.Methods {
+function makeMethods(test: BunTest.Test): EffectBunTest.Methods {
 	return Object.assign(test, {
 		effect: makeTester<TestServices.TestServices>(
 			Effect.provide(TestEnv),
@@ -381,4 +391,4 @@ function makeMethods(test: V.Test): Buntest.Methods {
 	});
 }
 
-export const test = makeMethods(V.test);
+export const test = makeMethods(BunTest.test);
