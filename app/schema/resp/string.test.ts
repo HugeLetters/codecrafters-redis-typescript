@@ -2,8 +2,8 @@ import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
 import {
-	SimpleError,
-	SimpleErrorFromString,
+	Error_,
+	ErrorFromSimpleString,
 	SimpleString,
 	BulkString,
 } from "./string";
@@ -55,12 +55,12 @@ describe("SimpleString", () => {
 	});
 });
 
-describe("SimpleErrorFromString", () => {
-	const $error = createSchemaHelpers(SimpleErrorFromString);
+describe("ErrorFromSimpleString", () => {
+	const $error = createSchemaHelpers(ErrorFromSimpleString);
 
 	describe("with valid data", () => {
 		const EncodedError = "-Error message\r\n";
-		const DecodedError = new SimpleError({ message: "Error message" });
+		const DecodedError = new Error_({ message: "Error message" });
 
 		test.effect("is decoded", () => {
 			return Effect.gen(function* () {

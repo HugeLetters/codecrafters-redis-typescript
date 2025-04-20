@@ -22,23 +22,20 @@ export const SimpleString = Schema.TemplateLiteralParser(
 	}),
 );
 
-export class SimpleError extends Schema.TaggedError<SimpleError>()(
-	"SimpleError",
-	{
-		message: Schema.String,
-	},
-) {}
+export class Error_ extends Schema.TaggedError<Error_>()("RespError", {
+	message: Schema.String,
+}) {}
 
 const SimpleErrorPrefix = "-";
-export const SimpleErrorFromString = Schema.TemplateLiteralParser(
+export const ErrorFromSimpleString = Schema.TemplateLiteralParser(
 	SimpleErrorPrefix,
 	CleanString,
 	CRLF,
 ).pipe(
-	Schema.transform(SimpleError, {
+	Schema.transform(Error_, {
 		decode(template) {
 			const message = template[1];
-			const { _tag } = SimpleError;
+			const { _tag } = Error_;
 			return { _tag, message };
 		},
 		encode(err) {
@@ -47,63 +44,89 @@ export const SimpleErrorFromString = Schema.TemplateLiteralParser(
 	}),
 );
 
-export const BulkStringPrefix = "$";
 const BulkStringRegex = /^(\d+)\r\n([\s\S]*)$/;
 const parseIntFromString = ParseResult.decode(IntegerFromString);
+const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
+	decode(input, _, ast) {
+		return Effect.gen(function* () {
+			const result = BulkStringRegex.exec(input);
+			if (result === null) {
+				return yield* ParseResult.fail(
+					new ParseResult.Type(
+						ast,
+						input,
+						`Expected string matching ${green("${integer}\\r\\n${string}")}. Received ${red(JSON.stringify(input))}`,
+					),
+				);
+			}
+
+			const [match, length, string = ""] = result;
+			if (length === undefined) {
+				return yield* ParseResult.fail(
+					new ParseResult.Type(
+						ast,
+						input,
+						`Expected string matching ${green("${integer}")}\\r\\n\${string}. Received ${red(JSON.stringify(match))}`,
+					),
+				);
+			}
+
+			const expectedLength = yield* parseIntFromString(length);
+			const actualLength = string.length;
+			if (string.length !== expectedLength) {
+				return yield* ParseResult.fail(
+					new ParseResult.Type(
+						ast,
+						string,
+						`Expected string of length ${green(expectedLength)}. Received ${red(JSON.stringify(string))} of length ${red(actualLength)}`,
+					),
+				);
+			}
+
+			return string;
+		});
+	},
+	encode(s) {
+		return ParseResult.succeed(`${s.length}${CRLF}${s}`);
+	},
+});
+
+export const BulkStringPrefix = "$";
 const BulkStringTemplate = Schema.TemplateLiteralParser(
 	BulkStringPrefix,
 	Schema.String,
 	CRLF,
 );
 export const BulkString = BulkStringTemplate.pipe(
-	Schema.transformOrFail(Schema.String, {
-		decode(template, _, ast) {
-			return Effect.gen(function* () {
-				const input = template[1];
-				const result = BulkStringRegex.exec(input);
-				if (result === null) {
-					return yield* ParseResult.fail(
-						new ParseResult.Type(
-							ast,
-							input,
-							`Expected string matching ${green("${integer}\\r\\n${string}")}. Received ${red(JSON.stringify(input))}`,
-						),
-					);
-				}
-
-				const [match, length, string = ""] = result;
-				if (length === undefined) {
-					return yield* ParseResult.fail(
-						new ParseResult.Type(
-							ast,
-							input,
-							`Expected string matching ${green("${integer}")}\\r\\n\${string}. Received ${red(JSON.stringify(match))}`,
-						),
-					);
-				}
-
-				const expectedLength = yield* parseIntFromString(length);
-				const actualLength = string.length;
-				if (string.length !== expectedLength) {
-					return yield* ParseResult.fail(
-						new ParseResult.Type(
-							ast,
-							string,
-							`Expected string of length ${green(expectedLength)}. Received ${red(string)} of length ${red(actualLength)}`,
-						),
-					);
-				}
-
-				return string;
-			});
+	Schema.transform(BulkStringBase, {
+		decode(template) {
+			return template[1];
 		},
 		encode(s) {
 			type Result = typeof BulkStringTemplate.Type;
-			return ParseResult.succeed<Result>([
-				BulkStringPrefix,
-				`${s.length}${CRLF}${s}`,
-				CRLF,
-			]);
+			const result: Result = [BulkStringPrefix, s, CRLF];
+			return result;
+		},
+	}),
+);
+
+const BulkErrorPrefix = "!";
+const BulkErrorTemplate = Schema.TemplateLiteralParser(
+	BulkErrorPrefix,
+	Schema.String.pipe(Schema.compose(BulkStringBase)),
+	CRLF,
+);
+export const ErrorFromBulkString = BulkErrorTemplate.pipe(
+	Schema.transform(Error_, {
+		decode(template) {
+			const message = template[1];
+			const { _tag } = Error_;
+			return { _tag, message };
+		},
+		encode(error) {
+			type Result = typeof BulkErrorTemplate.Type;
+			const result: Result = [BulkErrorPrefix, error.message, CRLF];
+			return result;
 		},
 	}),
 );
