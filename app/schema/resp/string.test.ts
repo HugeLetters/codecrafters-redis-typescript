@@ -6,6 +6,7 @@ import {
 	ErrorFromSimpleString,
 	SimpleString,
 	BulkString,
+	ErrorFromBulkString,
 } from "./string";
 import { createSchemaHelpers, expectParseError } from "../test";
 
@@ -250,6 +251,146 @@ describe("BulkString", () => {
 			test.effect("when input is number", () => {
 				return Effect.gen(function* () {
 					const result = yield* $string.encodeFail(123);
+					expectParseError(result);
+				});
+			});
+		});
+	});
+});
+
+describe("ErrorFromBulkString", () => {
+	const $error = createSchemaHelpers(ErrorFromBulkString);
+
+	describe("with valid data", () => {
+		describe("is decoded", () => {
+			test.effect("with error message", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decode("!5\r\nerror\r\n");
+					expect(result).toStrictEqual(new Error_({ message: "error" }));
+				});
+			});
+
+			test.effect("with empty error message", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decode("!0\r\n\r\n");
+					expect(result).toStrictEqual(new Error_({ message: "" }));
+				});
+			});
+
+			test.effect("with crlf in error message", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decode("!12\r\nhello\r\nworld\r\n");
+					expect(result).toStrictEqual(
+						new Error_({ message: "hello\r\nworld" }),
+					);
+				});
+			});
+
+			test.effect("with crlf at start", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decode("!7\r\n\r\nerror\r\n");
+					expect(result).toStrictEqual(new Error_({ message: "\r\nerror" }));
+				});
+			});
+
+			test.effect("with crlf at end", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decode("!7\r\nerror\r\n\r\n");
+					expect(result).toStrictEqual(new Error_({ message: "error\r\n" }));
+				});
+			});
+		});
+
+		describe("is encoded", () => {
+			test.effect("with error message", () => {
+				return Effect.gen(function* () {
+					const error = new Error_({ message: "error" });
+					const result = yield* $error.encode(error);
+					expect(result).toBe("!5\r\nerror\r\n");
+				});
+			});
+
+			test.effect("with empty error message", () => {
+				return Effect.gen(function* () {
+					const error = new Error_({ message: "" });
+					const result = yield* $error.encode(error);
+					expect(result).toBe("!0\r\n\r\n");
+				});
+			});
+
+			test.effect("with crlf in error message", () => {
+				return Effect.gen(function* () {
+					const error = new Error_({ message: "hello\r\nworld" });
+					const result = yield* $error.encode(error);
+					expect(result).toBe("!12\r\nhello\r\nworld\r\n");
+				});
+			});
+
+			test.effect("with crlf at start", () => {
+				return Effect.gen(function* () {
+					const error = new Error_({ message: "\r\nhello" });
+					const result = yield* $error.encode(error);
+					expect(result).toBe("!7\r\n\r\nhello\r\n");
+				});
+			});
+
+			test.effect("with crlf at end", () => {
+				return Effect.gen(function* () {
+					const error = new Error_({ message: "error\r\n" });
+					const result = yield* $error.encode(error);
+					expect(result).toBe("!7\r\nerror\r\n\r\n");
+				});
+			});
+		});
+	});
+
+	describe("with invalid data", () => {
+		describe("is not decoded", () => {
+			test.effect("when doesnt conform to schema", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("invalid");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when length is incorrect", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("!6\r\nerror\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing data", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("!21\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing initial !", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("5\r\nerror\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing trailing CRLF", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("!21\r\nerror");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when length is negative", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("!-1\r\nerror\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when length is not a number", () => {
+				return Effect.gen(function* () {
+					const result = yield* $error.decodeFail("!abc\r\nerror\r\n");
 					expectParseError(result);
 				});
 			});
