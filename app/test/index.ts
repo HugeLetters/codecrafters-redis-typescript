@@ -1,6 +1,8 @@
-import { fail } from "node:assert/strict";
+import { green, red } from "$/stdout";
 import { inspect } from "bun";
-import { Effect, flow } from "effect";
+import { expect } from "bun:test";
+import { Effect, Equal, flow } from "effect";
+import { fail } from "node:assert/strict";
 
 export { test } from "./effect-buntest";
 
@@ -13,3 +15,8 @@ const unexpectedSuccess = flow(
 	(v) => `Expected effect to fail. Received: ${v}`,
 	(m) => fail(m),
 );
+
+export function expectEquivalence<T>(self: T, that: T) {
+	const message = `Expected ${red(self)} to equal ${green(that)}.`;
+	return expect(Equal.equals(self, that), message).toBeTrue();
+}
