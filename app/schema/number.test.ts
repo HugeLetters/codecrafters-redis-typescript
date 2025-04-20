@@ -1,26 +1,40 @@
+import { expectEquivalence, test } from "$/test";
 import { describe, expect } from "bun:test";
-import { test } from "$/test";
-import { Effect } from "effect";
+import { BigDecimal, Effect, flow } from "effect";
 import { Fraction, FractionFromDigitString } from "./number";
 import { createSchemaHelpers, expectParseError } from "./test";
 
 describe("FractionFromDigitString", () => {
 	const $fraction = createSchemaHelpers(FractionFromDigitString);
-	const f = Fraction.make;
+	const f = flow(BigDecimal.unsafeFromNumber, Fraction.make);
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {
 			test.effect("for normal digits", () => {
 				return Effect.gen(function* () {
 					const result = yield* $fraction.decode("25");
-					expect(result).toBe(f(0.25));
+					expectEquivalence(result, f(0.25));
 				});
 			});
 
 			test.effect("for leading zeros", () => {
 				return Effect.gen(function* () {
 					const result = yield* $fraction.decode("0025");
-					expect(result).toBe(f(0.0025));
+					expectEquivalence(result, f(0.0025));
+				});
+			});
+
+			test.effect("for many leading zeros", () => {
+				return Effect.gen(function* () {
+					const result = yield* $fraction.decode(`${"0".repeat(100)}25`);
+					expectEquivalence(result, f(0.25e-100));
+				});
+			});
+
+			test.effect("for zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $fraction.decode("0");
+					expectEquivalence(result, f(0));
 				});
 			});
 		});
@@ -37,6 +51,20 @@ describe("FractionFromDigitString", () => {
 				return Effect.gen(function* () {
 					const result = yield* $fraction.encode(f(0.0025));
 					expect(result).toBe("0025");
+				});
+			});
+
+			test.effect("for very small fraction", () => {
+				return Effect.gen(function* () {
+					const result = yield* $fraction.encode(f(0.25e-100));
+					expect(result).toBe(`${"0".repeat(100)}25`);
+				});
+			});
+
+			test.effect("for zero", () => {
+				return Effect.gen(function* () {
+					const result = yield* $fraction.encode(f(0));
+					expect(result).toBe("0");
 				});
 			});
 		});

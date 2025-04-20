@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { BigDecimal, Schema } from "effect";
 import { DigitString, ImplicitNumberSign, MinusSign, PlusSign } from "./string";
 
 export const Integer = Schema.Int.pipe(Schema.brand("INT"));
@@ -7,23 +7,22 @@ export const IntegerFromString = Schema.NumberFromString.pipe(
 	Schema.compose(Integer),
 );
 
-export const Fraction = Schema.Number.pipe(
-	Schema.greaterThanOrEqualTo(0),
-	Schema.lessThan(1),
+export const Fraction = Schema.BigDecimalFromSelf.pipe(
+	Schema.greaterThanOrEqualToBigDecimal(BigDecimal.fromBigInt(0n)),
+	Schema.lessThanBigDecimal(BigDecimal.fromBigInt(1n)),
 	Schema.brand("Fraction"),
 );
 
 export const FractionFromDigitString = DigitString.pipe(
-	Schema.transform(Schema.NumberFromString, {
-		decode(x) {
-			return `0.${x}`;
+	Schema.transform(Schema.BigDecimal, {
+		decode(digits) {
+			return `0.${digits}`;
 		},
-		encode(x) {
-			if (x === "0") {
-				return x;
-			}
-
-			return x.slice(2);
+		encode(_, dec) {
+			const significant = dec.value.toString();
+			const zeroesCount = dec.scale - significant.length;
+			const leading = "0".repeat(Math.max(0, zeroesCount));
+			return `${leading}${significant}`;
 		},
 		strict: false,
 	}),
