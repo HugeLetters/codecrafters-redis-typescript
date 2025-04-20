@@ -1,5 +1,7 @@
 import { notPattern } from "$/schema/string";
-import { Schema } from "effect";
+import { green, red } from "$/utils/stdout";
+import { Effect, ParseResult, Schema } from "effect";
+import { IntegerFromString } from "../number";
 import { CRLF } from "./constants";
 
 const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
@@ -45,4 +47,63 @@ export const SimpleErrorFromString = Schema.TemplateLiteralParser(
 	}),
 );
 
-export const BulkString = Schema.Never;
+const BulkStringPrefix = "$";
+const BulkStringRegex = /^(\d+)\r\n([\s\S]*)$/;
+const parseIntFromString = ParseResult.decode(IntegerFromString);
+const BulkStringTemplate = Schema.TemplateLiteralParser(
+	BulkStringPrefix,
+	Schema.String,
+	CRLF,
+);
+export const BulkString = BulkStringTemplate.pipe(
+	Schema.transformOrFail(Schema.String, {
+		decode(template, _, ast) {
+			return Effect.gen(function* () {
+				const input = template[1];
+				const result = BulkStringRegex.exec(input);
+				if (result === null) {
+					return yield* ParseResult.fail(
+						new ParseResult.Type(
+							ast,
+							input,
+							`Expected string matching ${green("${integer}\\r\\n${string}")}. Received ${red(JSON.stringify(input))}`,
+						),
+					);
+				}
+
+				const [match, length, string = ""] = result;
+				if (length === undefined) {
+					return yield* ParseResult.fail(
+						new ParseResult.Type(
+							ast,
+							input,
+							`Expected string matching ${green("${integer}")}\\r\\n\${string}. Received ${red(JSON.stringify(match))}`,
+						),
+					);
+				}
+
+				const expectedLength = yield* parseIntFromString(length);
+				const actualLength = string.length;
+				if (string.length !== expectedLength) {
+					return yield* ParseResult.fail(
+						new ParseResult.Type(
+							ast,
+							string,
+							`Expected string of length ${green(expectedLength)}. Received ${red(string)} of length ${red(actualLength)}`,
+						),
+					);
+				}
+
+				return string;
+			});
+		},
+		encode(s) {
+			type Result = typeof BulkStringTemplate.Type;
+			return ParseResult.succeed<Result>([
+				BulkStringPrefix,
+				`${s.length}${CRLF}${s}`,
+				CRLF,
+			]);
+		},
+	}),
+);
