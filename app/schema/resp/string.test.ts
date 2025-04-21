@@ -1,14 +1,15 @@
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
+import { createSchemaHelpers, expectParseError } from "../test";
 import {
-	Error_,
-	ErrorFromSimpleString,
-	SimpleString,
 	BulkString,
 	ErrorFromBulkString,
+	ErrorFromSimpleString,
+	Error_,
+	SimpleString,
+	VerbatimString,
 } from "./string";
-import { createSchemaHelpers, expectParseError } from "../test";
 
 describe("SimpleString", () => {
 	const $string = createSchemaHelpers(SimpleString);
@@ -391,6 +392,177 @@ describe("ErrorFromBulkString", () => {
 			test.effect("when length is not a number", () => {
 				return Effect.gen(function* () {
 					const result = yield* $error.decodeFail("!abc\r\nerror\r\n");
+					expectParseError(result);
+				});
+			});
+		});
+	});
+});
+
+describe("VerbatimString", () => {
+	const $string = createSchemaHelpers(VerbatimString);
+
+	describe("with valid data", () => {
+		describe("is decoded", () => {
+			test.effect("with string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decode("=9\r\ntxt:hello\r\n");
+					expect(result).toStrictEqual({ encoding: "txt", text: "hello" });
+				});
+			});
+
+			test.effect("with empty string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decode("=4\r\ntxt:\r\n");
+					expect(result).toStrictEqual({ encoding: "txt", text: "" });
+				});
+			});
+
+			test.effect("with crlf in string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decode("=16\r\ntxt:hello\r\nworld\r\n");
+					expect(result).toStrictEqual({
+						encoding: "txt",
+						text: "hello\r\nworld",
+					});
+				});
+			});
+
+			test.effect("with crlf at start", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decode("=11\r\ntxt:\r\nhello\r\n");
+					expect(result).toStrictEqual({ encoding: "txt", text: "\r\nhello" });
+				});
+			});
+
+			test.effect("with crlf at end", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decode("=11\r\ntxt:hello\r\n\r\n");
+					expect(result).toStrictEqual({ encoding: "txt", text: "hello\r\n" });
+				});
+			});
+		});
+
+		describe("is encoded", () => {
+			test.effect("with string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encode({
+						encoding: "txt",
+						text: "hello",
+					});
+					expect(result).toBe("=9\r\ntxt:hello\r\n");
+				});
+			});
+
+			test.effect("with empty string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encode({ encoding: "txt", text: "" });
+					expect(result).toBe("=4\r\ntxt:\r\n");
+				});
+			});
+
+			test.effect("with crlf in string", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encode({
+						encoding: "txt",
+						text: "hello\r\nworld",
+					});
+					expect(result).toBe("=16\r\ntxt:hello\r\nworld\r\n");
+				});
+			});
+
+			test.effect("with crlf at start", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encode({
+						encoding: "txt",
+						text: "\r\nhello",
+					});
+					expect(result).toBe("=11\r\ntxt:\r\nhello\r\n");
+				});
+			});
+
+			test.effect("with crlf at end", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encode({
+						encoding: "txt",
+						text: "hello\r\n",
+					});
+					expect(result).toBe("=11\r\ntxt:hello\r\n\r\n");
+				});
+			});
+		});
+	});
+
+	describe("with invalid data", () => {
+		describe("is not decoded", () => {
+			test.effect("when doesnt conform to schema", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("invalid");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when length is incorrect", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("=8\r\ntxt:hello\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing data", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("=15\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing initial =", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("9\r\ntxt:hello\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing trailing CRLF", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("=9\r\ntxt:hello");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when encoding is not 3 chars", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("=10\r\ntext:hello\r\n");
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when missing colon", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.decodeFail("=8\r\ntxthello\r\n");
+					expectParseError(result);
+				});
+			});
+		});
+
+		describe("is not encoded", () => {
+			test.effect("when input is null", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encodeFail(null);
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when input is undefined", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encodeFail(undefined);
+					expectParseError(result);
+				});
+			});
+
+			test.effect("when input is number", () => {
+				return Effect.gen(function* () {
+					const result = yield* $string.encodeFail(123);
 					expectParseError(result);
 				});
 			});
