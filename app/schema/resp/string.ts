@@ -3,6 +3,7 @@ import { green, red } from "$/utils/stdout";
 import { Effect, ParseResult, Schema } from "effect";
 import { IntegerFromString } from "../number";
 import { CRLF } from "./constants";
+import { parseFail } from "./utils";
 
 const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
 
@@ -51,36 +52,27 @@ const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
 		return Effect.gen(function* () {
 			const result = BulkStringRegex.exec(input);
 			if (result === null) {
-				return yield* ParseResult.fail(
-					new ParseResult.Type(
-						ast,
-						input,
-						`Expected string matching ${green("${integer}\\r\\n${string}")}. Received ${red(JSON.stringify(input))}`,
-					),
-				);
+				const expected = green("${integer}\\r\\n${string}");
+				const received = red(JSON.stringify(input));
+				const message = `Expected string matching: ${expected}. Received ${received}`;
+				return yield* parseFail(ast, input, message);
 			}
 
 			const [match, length, string = ""] = result;
 			if (length === undefined) {
-				return yield* ParseResult.fail(
-					new ParseResult.Type(
-						ast,
-						input,
-						`Expected string matching ${green("${integer}")}\\r\\n\${string}. Received ${red(JSON.stringify(match))}`,
-					),
-				);
+				const expected = green("${integer}");
+				const received = red(JSON.stringify(match));
+				const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
+				return yield* parseFail(ast, input, message);
 			}
 
 			const expectedLength = yield* parseIntFromString(length);
 			const actualLength = string.length;
 			if (string.length !== expectedLength) {
-				return yield* ParseResult.fail(
-					new ParseResult.Type(
-						ast,
-						string,
-						`Expected string of length ${green(expectedLength)}. Received ${red(JSON.stringify(string))} of length ${red(actualLength)}`,
-					),
-				);
+				const expected = green(expectedLength);
+				const received = red(JSON.stringify(string));
+				const message = `Expected string of length ${expected}. Received ${received} of length ${red(actualLength)}`;
+				return yield* parseFail(ast, string, message);
 			}
 
 			return string;
@@ -127,6 +119,67 @@ export const ErrorFromBulkString = BulkErrorTemplate.pipe(
 			type Result = typeof BulkErrorTemplate.Type;
 			const result: Result = [BulkErrorPrefix, error.message, CRLF];
 			return result;
+		},
+	}),
+);
+
+const VerbatimStringFromSelf = Schema.Struct({
+	encoding: Schema.String.pipe(Schema.length(3)),
+	text: Schema.String,
+});
+const VerbatimStringRegex = /^(\d+)\r\n([\s\S]{3}):([\s\S]*)$/;
+const VerbatimStringPrefix = "=";
+const VerbatimStringTemplate = Schema.TemplateLiteralParser(
+	VerbatimStringPrefix,
+	Schema.String,
+	CRLF,
+);
+export const VerbatimString = VerbatimStringTemplate.pipe(
+	Schema.transformOrFail(VerbatimStringFromSelf, {
+		decode(template, _, ast) {
+			const input = template[1];
+			return Effect.gen(function* () {
+				const result = VerbatimStringRegex.exec(input);
+				if (result === null) {
+					const expected = green("${length:int}\\r\\n${encoding:3}:${string}");
+					const received = red(JSON.stringify(input));
+					const message = `Expected string matching: ${expected}. Received ${received}`;
+					return yield* parseFail(ast, input, message);
+				}
+
+				const [match, length, encoding, text = ""] = result;
+				if (length === undefined) {
+					const expected = `${green("${length:int}")}\\r\\n\${encoding:3}:\${string}`;
+					const received = red(JSON.stringify(match));
+					const message = `Expected string to contain length: ${expected}. Received ${received}`;
+					return yield* parseFail(ast, input, message);
+				}
+
+				if (encoding === undefined) {
+					const expected = `\${length:int}\\r\\n${green("${encoding:3}")}:\${string}`;
+					const received = red(JSON.stringify(match));
+					const message = `Expected string to contain encoding: ${expected}. Received ${received}`;
+					return yield* parseFail(ast, input, message);
+				}
+
+				const expectedLength = yield* parseIntFromString(length);
+				const actualLength = encoding.length + 1 + text.length; // +1 for ":"
+				if (actualLength !== expectedLength) {
+					const expected = green(expectedLength);
+					const received = red(JSON.stringify(text));
+					const message = `Expected string of length ${expected}. Received ${received} of length ${red(actualLength)}`;
+					return yield* parseFail(ast, text, message);
+				}
+
+				return { encoding, text };
+			});
+		},
+		encode(str) {
+			const message = `${str.encoding}:${str.text}`;
+			const data = `${message.length}${CRLF}${message}`;
+			type Result = typeof VerbatimStringTemplate.Type;
+			const result: Result = [VerbatimStringPrefix, data, CRLF];
+			return ParseResult.succeed(result);
 		},
 	}),
 );
