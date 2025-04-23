@@ -7,6 +7,7 @@ const acquireServer = Effect.gen(function* () {
 	const config = yield* Config;
 
 	const server = Effect.async<Server>(function (resume) {
+		// todo - use bun api?
 		const server = createServer().listen(
 			{ host: config.HOST, port: config.PORT },
 			() => {
@@ -17,7 +18,7 @@ const acquireServer = Effect.gen(function* () {
 	});
 
 	return yield* Effect.acquireRelease(server, (s) =>
-		Effect.async((resume) => {
+		Effect.async<void>((resume) => {
 			const closeLog = Console.log("Server closed");
 			s.close(() => Effect.void.pipe(Effect.tap(closeLog), resume));
 		}),

@@ -2,39 +2,31 @@ import { Console, Data, Effect, Stream } from "effect";
 import type { Socket } from "node:net";
 
 export function acquireSocket(s: Socket) {
-	const connectedSocket = ensureConnectedSocket(s);
-
-	return Effect.acquireRelease(connectedSocket, (s) => {
-		if (s.readyState === "closed") {
-			return Console.log("Socket already closed");
-		}
-
-		return Effect.async((resume) => {
-			const closeLog = Console.log("Socket closed");
-			s.end(() => Effect.void.pipe(Effect.tap(closeLog), resume));
-		});
-	});
-}
-
-function ensureConnectedSocket(s: Socket) {
-	const result = Effect.succeed(s);
-	if (s.readyState === "open") {
-		const message = "Socket already open";
-		return result.pipe(Effect.tap(Console.log(message)));
-	}
-
-	return Effect.async<Socket>((resume) => {
+	const socket = Effect.async<Socket>((resume) => {
 		if (s.readyState === "open") {
-			const message = "Socket already open";
-			result.pipe(Effect.tap(Console.log(message)), resume);
-			return;
+			const log = Console.log("Socket already open");
+			return Effect.succeed(s).pipe(Effect.tap(log), resume);
 		}
 
 		s.once("connect", () => {
-			const message = "Socket connected";
-			result.pipe(Effect.tap(Console.log(message)), resume);
+			const log = Console.log("Socket connected");
+			Effect.succeed(s).pipe(Effect.tap(log), resume);
 		});
 	});
+
+	return socket.pipe(
+		Effect.acquireRelease((s) => {
+			return Effect.async<void>((resume) => {
+				if (s.readyState === "closed") {
+					const log = Console.log("Socket already closed");
+					return Effect.void.pipe(Effect.tap(log), resume);
+				}
+
+				const log = Console.log("Socket closed");
+				s.end(() => Effect.void.pipe(Effect.tap(log), resume));
+			});
+		}),
+	);
 }
 
 export function getSocketWriter(s: Socket) {
