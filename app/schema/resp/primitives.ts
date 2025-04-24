@@ -10,16 +10,12 @@ export const Null = Schema.transformLiterals(
 const BooleanPrefix = "#";
 const True = "t";
 const False = "f";
-const BooleanFromLiteral = Schema.transformLiterals(
-	[True, true],
-	[False, false],
-);
 export const Boolean_ = Schema.TemplateLiteralParser(
 	BooleanPrefix,
-	Schema.Literal(True, False),
+	Schema.transformLiterals([True, true], [False, false]),
 	CRLF,
 ).pipe(
-	Schema.transform(BooleanFromLiteral, {
+	Schema.transform(Schema.Boolean, {
 		decode(template) {
 			return template[1];
 		},
