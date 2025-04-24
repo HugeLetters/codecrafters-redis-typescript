@@ -1,5 +1,5 @@
 import { BunRuntime } from "@effect/platform-bun";
-import { Console, Effect, Stream } from "effect";
+import { Effect, Stream } from "effect";
 import { provideConfigService } from "./config";
 import { acquireSocketStream } from "./server";
 import { getSocketDataStream, getSocketWriter } from "./server/socket";
@@ -13,11 +13,11 @@ const main = Effect.gen(function* () {
 				const dataStream = getSocketDataStream(c);
 				return dataStream.pipe(
 					Stream.map((b) => b.toString("utf8")),
-					Stream.tap((data) => Console.log("Received", data)),
+					Stream.tap((data) => Effect.log("Received", data)),
 					Stream.mapEffect((_data) => write("+PONG\r\n")),
 					Stream.catchTag("SocketWrite", () => Effect.void),
 					Stream.runDrain,
-					Effect.tap(Console.log("Disconnected")),
+					Effect.tap(Effect.log("Disconnected")),
 				);
 			},
 			{ concurrency: "unbounded" },

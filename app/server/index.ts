@@ -1,5 +1,5 @@
 import { Config } from "$/config";
-import { Console, Effect, type Scope, Stream, flow } from "effect";
+import { Effect, type Scope, Stream, flow } from "effect";
 import { type Server, type Socket, createServer } from "node:net";
 import { acquireSocket } from "./socket";
 
@@ -12,14 +12,14 @@ const acquireServer = Effect.gen(function* () {
 			{ host: config.HOST, port: config.PORT },
 			() => {
 				const message = `Server is listening on ${config.HOST}:${config.PORT}`;
-				Effect.succeed(server).pipe(Effect.tap(Console.log(message)), resume);
+				Effect.succeed(server).pipe(Effect.tap(Effect.log(message)), resume);
 			},
 		);
 	});
 
 	return yield* Effect.acquireRelease(server, (s) =>
 		Effect.async<void>((resume) => {
-			const closeLog = Console.log("Server closed");
+			const closeLog = Effect.log("Server closed");
 			s.close(() => Effect.void.pipe(Effect.tap(closeLog), resume));
 		}),
 	);

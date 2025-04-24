@@ -6,7 +6,6 @@ import * as BunTest from "bun:test";
 import {
 	Arbitrary,
 	Cause,
-	Console,
 	Duration,
 	Effect,
 	Exit,
@@ -159,14 +158,14 @@ function runTestPromise<E, A>(effect: Effect.Effect<A, E>) {
 
 		const [mainError, ...restErrors] = Cause.prettyErrors(exit.cause);
 		for (const err of restErrors) {
-			yield* Console.error(err);
+			yield* Effect.logError(err);
 		}
 
 		return () => {
 			throw mainError;
 		};
 	})
-		.pipe(Effect.runPromise)
+		.pipe(Effect.provide(Logger.pretty), Effect.runPromise)
 		.then((f) => f());
 }
 
