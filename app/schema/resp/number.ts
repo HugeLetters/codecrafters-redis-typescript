@@ -3,7 +3,7 @@ import { DigitString, ImplicitNumberSign } from "$/schema/string";
 import { BigInt as BigInt_, Schema, flow } from "effect";
 import { CRLF } from "./constants";
 
-const IntegerPrefix = ":";
+export const IntegerPrefix = ":";
 export const Integer = Schema.TemplateLiteralParser(
 	IntegerPrefix,
 	ImplicitNumberSign,
@@ -44,7 +44,7 @@ const InfinityFromString = Schema.transformLiterals(
 	["-inf", Number.NEGATIVE_INFINITY],
 );
 
-const DoublePrefix = ",";
+export const DoublePrefix = ",";
 export const Double = Schema.TemplateLiteralParser(
 	DoublePrefix,
 	Schema.Union(
@@ -91,7 +91,7 @@ const toOptimalExponential = flow(
 	},
 );
 
-const BigNumberPrefix = "(";
+export const BigNumberPrefix = "(";
 export const BigNumber = Schema.TemplateLiteralParser(
 	BigNumberPrefix,
 	ImplicitNumberSign,

@@ -7,7 +7,7 @@ export const Null = Schema.transformLiterals(
 	[`*-1${CRLF}`, null],
 );
 
-const BooleanPrefix = "#";
+export const BooleanPrefix = "#";
 const True = "t";
 const False = "f";
 export const Boolean_ = Schema.TemplateLiteralParser(

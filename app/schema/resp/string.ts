@@ -7,7 +7,7 @@ import { parseFail } from "./utils";
 
 const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
 
-const SimpleStringPrefix = "+";
+export const SimpleStringPrefix = "+";
 export const SimpleString = Schema.TemplateLiteralParser(
 	SimpleStringPrefix,
 	CleanString,
@@ -27,7 +27,7 @@ export class Error_ extends Schema.TaggedError<Error_>()("RespError", {
 	message: Schema.String,
 }) {}
 
-const SimpleErrorPrefix = "-";
+export const SimpleErrorPrefix = "-";
 export const ErrorFromSimpleString = Schema.TemplateLiteralParser(
 	SimpleErrorPrefix,
 	CleanString,
@@ -102,7 +102,7 @@ export const BulkString = BulkStringTemplate.pipe(
 	}),
 );
 
-const BulkErrorPrefix = "!";
+export const BulkErrorPrefix = "!";
 const BulkErrorTemplate = Schema.TemplateLiteralParser(
 	BulkErrorPrefix,
 	Schema.String.pipe(Schema.compose(BulkStringBase)),
@@ -123,12 +123,12 @@ export const ErrorFromBulkString = BulkErrorTemplate.pipe(
 	}),
 );
 
-const VerbatimStringFromSelf = Schema.Struct({
+export const VerbatimStringFromSelf = Schema.Struct({
 	encoding: Schema.String.pipe(Schema.length(3)),
 	text: Schema.String,
 });
 const VerbatimStringRegex = /^(\d+)\r\n([\s\S]{3}):([\s\S]*)$/;
-const VerbatimStringPrefix = "=";
+export const VerbatimStringPrefix = "=";
 const VerbatimStringTemplate = Schema.TemplateLiteralParser(
 	VerbatimStringPrefix,
 	Schema.String,
