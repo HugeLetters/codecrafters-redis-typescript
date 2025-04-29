@@ -1,9 +1,8 @@
+import { IntegerFromString } from "$/schema/number";
 import { notPattern } from "$/schema/string";
-import { green, red } from "$/utils/stdout";
+import { ParseFailLog, parseFail } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
-import { IntegerFromString } from "../number";
 import { CRLF } from "./constants";
-import { parseFail } from "./utils";
 
 const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
 
@@ -52,16 +51,16 @@ const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
 		return Effect.gen(function* () {
 			const result = BulkStringRegex.exec(input);
 			if (result === null) {
-				const expected = green("${integer}\\r\\n${string}");
-				const received = red(JSON.stringify(input));
+				const expected = ParseFailLog.expected("${integer}\\r\\n${string}");
+				const received = ParseFailLog.received(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseFail(ast, input, message);
 			}
 
 			const [match, length, string = ""] = result;
 			if (length === undefined) {
-				const expected = green("${integer}");
-				const received = red(JSON.stringify(match));
+				const expected = ParseFailLog.expected("${integer}");
+				const received = ParseFailLog.received(match);
 				const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
 				return yield* parseFail(ast, input, message);
 			}
@@ -69,9 +68,10 @@ const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
 			const expectedLength = yield* parseIntFromString(length);
 			const actualLength = string.length;
 			if (string.length !== expectedLength) {
-				const expected = green(expectedLength);
-				const received = red(JSON.stringify(string));
-				const message = `Expected string of length ${expected}. Received ${received} of length ${red(actualLength)}`;
+				const expected = ParseFailLog.expected(expectedLength);
+				const received = ParseFailLog.received(string);
+				const receivedLength = ParseFailLog.received(actualLength);
+				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 				return yield* parseFail(ast, string, message);
 			}
 
@@ -141,23 +141,25 @@ export const VerbatimString = VerbatimStringTemplate.pipe(
 			return Effect.gen(function* () {
 				const result = VerbatimStringRegex.exec(input);
 				if (result === null) {
-					const expected = green("${length:int}\\r\\n${encoding:3}:${string}");
-					const received = red(JSON.stringify(input));
+					const expected = ParseFailLog.expected(
+						"${length:int}\\r\\n${encoding:3}:${string}",
+					);
+					const received = ParseFailLog.received(input);
 					const message = `Expected string matching: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				const [match, length, encoding, text = ""] = result;
 				if (length === undefined) {
-					const expected = `${green("${length:int}")}\\r\\n\${encoding:3}:\${string}`;
-					const received = red(JSON.stringify(match));
+					const expected = `${ParseFailLog.expected("${length:int}")}\\r\\n\${encoding:3}:\${string}`;
+					const received = ParseFailLog.received(match);
 					const message = `Expected string to contain length: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				if (encoding === undefined) {
-					const expected = `\${length:int}\\r\\n${green("${encoding:3}")}:\${string}`;
-					const received = red(JSON.stringify(match));
+					const expected = `\${length:int}\\r\\n${ParseFailLog.expected("${encoding:3}")}:\${string}`;
+					const received = ParseFailLog.received(match);
 					const message = `Expected string to contain encoding: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
@@ -165,9 +167,10 @@ export const VerbatimString = VerbatimStringTemplate.pipe(
 				const expectedLength = yield* parseIntFromString(length);
 				const actualLength = encoding.length + 1 + text.length; // +1 for ":"
 				if (actualLength !== expectedLength) {
-					const expected = green(expectedLength);
-					const received = red(JSON.stringify(text));
-					const message = `Expected string of length ${expected}. Received ${received} of length ${red(actualLength)}`;
+					const expected = ParseFailLog.expected(expectedLength);
+					const received = ParseFailLog.received(text);
+					const receivedLength = ParseFailLog.received(actualLength);
+					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 					return yield* parseFail(ast, text, message);
 				}
 

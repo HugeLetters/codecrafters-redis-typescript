@@ -1,9 +1,9 @@
+import { Error_ } from "$/schema/resp/string";
+import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Effect } from "effect";
-import { createSchemaHelpers, expectParseError } from "../../test";
 import { Array_ } from "./array";
-import { Error_ } from "../string";
 
 const bulk = (s: string) => `$${s.length}\r\n${s}\r\n`;
 const int = (n: number) => `:${n}\r\n`;
