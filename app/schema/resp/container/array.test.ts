@@ -81,8 +81,10 @@ describe("Array", () => {
 			});
 
 			test.effect("array of bulk strings", function* () {
-				const result = yield* $array.encode(["hello", "world"]);
-				expect(result).toBe(`*2\r\n${bulk("hello")}${bulk("world")}`);
+				const result = yield* $array.encode(["hello world!", "hello earth!"]);
+				expect(result).toBe(
+					`*2\r\n${bulk("hello world!")}${bulk("hello earth!")}`,
+				);
 			});
 
 			test.effect("array of integers", function* () {
