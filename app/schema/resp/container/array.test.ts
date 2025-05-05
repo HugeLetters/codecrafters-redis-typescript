@@ -32,9 +32,9 @@ describe("Array", () => {
 			});
 
 			test.effect("array of bulk strings", function* () {
-				const encoded = `2\r\n${bulk("hello")}${bulk("world")}`;
+				const encoded = `2\r\n${bulk("hello")}${bulk("world!")}`;
 				const result = yield* $array.decode(`*${encoded}`);
-				expect(result).toStrictEqual(["hello", "world"]);
+				expect(result).toStrictEqual(["hello", "world!"]);
 			});
 
 			test.effect("mixed types", function* () {
