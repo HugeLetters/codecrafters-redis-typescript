@@ -1,26 +1,31 @@
-import type { BigNumber, Double, Integer } from "$/schema/resp/number";
-import type { Boolean_, Null } from "$/schema/resp/primitives";
-import type {
-	BulkString,
-	ErrorFromBulkString,
-	ErrorFromSimpleString,
-	SimpleString,
-	VerbatimString,
+import { BigNumber, Double, Integer } from "$/schema/resp/number";
+import { Boolean_, PlainNull } from "$/schema/resp/primitives";
+import {
+	ErrorFromString,
+	String_,
+	VerbatimStringFromString,
 } from "$/schema/resp/string";
+import { Schema } from "effect";
+import { Array_ } from "./array";
 
-type RespBasicSchema =
-	| typeof SimpleString
-	| typeof BulkString
-	| typeof VerbatimString
-	| typeof Integer
-	| typeof Double
-	| typeof BigNumber
-	| typeof Null
-	| typeof Boolean_
-	| typeof ErrorFromSimpleString
-	| typeof ErrorFromBulkString;
+const RespBasicSchema = Schema.Union(
+	String_,
+	VerbatimStringFromString,
+	Integer,
+	Double,
+	BigNumber,
+	PlainNull,
+	Boolean_,
+	ErrorFromString,
+);
 
-export type RespData = RespBasicSchema["Type"] | ReadonlyArray<RespData>;
+/** For encoding only */
+export const RespSchema = Schema.Union(
+	RespBasicSchema,
+	Schema.suspend(() => Array_),
+);
+
+export type RespData = typeof RespBasicSchema.Type | ReadonlyArray<RespData>;
 
 export type WithRestData<T> = {
 	readonly data: T;
