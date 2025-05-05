@@ -2,23 +2,10 @@ import { Schema } from "effect";
 import { CRLF } from "./constants";
 
 export const NullPrefix = "_";
-const NullLiteral = `${NullPrefix}${CRLF}`;
-const StringNullLiteral = `$-1${CRLF}`;
-const ArrayNullLiteral = `*-1${CRLF}`;
-export const Null = Schema.Literal(
-	NullLiteral,
-	StringNullLiteral,
-	ArrayNullLiteral,
-).pipe(
-	Schema.transform(Schema.Null, {
-		decode() {
-			return null;
-		},
-		encode() {
-			return "_\r\n" as const;
-		},
-	}),
-);
+export const PlainNull = Schema.transformLiteral(`${NullPrefix}${CRLF}`, null);
+export const BulkStringNull = Schema.transformLiteral(`$-1${CRLF}`, null);
+export const ArrayNull = Schema.transformLiteral(`*-1${CRLF}`, null);
+export const Null = Schema.Union(PlainNull, BulkStringNull, ArrayNull);
 
 export const BooleanPrefix = "#";
 const True = "t";
