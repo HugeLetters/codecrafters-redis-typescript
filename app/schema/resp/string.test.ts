@@ -7,6 +7,7 @@ import {
 	ErrorFromSimpleString,
 	Error_,
 	SimpleString,
+	VerbatimStringFromString,
 	VerbatimString,
 } from "./string";
 
@@ -29,20 +30,23 @@ describe("SimpleString", () => {
 	});
 
 	describe("with invalid data", () => {
-		test.effect("is not decoded when doesnt conform to schema", function* () {
-			const result = yield* $string.decodeFail("invalid");
-			expectParseError(result);
-		});
+		describe("is not decoded", () => {
+			test.effect("when doesnt conform to schema", function* () {
+				const result = yield* $string.decodeFail("invalid");
+				expectParseError(result);
+			});
 
-		test.effect("is not decoded when contains \\r", function* () {
-			const result = yield* $string.decodeFail("+O\nK\r\n");
-			expectParseError(result);
-		});
+			test.effect("when contains \\r", function* () {
+				const result = yield* $string.decodeFail("+O\nK\r\n");
+				expectParseError(result);
+			});
 
-		test.effect("is not decoded when contains \\n", function* () {
-			const result = yield* $string.decodeFail("+O\rK\r\n");
-			expectParseError(result);
+			test.effect("when contains \\n", function* () {
+				const result = yield* $string.decodeFail("+O\rK\r\n");
+				expectParseError(result);
+			});
 		});
+		// No encoding error cases for SimpleString
 	});
 });
 
@@ -65,20 +69,23 @@ describe("ErrorFromSimpleString", () => {
 	});
 
 	describe("with invalid data", () => {
-		test.effect("is not decoded when doesnt conform to schema", function* () {
-			const result = yield* $error.decodeFail("invalid");
-			expectParseError(result);
-		});
+		describe("is not decoded", () => {
+			test.effect("when doesnt conform to schema", function* () {
+				const result = yield* $error.decodeFail("invalid");
+				expectParseError(result);
+			});
 
-		test.effect("is not decoded when contains \\r", function* () {
-			const result = yield* $error.decodeFail("-err\nor\r\n");
-			expectParseError(result);
-		});
+			test.effect("when contains \\r", function* () {
+				const result = yield* $error.decodeFail("-err\nor\r\n");
+				expectParseError(result);
+			});
 
-		test.effect("is not decoded when contains \\n", function* () {
-			const result = yield* $error.decodeFail("-err\ror\r\n");
-			expectParseError(result);
+			test.effect("when contains \\n", function* () {
+				const result = yield* $error.decodeFail("-err\ror\r\n");
+				expectParseError(result);
+			});
 		});
+		// No encoding error cases for ErrorFromSimpleString
 	});
 });
 
@@ -303,74 +310,75 @@ describe("ErrorFromBulkString", () => {
 });
 
 describe("VerbatimString", () => {
-	const $string = createSchemaHelpers(VerbatimString);
+	const $string = createSchemaHelpers(VerbatimStringFromString);
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {
 			test.effect("with string", function* () {
 				const result = yield* $string.decode("=9\r\ntxt:hello\r\n");
-				expect(result).toStrictEqual({ encoding: "txt", text: "hello" });
+				const data = new VerbatimString({ encoding: "txt", text: "hello" });
+				expect(result).toStrictEqual(data);
 			});
 
 			test.effect("with empty string", function* () {
 				const result = yield* $string.decode("=4\r\ntxt:\r\n");
-				expect(result).toStrictEqual({ encoding: "txt", text: "" });
+				const data = new VerbatimString({ encoding: "txt", text: "" });
+				expect(result).toStrictEqual(data);
 			});
 
 			test.effect("with crlf in string", function* () {
 				const result = yield* $string.decode("=16\r\ntxt:hello\r\nworld\r\n");
-				expect(result).toStrictEqual({
+				const data = new VerbatimString({
 					encoding: "txt",
 					text: "hello\r\nworld",
 				});
+				expect(result).toStrictEqual(data);
 			});
 
 			test.effect("with crlf at start", function* () {
 				const result = yield* $string.decode("=11\r\ntxt:\r\nhello\r\n");
-				expect(result).toStrictEqual({ encoding: "txt", text: "\r\nhello" });
+				const data = new VerbatimString({ encoding: "txt", text: "\r\nhello" });
+				expect(result).toStrictEqual(data);
 			});
 
 			test.effect("with crlf at end", function* () {
 				const result = yield* $string.decode("=11\r\ntxt:hello\r\n\r\n");
-				expect(result).toStrictEqual({ encoding: "txt", text: "hello\r\n" });
+				const data = new VerbatimString({ encoding: "txt", text: "hello\r\n" });
+				expect(result).toStrictEqual(data);
 			});
 		});
 
 		describe("is encoded", () => {
 			test.effect("with string", function* () {
-				const result = yield* $string.encode({
-					encoding: "txt",
-					text: "hello",
-				});
+				const data = new VerbatimString({ encoding: "txt", text: "hello" });
+				const result = yield* $string.encode(data);
 				expect(result).toBe("=9\r\ntxt:hello\r\n");
 			});
 
 			test.effect("with empty string", function* () {
-				const result = yield* $string.encode({ encoding: "txt", text: "" });
+				const data = new VerbatimString({ encoding: "txt", text: "" });
+				const result = yield* $string.encode(data);
 				expect(result).toBe("=4\r\ntxt:\r\n");
 			});
 
 			test.effect("with crlf in string", function* () {
-				const result = yield* $string.encode({
+				const data = new VerbatimString({
 					encoding: "txt",
 					text: "hello\r\nworld",
 				});
+				const result = yield* $string.encode(data);
 				expect(result).toBe("=16\r\ntxt:hello\r\nworld\r\n");
 			});
 
 			test.effect("with crlf at start", function* () {
-				const result = yield* $string.encode({
-					encoding: "txt",
-					text: "\r\nhello",
-				});
+				const data = new VerbatimString({ encoding: "txt", text: "\r\nhello" });
+				const result = yield* $string.encode(data);
 				expect(result).toBe("=11\r\ntxt:\r\nhello\r\n");
 			});
 
 			test.effect("with crlf at end", function* () {
-				const result = yield* $string.encode({
-					encoding: "txt",
-					text: "hello\r\n",
-				});
+				const data = new VerbatimString({ encoding: "txt", text: "hello\r\n" });
+				const result = yield* $string.encode(data);
 				expect(result).toBe("=11\r\ntxt:hello\r\n\r\n");
 			});
 		});

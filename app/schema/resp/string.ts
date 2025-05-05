@@ -173,10 +173,13 @@ export const ErrorFromString = Schema.declare(
 	{ description: "RESP StringError" },
 );
 
-export const VerbatimStringFromSelf = Schema.Struct({
+export class VerbatimString extends Schema.Class<VerbatimString>(
+	"VerbatimString",
+)({
 	encoding: Schema.String.pipe(Schema.length(3)),
 	text: Schema.String,
-});
+}) {}
+
 const VerbatimStringRegex = /^(\d+)\r\n([\s\S]{3}):([\s\S]*)$/;
 export const VerbatimStringPrefix = "=";
 const VerbatimStringTemplate = Schema.TemplateLiteralParser(
@@ -184,8 +187,8 @@ const VerbatimStringTemplate = Schema.TemplateLiteralParser(
 	Schema.String,
 	CRLF,
 );
-export const VerbatimString = VerbatimStringTemplate.pipe(
-	Schema.transformOrFail(VerbatimStringFromSelf, {
+export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
+	Schema.transformOrFail(VerbatimString, {
 		decode(template, _, ast) {
 			const input = template[1];
 			return Effect.gen(function* () {
