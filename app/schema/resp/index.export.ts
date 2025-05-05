@@ -1,4 +1,4 @@
-export { Array_ as Array } from "./array";
+export { Array_ as Array } from "./container/array";
 export { BigNumber, Double, Integer } from "./number";
 export { Boolean_ as Boolean, Null } from "./primitives";
 export {
