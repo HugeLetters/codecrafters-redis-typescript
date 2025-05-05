@@ -33,7 +33,7 @@ export namespace EffectBunTest {
 	export type Test<R> = <A, E>(
 		name: string,
 		self: TestFunction<A, E, R, []>,
-		timeout?: number | BunTest.TestOptions,
+		timeout?: BunTest.TestOptions | number,
 	) => void;
 
 	type Arbitrary = Schema.Schema.Any | FastCheck.Arbitrary<unknown>;
@@ -174,10 +174,6 @@ const TestEnv = TestContext.TestContext.pipe(
 	Layer.provide(Logger.remove(Logger.defaultLogger)),
 );
 
-function testOptions(timeout?: number | BunTest.TestOptions) {
-	return typeof timeout === "number" ? { timeout } : (timeout ?? {});
-}
-
 function makeTester<R>(
 	mapEffect: <A, E>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, never>,
 	base = BunTest.test,
@@ -192,31 +188,23 @@ function makeTester<R>(
 		);
 	}
 
-	const test: EffectBunTest.Tester<R> = (name, self, timeout) => {
-		return base(name, () => run([], self), testOptions(timeout));
+	const test: EffectBunTest.Tester<R> = (name, self, options) => {
+		return base(name, () => run([], self), options);
 	};
 
 	test.skip = function (name, self, timeout) {
-		return base.skip(name, () => run([], self), testOptions(timeout));
+		return base.skip(name, () => run([], self), timeout);
 	};
 
 	test.skipIf = function (condition) {
 		return function (name, self, timeout) {
-			return base.skipIf(condition)(
-				name,
-				() => run([], self),
-				testOptions(timeout),
-			);
+			return base.skipIf(condition)(name, () => run([], self), timeout);
 		};
 	};
 
 	test.runIf = function (condition) {
 		return function (name, self, timeout) {
-			return base.if(condition)(
-				name,
-				() => run([], self),
-				testOptions(timeout),
-			);
+			return base.if(condition)(name, () => run([], self), timeout);
 		};
 	};
 
@@ -226,11 +214,7 @@ function makeTester<R>(
 
 	test.each = function (cases) {
 		return function (name, self, timeout) {
-			return base.each(cases)(
-				name,
-				(args) => run([args], self),
-				testOptions(timeout),
-			);
+			return base.each(cases)(name, (args) => run([args], self), timeout);
 		};
 	};
 
@@ -261,7 +245,7 @@ function makeTester<R>(
 					isObject(timeout) ? (timeout?.fastCheck as object) : {},
 				);
 			},
-			testOptions(timeout),
+			timeout,
 		);
 	};
 
@@ -293,7 +277,7 @@ const prop: EffectBunTest.Methods["prop"] = (
 				isObject(timeout) ? (timeout?.fastCheck as object) : {},
 			);
 		},
-		testOptions(timeout),
+		timeout,
 	);
 };
 
