@@ -25,16 +25,16 @@ describe("Array", () => {
 				expect(result).toStrictEqual([123]);
 			});
 
-			test.effect("array of bulk strings", function* () {
-				const encoded = `2\r\n${bulk("hello")}${bulk("world")}`;
-				const result = yield* $array.decode(`*${encoded}`);
-				expect(result).toStrictEqual(["hello", "world"]);
-			});
-
 			test.effect("array of integers", function* () {
 				const encoded = `3\r\n${int(1)}${int(2)}${int(3)}`;
 				const result = yield* $array.decode(`*${encoded}`);
 				expect(result).toStrictEqual([1, 2, 3]);
+			});
+
+			test.effect("array of bulk strings", function* () {
+				const encoded = `2\r\n${bulk("hello")}${bulk("world")}`;
+				const result = yield* $array.decode(`*${encoded}`);
+				expect(result).toStrictEqual(["hello", "world"]);
 			});
 
 			test.effect("mixed types", function* () {

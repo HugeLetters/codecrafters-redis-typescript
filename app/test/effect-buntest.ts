@@ -2,6 +2,7 @@
  * Port of `@effect/vitest` library
  */
 
+import type { EffectGen } from "$/utils/effect";
 import * as BunTest from "bun:test";
 import {
 	Arbitrary,
@@ -17,7 +18,6 @@ import {
 	Scope,
 	TestContext,
 	type TestServices,
-	type Utils,
 } from "effect";
 import type { NonEmptyArray } from "effect/Array";
 import { flow, identity } from "effect/Function";
@@ -28,7 +28,7 @@ export namespace EffectBunTest {
 
 	export type TestFunction<A, E, R, TestArgs extends Array<unknown>> = (
 		...args: TestArgs
-	) => Generator<Utils.YieldWrap<Effect.Effect<void, E, R>>, A, never>;
+	) => EffectGen<A, E, R>;
 
 	export type Test<R> = <A, E>(
 		name: string,
