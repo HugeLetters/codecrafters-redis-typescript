@@ -51,7 +51,7 @@ const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
 		return Effect.gen(function* () {
 			const result = BulkStringRegex.exec(input);
 			if (result === null) {
-				const expected = ParseFailLog.expected("${integer}\\r\\n${string}");
+				const expected = ParseFailLog.expected("${integer}\r\n${string}");
 				const received = ParseFailLog.received(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseFail(ast, input, message);
@@ -195,7 +195,7 @@ export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 				const result = VerbatimStringRegex.exec(input);
 				if (result === null) {
 					const expected = ParseFailLog.expected(
-						"${length:int}\\r\\n${encoding:3}:${string}",
+						"${length:int}\r\n${encoding:3}:${string}",
 					);
 					const received = ParseFailLog.received(input);
 					const message = `Expected string matching: ${expected}. Received ${received}`;

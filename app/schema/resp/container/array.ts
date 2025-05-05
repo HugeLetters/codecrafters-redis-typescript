@@ -134,7 +134,7 @@ const decodeArrayLength = Effect.fn(function* (
 	const result = ArrayRegex.exec(input);
 	if (result === null) {
 		const expected = ParseFailLog.expected(
-			`${ArrayPrefix}\${integer}\\r\\n\${string}`,
+			`${ArrayPrefix}\${integer}\r\n\${string}`,
 		);
 		const received = ParseFailLog.received(input);
 		const message = `Expected string matching: ${expected}. Received ${received}`;
