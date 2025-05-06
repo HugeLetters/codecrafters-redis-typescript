@@ -166,7 +166,15 @@ const decodeArrayWithRest = Effect.fn(function* (
 
 	const result: Array<RespData> = [];
 	let encoded = content;
-	while (encoded !== "" && result.length !== length) {
+	while (result.length !== length) {
+		if (encoded === "") {
+			const expected = ParseFailLog.expected(length);
+			const received = ParseFailLog.received(result.length);
+			const receivedInput = ParseFailLog.received(input);
+			const message = `Expected array of length ${expected}. Received ${received} elements decoded from ${receivedInput}`;
+			return yield* parseFail(ast, input, message);
+		}
+
 		const { data, rest } = yield* decodeNextArrayItem(encoded, ast);
 		result.push(data);
 		encoded = rest;
@@ -187,7 +195,7 @@ export const Array_: Array_ = Schema.declare(
 
 				if (result.rest !== "") {
 					const received = ParseFailLog.received(result.rest);
-					const message = `Array does not terminate properly. Received non-empty tail: ${received}`;
+					const message = `Array contains unexpected data at the tail: ${received}`;
 					yield* parseFail(ast, input, message);
 				}
 
