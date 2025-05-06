@@ -4,7 +4,10 @@ import { ParseFailLog, parseFail } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
 import { CRLF } from "./constants";
 
-const CleanString = Schema.String.pipe(notPattern(/[\r\n]/));
+const CleanString = Schema.String.pipe(
+	notPattern(/[\r\n]/),
+	Schema.annotations({ identifier: String.raw`string without \r\n` }),
+);
 
 export const SimpleStringPrefix = "+";
 export const SimpleString = Schema.TemplateLiteralParser(
@@ -12,6 +15,7 @@ export const SimpleString = Schema.TemplateLiteralParser(
 	CleanString,
 	CRLF,
 ).pipe(
+	Schema.annotations({ identifier: "SimpleString" }),
 	Schema.transform(Schema.String, {
 		decode(template) {
 			return template[1];
@@ -32,6 +36,7 @@ export const ErrorFromSimpleString = Schema.TemplateLiteralParser(
 	CleanString,
 	CRLF,
 ).pipe(
+	Schema.annotations({ identifier: "SimpleStringError" }),
 	Schema.transform(Error_, {
 		decode(template) {
 			const message = template[1];
@@ -46,49 +51,52 @@ export const ErrorFromSimpleString = Schema.TemplateLiteralParser(
 
 const BulkStringRegex = /^(\d+)\r\n([\s\S]*)$/;
 const parseIntFromString = ParseResult.decode(IntegerFromString);
-const BulkStringBase = Schema.transformOrFail(Schema.String, Schema.String, {
-	decode(input, _, ast) {
-		return Effect.gen(function* () {
-			const result = BulkStringRegex.exec(input);
-			if (result === null) {
-				const expected = ParseFailLog.expected("${integer}\r\n${string}");
-				const received = ParseFailLog.received(input);
-				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseFail(ast, input, message);
-			}
+const BulkStringBase = Schema.String.pipe(
+	Schema.transformOrFail(Schema.String, {
+		decode(input, _, ast) {
+			return Effect.gen(function* () {
+				const result = BulkStringRegex.exec(input);
+				if (result === null) {
+					const expected = ParseFailLog.expected("${integer}\r\n${string}");
+					const received = ParseFailLog.received(input);
+					const message = `Expected string matching: ${expected}. Received ${received}`;
+					return yield* parseFail(ast, input, message);
+				}
 
-			const [match, length, string = ""] = result;
-			if (length === undefined) {
-				const expected = ParseFailLog.expected("${integer}");
-				const received = ParseFailLog.received(match);
-				const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
-				return yield* parseFail(ast, input, message);
-			}
+				const [match, length, string = ""] = result;
+				if (length === undefined) {
+					const expected = ParseFailLog.expected("${integer}");
+					const received = ParseFailLog.received(match);
+					const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
+					return yield* parseFail(ast, input, message);
+				}
 
-			const expectedLength = yield* parseIntFromString(length);
-			const actualLength = string.length;
-			if (string.length !== expectedLength) {
-				const expected = ParseFailLog.expected(expectedLength);
-				const received = ParseFailLog.received(string);
-				const receivedLength = ParseFailLog.received(actualLength);
-				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-				return yield* parseFail(ast, string, message);
-			}
+				const expectedLength = yield* parseIntFromString(length);
+				const actualLength = string.length;
+				if (string.length !== expectedLength) {
+					const expected = ParseFailLog.expected(expectedLength);
+					const received = ParseFailLog.received(string);
+					const receivedLength = ParseFailLog.received(actualLength);
+					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
+					return yield* parseFail(ast, string, message);
+				}
 
-			return string;
-		});
-	},
-	encode(s) {
-		return ParseResult.succeed(`${s.length}${CRLF}${s}`);
-	},
-});
+				return string;
+			});
+		},
+		encode(s) {
+			return ParseResult.succeed(`${s.length}${CRLF}${s}`);
+		},
+	}),
+	Schema.annotations({ identifier: "StringFromBulkString" }),
+);
 
 export const BulkStringPrefix = "$";
 const BulkStringTemplate = Schema.TemplateLiteralParser(
 	BulkStringPrefix,
 	Schema.String,
 	CRLF,
-);
+).pipe(Schema.annotations({ identifier: "BulkString" }));
 export const BulkString = BulkStringTemplate.pipe(
 	Schema.transform(BulkStringBase, {
 		decode(template) {
@@ -124,15 +132,15 @@ export const String_ = Schema.declare(
 			});
 		},
 	},
-	{ description: "RESP String" },
+	{ identifier: "RespString" },
 );
 
 export const BulkErrorPrefix = "!";
 const BulkErrorTemplate = Schema.TemplateLiteralParser(
 	BulkErrorPrefix,
-	Schema.String.pipe(Schema.compose(BulkStringBase)),
+	BulkStringBase,
 	CRLF,
-);
+).pipe(Schema.annotations({ identifier: "BulkStringError" }));
 export const ErrorFromBulkString = BulkErrorTemplate.pipe(
 	Schema.transform(Error_, {
 		decode(template) {
@@ -170,7 +178,7 @@ export const ErrorFromString = Schema.declare(
 			});
 		},
 	},
-	{ description: "RESP StringError" },
+	{ identifier: "RespStringError" },
 );
 
 export class VerbatimString extends Schema.Class<VerbatimString>(
@@ -186,7 +194,7 @@ const VerbatimStringTemplate = Schema.TemplateLiteralParser(
 	VerbatimStringPrefix,
 	Schema.String,
 	CRLF,
-);
+).pipe(Schema.annotations({ identifier: "RawVerbatimString" }));
 export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 	Schema.transformOrFail(VerbatimString, {
 		decode(template, _, ast) {
@@ -195,7 +203,7 @@ export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 				const result = VerbatimStringRegex.exec(input);
 				if (result === null) {
 					const expected = ParseFailLog.expected(
-						"${length:int}\r\n${encoding:3}:${string}",
+						"${length}\r\n${encoding}:${string}",
 					);
 					const received = ParseFailLog.received(input);
 					const message = `Expected string matching: ${expected}. Received ${received}`;
@@ -204,14 +212,14 @@ export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 
 				const [match, length, encoding, text = ""] = result;
 				if (length === undefined) {
-					const expected = `${ParseFailLog.expected("${length:int}")}\\r\\n\${encoding:3}:\${string}`;
+					const expected = `${ParseFailLog.expected("${length}")}\\r\\n\${encoding}:\${string}`;
 					const received = ParseFailLog.received(match);
 					const message = `Expected string to contain length: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				if (encoding === undefined) {
-					const expected = `\${length:int}\\r\\n${ParseFailLog.expected("${encoding:3}")}:\${string}`;
+					const expected = `\${length}\\r\\n${ParseFailLog.expected("${encoding}")}:\${string}`;
 					const received = ParseFailLog.received(match);
 					const message = `Expected string to contain encoding: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);

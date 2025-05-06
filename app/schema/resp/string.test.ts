@@ -46,7 +46,6 @@ describe("SimpleString", () => {
 				expectParseError(result);
 			});
 		});
-		// No encoding error cases for SimpleString
 	});
 });
 
@@ -85,7 +84,6 @@ describe("ErrorFromSimpleString", () => {
 				expectParseError(result);
 			});
 		});
-		// No encoding error cases for ErrorFromSimpleString
 	});
 });
 
