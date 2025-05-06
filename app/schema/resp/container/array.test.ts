@@ -56,6 +56,12 @@ describe("Array", () => {
 				expect(result).toStrictEqual([[["deep"]]]);
 			});
 
+			test.effect("nested array in the middle", function* () {
+				const encoded = `3\r\n${bulk("hello")}*2\r\n${bulk("a")}${bulk("b")}${bulk("world")}`;
+				const result = yield* $array.decode(`*${encoded}`);
+				expect(result).toStrictEqual(["hello", ["a", "b"], "world"]);
+			});
+
 			test.effect("nested array at end", function* () {
 				const encoded = `3\r\n${int(1)}${int(2)}*2\r\n${bulk("a")}${bulk("b")}`;
 				const result = yield* $array.decode(`*${encoded}`);
@@ -94,51 +100,62 @@ describe("Array", () => {
 
 			test.effect("nested arrays", function* () {
 				const result = yield* $array.encode([[1, 2], ["bar"]]);
-				const expected = `2\r\n*2\r\n${int(1)}${int(2)}*1\r\n${bulk("bar")}`;
+				const expected = `2\r\n*2\r\n${int(1)}${int(2)}*1\r\n${simple("bar")}`;
 				expect(result).toBe(`*${expected}`);
 			});
 
 			test.effect("deeply nested arrays", function* () {
-				const result = yield* $array.encode([[["deep"]]]);
-				expect(result).toBe(`*1\r\n*1\r\n*1\r\n${bulk("deep")}`);
+				const result = yield* $array.encode([[["deepnestedarray"]]]);
+				expect(result).toBe(`*1\r\n*1\r\n*1\r\n${bulk("deepnestedarray")}`);
 			});
 		});
 	});
 
 	describe("with invalid data", () => {
-		test.effect("wrong element count (too few)", function* () {
-			const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}`);
-			expectParseError(result);
+		describe("is not decoded", () => {
+			test.effect("wrong element count (too few)", function* () {
+				const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}`);
+				expectParseError(result);
+			});
+
+			test.effect("wrong element count (too many)", function* () {
+				const data = `*1\r\n${bulk("a")}${bulk("b")}`;
+				const result = yield* $array.decodeFail(data);
+				expectParseError(result);
+			});
+
+			test.effect("malformed inner element", function* () {
+				const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}notvalid`);
+				expectParseError(result);
+			});
+
+			test.effect("missing array prefix", function* () {
+				const data = `2\r\n${bulk("a")}${bulk("b")}`;
+				const result = yield* $array.decodeFail(data);
+				expectParseError(result);
+			});
+
+			test.effect("missing CRLF after count", function* () {
+				const result = yield* $array.decodeFail(`*2${bulk("a")}${bulk("b")}`);
+				expectParseError(result);
+			});
 		});
 
-		test.effect("wrong element count (too many)", function* () {
-			const result = yield* $array.decodeFail(`*1\r\n${bulk("a")}${bulk("b")}`);
-			expectParseError(result);
-		});
+		describe("is not encoded", () => {
+			test.effect("non-array input", function* () {
+				const result = yield* $array.encodeFail("not-an-array");
+				expectParseError(result);
+			});
 
-		test.effect("malformed inner element", function* () {
-			const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}notvalid`);
-			expectParseError(result);
-		});
+			test.effect("array with invalid element: undefined", function* () {
+				const result = yield* $array.encodeFail([undefined]);
+				expectParseError(result);
+			});
 
-		test.effect("missing array prefix", function* () {
-			const result = yield* $array.decodeFail(`2\r\n${bulk("a")}${bulk("b")}`);
-			expectParseError(result);
-		});
-
-		test.effect("missing CRLF after count", function* () {
-			const result = yield* $array.decodeFail(`*2${bulk("a")}${bulk("b")}`);
-			expectParseError(result);
-		});
-
-		test.effect("encode: non-array input", function* () {
-			const result = yield* $array.encodeFail("not-an-array");
-			expectParseError(result);
-		});
-
-		test.effect("encode: array with invalid element", function* () {
-			const result = yield* $array.encodeFail([undefined]);
-			expectParseError(result);
+			test.effect("array with invalid element: object", function* () {
+				const result = yield* $array.encodeFail([{ a: 3 }]);
+				expectParseError(result);
+			});
 		});
 	});
 });
