@@ -49,20 +49,13 @@ const regexDecoder = function (regex: RegExp) {
 	): EffectGen<WithRestData<T>, ParseResult.ParseIssue> {
 		const result = regex.exec(input);
 		if (result === null) {
-			const expected = ParseFailLog.expected("TODO");
+			const expected = ParseFailLog.expected(regex.source);
 			const received = ParseFailLog.received(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
 			return yield* parseFail(ast, input, message);
 		}
 
-		const [match, element, rest = ""] = result;
-		if (element === undefined) {
-			const expected = ParseFailLog.expected("TODO");
-			const received = ParseFailLog.received(match);
-			const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
-			return yield* parseFail(ast, input, message);
-		}
-
+		const [_match, element, rest = ""] = result;
 		const parsed = yield* ParseResult.decodeUnknown(schema)(element);
 		return { data: parsed, rest };
 	});
