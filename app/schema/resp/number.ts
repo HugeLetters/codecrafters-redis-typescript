@@ -10,6 +10,7 @@ export const Integer = Schema.TemplateLiteralParser(
 	DigitString.pipe(Schema.parseNumber),
 	CRLF,
 ).pipe(
+	Schema.annotations({ identifier: "RespInteger" }),
 	Schema.transform(Integer_, {
 		decode(template) {
 			const number = template[2];
@@ -37,12 +38,13 @@ const NanFromString = Schema.Literal(NanLiteral).pipe(
 			return NanLiteral;
 		},
 	}),
+	Schema.annotations({ identifier: "NaNFromString" }),
 );
 
 const InfinityFromString = Schema.transformLiterals(
 	["inf", Number.POSITIVE_INFINITY],
 	["-inf", Number.NEGATIVE_INFINITY],
-);
+).pipe(Schema.annotations({ identifier: "InfinityFromString" }));
 
 export const DoublePrefix = ",";
 export const Double = Schema.TemplateLiteralParser(
@@ -51,7 +53,9 @@ export const Double = Schema.TemplateLiteralParser(
 		InfinityFromString,
 		NanFromString,
 		Schema.String.pipe(
-			Schema.pattern(/^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/),
+			Schema.pattern(/^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/, {
+				identifier: "NumberString",
+			}),
 			Schema.transform(Schema.Number, {
 				decode(s) {
 					return Number.parseFloat(s);
@@ -62,11 +66,12 @@ export const Double = Schema.TemplateLiteralParser(
 					return exponential.length < standard.length ? exponential : standard;
 				},
 			}),
-			Schema.finite(),
+			Schema.finite({ identifier: "NumberFromString" }),
 		),
 	),
 	CRLF,
 ).pipe(
+	Schema.annotations({ identifier: "Double" }),
 	Schema.transform(Schema.Number, {
 		decode(x) {
 			return x[1];
@@ -98,6 +103,7 @@ export const BigNumber = Schema.TemplateLiteralParser(
 	DigitString.pipe(Schema.compose(Schema.BigInt)),
 	CRLF,
 ).pipe(
+	Schema.annotations({ identifier: "BigNumber" }),
 	Schema.transform(Schema.BigIntFromSelf, {
 		decode(template) {
 			const biging = template[2];
