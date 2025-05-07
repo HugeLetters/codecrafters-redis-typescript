@@ -29,20 +29,23 @@ export function notPattern<I extends string, A, R>(regex: RegExp) {
 export const DigitString = Schema.String.pipe(
 	Schema.pattern(/^\d+$/),
 	Schema.brand("DigitString"),
+	Schema.annotations({ identifier: "DigitString" }),
 );
 
 export const PlusSign = "+";
 export const MinusSign = "-";
 export const NumberSign = Schema.Literal(PlusSign, MinusSign);
-export const ImplicitNumberSign = Schema.transform(
-	Schema.Literal(...NumberSign.literals, ""),
-	NumberSign,
-	{
+export const ImplicitNumberSign = Schema.Literal(
+	...NumberSign.literals,
+	"",
+).pipe(
+	Schema.transform(NumberSign, {
 		decode(optionalSign) {
 			return optionalSign === MinusSign ? MinusSign : PlusSign;
 		},
 		encode(sign) {
 			return sign === PlusSign ? "" : MinusSign;
 		},
-	},
+	}),
+	Schema.annotations({ identifier: "(+-)?" }),
 );
