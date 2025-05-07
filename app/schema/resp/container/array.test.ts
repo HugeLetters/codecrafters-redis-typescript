@@ -15,23 +15,23 @@ describe("Array", () => {
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {
-			test.effect("empty array", function* () {
+			test.effect("empty", function* () {
 				const result = yield* $array.decode("*0\r\n");
 				expect(result).toStrictEqual([]);
 			});
 
-			test.effect("single element array", function* () {
+			test.effect("single element", function* () {
 				const result = yield* $array.decode(`*1\r\n${int(123)}`);
 				expect(result).toStrictEqual([123]);
 			});
 
-			test.effect("array of integers", function* () {
+			test.effect("integers", function* () {
 				const encoded = `3\r\n${int(1)}${int(2)}${int(3)}`;
 				const result = yield* $array.decode(`*${encoded}`);
 				expect(result).toStrictEqual([1, 2, 3]);
 			});
 
-			test.effect("array of bulk strings", function* () {
+			test.effect("bulk strings", function* () {
 				const encoded = `2\r\n${bulk("hello")}${bulk("world!")}`;
 				const result = yield* $array.decode(`*${encoded}`);
 				expect(result).toStrictEqual(["hello", "world!"]);
@@ -68,10 +68,19 @@ describe("Array", () => {
 				expect(result).toStrictEqual([1, 2, ["a", "b"]]);
 			});
 
-			test.effect("array with nulls", function* () {
+			test.effect("nulls", function* () {
 				const encoded = `3\r\n${null_}${bulk("x")}${null_}`;
 				const result = yield* $array.decode(`*${encoded}`);
 				expect(result).toStrictEqual([null, "x", null]);
+			});
+
+			test.effect("bulk strings containing CR, LF, and CRLF", function* () {
+				const cr = "c\rr";
+				const lf = "l\nf";
+				const crlf = "cr\r\nlf";
+				const encoded = `3\r\n${bulk(cr)}${bulk(lf)}${bulk(crlf)}`;
+				const result = yield* $array.decode(`*${encoded}`);
+				expect(result).toStrictEqual([cr, lf, crlf]);
 			});
 		});
 
