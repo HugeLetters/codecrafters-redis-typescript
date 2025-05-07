@@ -21,9 +21,9 @@ const RespBasicSchema = Schema.Union(
 
 /** For encoding only */
 export const RespSchema = Schema.Union(
-	RespBasicSchema,
+	...RespBasicSchema.members,
 	Schema.suspend(() => Array_),
-);
+).pipe(Schema.annotations({ identifier: "RespValue" }));
 
 export type RespData = typeof RespBasicSchema.Type | ReadonlyArray<RespData>;
 
