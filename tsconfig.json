@@ -1,10 +1,7 @@
 {
 	"compilerOptions": {
 		// Enable latest features
-		"lib": [
-			"ESNext",
-			"DOM"
-		],
+		"lib": ["ESNext", "DOM"],
 		"target": "ESNext",
 		"module": "ESNext",
 		"moduleDetection": "force",
@@ -29,14 +26,12 @@
 		"noUnusedParameters": false,
 		"exactOptionalPropertyTypes": true,
 		"paths": {
-			"$*": [
-				"./app*"
-			]
+			"$*": ["./app*"]
 		},
 		"plugins": [
 			{
 				"name": "@effect/language-service"
 			}
 		]
-	},
+	}
 }

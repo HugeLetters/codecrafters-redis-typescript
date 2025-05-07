@@ -1,5 +1,5 @@
 {
-	"[json][jsonc][typescript]": {
+	"[json][typescript]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},
 	"typescript.tsdk": "node_modules/typescript/lib",
@@ -8,5 +8,8 @@
 		"plaintext": false,
 		"markdown": false,
 		"scminput": false
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
 	}
 }

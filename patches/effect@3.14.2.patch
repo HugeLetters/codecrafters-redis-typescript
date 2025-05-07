@@ -1,0 +1,42 @@
+diff --git a/dist/esm/SchemaAST.js b/dist/esm/SchemaAST.js
+index aeeab0984ef10d501622cc5a20e53953a755ba23..0a0f5de99d1fe059bb6fb3f4cd50d0fef4083512 100644
+--- a/dist/esm/SchemaAST.js
++++ b/dist/esm/SchemaAST.js
+@@ -876,10 +876,18 @@ const templateLiteralSpanUnionTypeToString = type => {
+       return type.types.map(templateLiteralSpanUnionTypeToString).join(" | ");
+   }
+ };
++function stringifyLiteral(value) {
++  if (typeof value !== "string") {
++    return String(value);
++  }
++
++  const normalized = JSON.stringify(value);
++  return normalized.slice(1, normalized.length - 1);
++}
+ const templateLiteralSpanTypeToString = type => {
+   switch (type._tag) {
+     case "Literal":
+-      return String(type.literal);
++      return stringifyLiteral(type.literal);
+     case "StringKeyword":
+       return "${string}";
+     case "NumberKeyword":
+@@ -912,7 +920,7 @@ export class TemplateLiteralSpan {
+    * @since 3.10.0
+    */
+   toString() {
+-    return templateLiteralSpanTypeToString(this.type) + this.literal;
++    return templateLiteralSpanTypeToString(this.type) + stringifyLiteral(this.literal);
+   }
+   /**
+    * @since 3.10.0
+@@ -959,7 +967,7 @@ export class TemplateLiteral {
+     };
+   }
+ }
+-const formatTemplateLiteral = ast => "`" + ast.head + ast.spans.map(String).join("") + "`";
++const formatTemplateLiteral = ast => "`" + stringifyLiteral(ast.head) + ast.spans.map(String).join("") + "`";
+ /**
+  * @category guards
+  * @since 3.10.0
