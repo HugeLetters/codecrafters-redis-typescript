@@ -29,13 +29,7 @@ import {
 } from "$/schema/resp/string";
 import { ParseFailLog, parseFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
-import {
-	Array as Arr,
-	Effect,
-	ParseResult,
-	Schema,
-	type SchemaAST,
-} from "effect";
+import { Effect, ParseResult, Schema, type SchemaAST } from "effect";
 import { CRLF } from "../constants";
 import { type RespData, RespSchema, type WithRestData } from "./shared";
 
@@ -198,13 +192,6 @@ export const Array_: Array_ = Schema.declare(
 		encode(schema) {
 			const encode = ParseResult.encodeUnknown(schema);
 			return Effect.fn(function* (input, _opt, ast) {
-				if (!Arr.isArray(input)) {
-					const expected = ParseFailLog.expected("Array");
-					const received = ParseFailLog.received(input);
-					const message = `Expected to receive ${expected}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
-
 				const encoded = yield* encode(input);
 				const result = `${ArrayPrefix}${encoded.length}${CRLF}${encoded.join("")}`;
 				return yield* ParseResult.succeed(result);
