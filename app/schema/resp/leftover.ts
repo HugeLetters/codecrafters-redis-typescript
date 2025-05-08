@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { ParseFailLog } from "../utils";
+import { Log } from "../utils";
 
 export type LeftoverData<T> = {
 	readonly data: T;
@@ -17,7 +17,7 @@ export function noLeftover<TType, TEncoded>(
 				return;
 			}
 
-			const received = ParseFailLog.received(leftover);
+			const received = Log.received(leftover);
 			return `Leftover data must be empty. Received ${received}`;
 		},
 		{ identifier },

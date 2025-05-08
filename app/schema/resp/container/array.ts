@@ -27,11 +27,11 @@ import {
 	VerbatimStringFromString,
 	VerbatimStringPrefix,
 } from "$/schema/resp/string";
-import { ParseFailLog, parseFail } from "$/schema/utils";
+import { Log, parseFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { Effect, ParseResult, Schema, type SchemaAST } from "effect";
-import { CRLF } from "../constants";
 import { type RespData, RespSchema } from "./shared";
+import { CRLF, RawCRLF } from "../constants";
 import type { LeftoverData } from "../leftover";
 
 export const ArrayPrefix = "*";
@@ -44,8 +44,8 @@ const regexDecoder = function (regex: RegExp) {
 	): EffectGen<LeftoverData<T>, ParseResult.ParseIssue> {
 		const result = regex.exec(input);
 		if (result === null) {
-			const expected = ParseFailLog.expected(regex.source);
-			const received = ParseFailLog.received(input);
+			const expected = Log.expected(regex.source);
+			const received = Log.received(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
 			return yield* parseFail(ast, input, message);
 		}
@@ -107,8 +107,8 @@ const decodeNextArrayItem = Effect.fn(function* (
 		}
 	}
 
-	const expected = ParseFailLog.expected("${resp_prefix}");
-	const received = ParseFailLog.received(input);
+	const expected = Log.expected("${resp_prefix}");
+	const received = Log.received(input);
 	const message = `Expected string matching: ${expected}\${string}. Received ${received}`;
 	return yield* parseFail(ast, input, message);
 });
@@ -121,19 +121,17 @@ const decodeArrayLength = Effect.fn(function* (
 ) {
 	const result = ArrayRegex.exec(input);
 	if (result === null) {
-		const expected = ParseFailLog.expected(
-			`${ArrayPrefix}\${integer}\r\n\${string}`,
-		);
-		const received = ParseFailLog.received(input);
+		const expected = Log.expected(`${ArrayPrefix}\${integer}${CRLF}\${string}`);
+		const received = Log.received(input);
 		const message = `Expected string matching: ${expected}. Received ${received}`;
 		return yield* parseFail(ast, input, message);
 	}
 
 	const [match, length, content = ""] = result;
 	if (length === undefined) {
-		const expected = ParseFailLog.expected("${integer}");
-		const received = ParseFailLog.received(match);
-		const message = `Expected string to contain length: ${ArrayPrefix}${expected}\\r\\n\${string}. Received ${received}`;
+		const expected = Log.expected("${integer}");
+		const received = Log.received(match);
+		const message = `Expected string to contain length: ${ArrayPrefix}${expected}${RawCRLF}\${string}. Received ${received}`;
 		return yield* parseFail(ast, input, message);
 	}
 
@@ -156,9 +154,9 @@ const decodeArrayWithRest = Effect.fn(function* (
 	let encoded = content;
 	while (result.length !== length) {
 		if (encoded === "") {
-			const expected = ParseFailLog.expected(length);
-			const received = ParseFailLog.received(result.length);
-			const receivedInput = ParseFailLog.received(input);
+			const expected = Log.expected(length);
+			const received = Log.received(result.length);
+			const receivedInput = Log.received(input);
 			const message = `Expected array of length ${expected}. Received ${received} elements decoded from ${receivedInput}`;
 			return yield* parseFail(ast, input, message);
 		}
@@ -182,7 +180,7 @@ export const Array_: Array_ = Schema.declare(
 				const result = yield* decodeArrayWithRest(str, ast);
 
 				if (result.leftover !== "") {
-					const received = ParseFailLog.received(result.leftover);
+					const received = Log.received(result.leftover);
 					const message = `Array contains unexpected data at the tail: ${received}`;
 					yield* parseFail(ast, input, message);
 				}

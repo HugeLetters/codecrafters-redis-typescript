@@ -1,18 +1,10 @@
 {
 	"Effect.gen": {
 		"prefix": "efgen",
-		"body": [
-			"Effect.gen(function* () {",
-			"$1",
-			"});"
-		]
+		"body": ["Effect.gen(function* () {", "$1", "})"]
 	},
 	"Effect.fn": {
 		"prefix": "effn",
-		"body": [
-			"Effect.fn(function* () {",
-			"$1",
-			"});"
-		]
+		"body": ["Effect.fn(function* () {", "$1", "})"]
 	}
 }

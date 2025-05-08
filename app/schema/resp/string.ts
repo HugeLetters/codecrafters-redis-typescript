@@ -1,12 +1,14 @@
 import { IntegerFromString } from "$/schema/number";
 import { notPattern } from "$/schema/string";
-import { ParseFailLog, parseFail } from "$/schema/utils";
+import { Log, parseFail } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
-import { CRLF } from "./constants";
+import { CR, CRLF, LF, RawCRLF } from "./constants";
 
 const CleanString = Schema.String.pipe(
 	notPattern(/[\r\n]/),
-	Schema.annotations({ identifier: String.raw`string without \r\n` }),
+	Schema.annotations({
+		identifier: `string w/o ${Log.received(CR)} or ${Log.received(LF)}`,
+	}),
 );
 
 export const SimpleStringPrefix = "+";
@@ -57,26 +59,26 @@ const BulkStringBase = Schema.String.pipe(
 			return Effect.gen(function* () {
 				const result = BulkStringRegex.exec(input);
 				if (result === null) {
-					const expected = ParseFailLog.expected("${integer}\r\n${string}");
-					const received = ParseFailLog.received(input);
+					const expected = Log.expected(`\${integer}${CRLF}\${string}`);
+					const received = Log.received(input);
 					const message = `Expected string matching: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				const [match, length, string = ""] = result;
 				if (length === undefined) {
-					const expected = ParseFailLog.expected("${integer}");
-					const received = ParseFailLog.received(match);
-					const message = `Expected string to contain length: ${expected}\\r\\n\${string}. Received ${received}`;
+					const expected = Log.expected("${integer}");
+					const received = Log.received(match);
+					const message = `Expected string to contain length: ${expected}${RawCRLF}\${string}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				const expectedLength = yield* parseIntFromString(length);
 				const actualLength = string.length;
 				if (string.length !== expectedLength) {
-					const expected = ParseFailLog.expected(expectedLength);
-					const received = ParseFailLog.received(string);
-					const receivedLength = ParseFailLog.received(actualLength);
+					const expected = Log.expected(expectedLength);
+					const received = Log.received(string);
+					const receivedLength = Log.received(actualLength);
 					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 					return yield* parseFail(ast, string, message);
 				}
@@ -202,25 +204,25 @@ export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 			return Effect.gen(function* () {
 				const result = VerbatimStringRegex.exec(input);
 				if (result === null) {
-					const expected = ParseFailLog.expected(
-						"${length}\r\n${encoding}:${string}",
+					const expected = Log.expected(
+						`\${length}${CRLF}\${encoding}:\${string}`,
 					);
-					const received = ParseFailLog.received(input);
+					const received = Log.received(input);
 					const message = `Expected string matching: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				const [match, length, encoding, text = ""] = result;
 				if (length === undefined) {
-					const expected = `${ParseFailLog.expected("${length}")}\\r\\n\${encoding}:\${string}`;
-					const received = ParseFailLog.received(match);
+					const expected = `${Log.expected("${length}")}${RawCRLF}\${encoding}:\${string}`;
+					const received = Log.received(match);
 					const message = `Expected string to contain length: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
 
 				if (encoding === undefined) {
-					const expected = `\${length}\\r\\n${ParseFailLog.expected("${encoding}")}:\${string}`;
-					const received = ParseFailLog.received(match);
+					const expected = `\${length}${RawCRLF}${Log.expected("${encoding}")}:\${string}`;
+					const received = Log.received(match);
 					const message = `Expected string to contain encoding: ${expected}. Received ${received}`;
 					return yield* parseFail(ast, input, message);
 				}
@@ -228,9 +230,9 @@ export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
 				const expectedLength = yield* parseIntFromString(length);
 				const actualLength = encoding.length + 1 + text.length; // +1 for ":"
 				if (actualLength !== expectedLength) {
-					const expected = ParseFailLog.expected(expectedLength);
-					const received = ParseFailLog.received(text);
-					const receivedLength = ParseFailLog.received(actualLength);
+					const expected = Log.expected(expectedLength);
+					const received = Log.received(text);
+					const receivedLength = Log.received(actualLength);
 					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 					return yield* parseFail(ast, text, message);
 				}

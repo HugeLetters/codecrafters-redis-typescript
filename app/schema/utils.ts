@@ -7,7 +7,7 @@ export function parseFail(ast: AST, actual: unknown, message: string) {
 	return ParseResult.fail(issue);
 }
 
-export namespace ParseFailLog {
+export namespace Log {
 	export function received(value: unknown) {
 		return pipe(value, normalize, red);
 	}
