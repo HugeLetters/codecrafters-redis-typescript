@@ -1,14 +1,15 @@
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
+import { RawCR, RawLF } from "./constants";
 import {
 	BulkString,
 	ErrorFromBulkString,
 	ErrorFromSimpleString,
 	Error_,
 	SimpleString,
-	VerbatimStringFromString,
 	VerbatimString,
+	VerbatimStringFromString,
 } from "./string";
 
 describe("SimpleString", () => {
@@ -36,13 +37,18 @@ describe("SimpleString", () => {
 				expectParseError(result);
 			});
 
-			test.effect("when contains \\r", function* () {
+			test.effect(`when contains ${RawCR}`, function* () {
 				const result = yield* $string.decodeFail("+O\nK\r\n");
 				expectParseError(result);
 			});
 
-			test.effect("when contains \\n", function* () {
+			test.effect(`when contains ${RawLF}`, function* () {
 				const result = yield* $string.decodeFail("+O\rK\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $string.decodeFail("+OK\r\nleft\r\nover");
 				expectParseError(result);
 			});
 		});
@@ -74,13 +80,18 @@ describe("ErrorFromSimpleString", () => {
 				expectParseError(result);
 			});
 
-			test.effect("when contains \\r", function* () {
+			test.effect(`when contains ${RawCR}`, function* () {
 				const result = yield* $error.decodeFail("-err\nor\r\n");
 				expectParseError(result);
 			});
 
-			test.effect("when contains \\n", function* () {
+			test.effect(`when contains ${RawLF}`, function* () {
 				const result = yield* $error.decodeFail("-err\ror\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $error.decodeFail("-err\r\nleft\r\nover");
 				expectParseError(result);
 			});
 		});
@@ -153,11 +164,6 @@ describe("BulkString", () => {
 				expectParseError(result);
 			});
 
-			test.effect("when length is incorrect", function* () {
-				const result = yield* $string.decodeFail("$5\r\nhel\r\n");
-				expectParseError(result);
-			});
-
 			test.effect("when missing data", function* () {
 				const result = yield* $string.decodeFail("$5\r\n");
 				expectParseError(result);
@@ -173,6 +179,21 @@ describe("BulkString", () => {
 				expectParseError(result);
 			});
 
+			test.effect("when length is too short", function* () {
+				const result = yield* $string.decodeFail("$6\r\nhello\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("when length is too longe", function* () {
+				const result = yield* $string.decodeFail("$4\r\nhello\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("when length is incorrect with leftover", function* () {
+				const result = yield* $string.decodeFail("$5\r\nhel\r\nleftover");
+				expectParseError(result);
+			});
+
 			test.effect("when length is negative", function* () {
 				const result = yield* $string.decodeFail("$-1\r\nhello\r\n");
 				expectParseError(result);
@@ -180,6 +201,11 @@ describe("BulkString", () => {
 
 			test.effect("when length is not a number", function* () {
 				const result = yield* $string.decodeFail("$abc\r\nhello\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $string.decodeFail("$5\r\nhello\r\nleft\r\nover");
 				expectParseError(result);
 			});
 		});
@@ -274,8 +300,13 @@ describe("ErrorFromBulkString", () => {
 				expectParseError(result);
 			});
 
-			test.effect("when length is incorrect", function* () {
+			test.effect("when length is too short", function* () {
 				const result = yield* $error.decodeFail("!6\r\nerror\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("when length is too long", function* () {
+				const result = yield* $error.decodeFail("!4\r\nerror\r\n");
 				expectParseError(result);
 			});
 
@@ -290,7 +321,7 @@ describe("ErrorFromBulkString", () => {
 			});
 
 			test.effect("when missing trailing CRLF", function* () {
-				const result = yield* $error.decodeFail("!21\r\nerror");
+				const result = yield* $error.decodeFail("!5\r\nerror");
 				expectParseError(result);
 			});
 
@@ -301,6 +332,28 @@ describe("ErrorFromBulkString", () => {
 
 			test.effect("when length is not a number", function* () {
 				const result = yield* $error.decodeFail("!abc\r\nerror\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $error.decodeFail("!5\r\nerror\r\nleft\r\nover");
+				expectParseError(result);
+			});
+		});
+
+		describe("is not encoded", () => {
+			test.effect("when input is null", function* () {
+				const result = yield* $error.encodeFail(null);
+				expectParseError(result);
+			});
+
+			test.effect("when input is undefined", function* () {
+				const result = yield* $error.encodeFail(undefined);
+				expectParseError(result);
+			});
+
+			test.effect("when input is number", function* () {
+				const result = yield* $error.encodeFail(123);
 				expectParseError(result);
 			});
 		});
@@ -389,7 +442,12 @@ describe("VerbatimString", () => {
 				expectParseError(result);
 			});
 
-			test.effect("when length is incorrect", function* () {
+			test.effect("when length is too short", function* () {
+				const result = yield* $string.decodeFail("=10\r\ntxt:hello\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("when length is too long", function* () {
 				const result = yield* $string.decodeFail("=8\r\ntxt:hello\r\n");
 				expectParseError(result);
 			});
@@ -416,6 +474,13 @@ describe("VerbatimString", () => {
 
 			test.effect("when missing colon", function* () {
 				const result = yield* $string.decodeFail("=8\r\ntxthello\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $string.decodeFail(
+					"=9\r\ntxt:hello\r\nleft\r\nover",
+				);
 				expectParseError(result);
 			});
 		});
