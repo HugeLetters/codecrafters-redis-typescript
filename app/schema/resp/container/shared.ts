@@ -26,8 +26,3 @@ export const RespSchema = Schema.Union(
 ).pipe(Schema.annotations({ identifier: "RespValue" }));
 
 export type RespData = typeof RespBasicSchema.Type | ReadonlyArray<RespData>;
-
-export type WithRestData<T> = {
-	readonly data: T;
-	readonly rest: string;
-};
