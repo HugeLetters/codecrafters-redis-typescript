@@ -1,8 +1,16 @@
 import { IntegerFromString } from "$/schema/number";
 import { notPattern } from "$/schema/string";
 import { Log, parseFail } from "$/schema/utils";
-import { Effect, ParseResult, Schema } from "effect";
-import { CR, CRLF, LF, RawCRLF } from "./constants";
+import {
+	Effect,
+	Option,
+	ParseResult,
+	Schema,
+	String as Str,
+	pipe,
+} from "effect";
+import { CR, CRLF, LF } from "./constants";
+import { LeftoverData, noLeftover } from "./leftover";
 
 const CleanString = Schema.String.pipe(
 	notPattern(/[\r\n]/),
@@ -10,20 +18,45 @@ const CleanString = Schema.String.pipe(
 		identifier: `string w/o ${Log.received(CR)} or ${Log.received(LF)}`,
 	}),
 );
+const validateCleanString = ParseResult.validate(CleanString);
+const LeftoverString = LeftoverData(Schema.String);
+
+const SimpleStringRegex = /^([\s\S]*?)\r\n([\s\S]*)$/;
+const LeftoverSimpleStringContent = Schema.String.pipe(
+	Schema.transformOrFail(LeftoverString, {
+		decode: Effect.fn(function* (input, _opts, ast) {
+			const match = SimpleStringRegex.exec(input);
+			if (!match) {
+				const expected = Log.expected(`{content}${CRLF}{leftover}`);
+				const received = Log.received(input);
+				const message = `Expected string matching: ${expected}. Received ${received}`;
+				return yield* parseFail(ast, input, message);
+			}
+
+			const [_match, content = "", leftover = ""] = match;
+			const data = yield* validateCleanString(content);
+			return { data, leftover };
+		}),
+		encode(data) {
+			return ParseResult.succeed(`${data.data}${CRLF}${data.leftover}`);
+		},
+	}),
+);
 
 export const SimpleStringPrefix = "+";
-export const SimpleString = Schema.TemplateLiteralParser(
+export const LeftoverSimpleString = Schema.TemplateLiteralParser(
 	SimpleStringPrefix,
-	CleanString,
-	CRLF,
-).pipe(
-	Schema.annotations({ identifier: "SimpleString" }),
+	LeftoverSimpleStringContent,
+).pipe(Schema.annotations({ identifier: "LeftoverSimpleString" }));
+
+export const SimpleString = LeftoverSimpleString.pipe(
+	noLeftover((t) => t[1].leftover, "SimpleString"),
 	Schema.transform(Schema.String, {
 		decode(template) {
-			return template[1];
+			return template[1].data;
 		},
-		encode(str) {
-			return [SimpleStringPrefix, str, CRLF] as const;
+		encode(str): typeof LeftoverSimpleString.Type {
+			return [SimpleStringPrefix, { data: str, leftover: "" }];
 		},
 	}),
 );
@@ -33,81 +66,122 @@ export class Error_ extends Schema.TaggedError<Error_>()("RespError", {
 }) {}
 
 export const SimpleErrorPrefix = "-";
-export const ErrorFromSimpleString = Schema.TemplateLiteralParser(
+export const LeftoverErrorSimpleString = Schema.TemplateLiteralParser(
 	SimpleErrorPrefix,
-	CleanString,
-	CRLF,
-).pipe(
-	Schema.annotations({ identifier: "SimpleStringError" }),
+	LeftoverSimpleStringContent,
+).pipe(Schema.annotations({ identifier: "LeftoverSimpleStringError" }));
+
+export const ErrorFromSimpleString = LeftoverErrorSimpleString.pipe(
+	noLeftover((t) => t[1].leftover, "SimpleStringError"),
 	Schema.transform(Error_, {
 		decode(template) {
-			const message = template[1];
+			const message = template[1].data;
 			const { _tag } = Error_;
 			return { _tag, message };
 		},
-		encode(err) {
-			return [SimpleErrorPrefix, err.message, CRLF] as const;
+		encode(err): typeof LeftoverErrorSimpleString.Type {
+			return [SimpleErrorPrefix, { data: err.message, leftover: "" }];
 		},
 	}),
 );
 
-const BulkStringRegex = /^(\d+)\r\n([\s\S]*)$/;
+const BulkStringRegex = /^(\d+)\r\n([\s\S]*)(\r\n[\s\S]*)$/;
 const parseIntFromString = ParseResult.decode(IntegerFromString);
-const BulkStringBase = Schema.String.pipe(
-	Schema.transformOrFail(Schema.String, {
-		decode(input, _, ast) {
-			return Effect.gen(function* () {
-				const result = BulkStringRegex.exec(input);
-				if (result === null) {
-					const expected = Log.expected(`\${integer}${CRLF}\${string}`);
-					const received = Log.received(input);
-					const message = `Expected string matching: ${expected}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
+const getCrlfPosition = Str.indexOf(CRLF);
+const LeftoverBulkStringContent = Schema.String.pipe(
+	Schema.transformOrFail(LeftoverString, {
+		decode: Effect.fn(function* (input, _opts, ast) {
+			const result = BulkStringRegex.exec(input);
+			if (result === null) {
+				const expected = Log.expected(
+					`{length}${CRLF}{content}${CRLF}{leftover}`,
+				);
+				const received = Log.received(input);
+				const message = `Expected string matching: ${expected}. Received ${received}`;
+				return yield* parseFail(ast, input, message);
+			}
 
-				const [match, length, string = ""] = result;
-				if (length === undefined) {
-					const expected = Log.expected("${integer}");
-					const received = Log.received(match);
-					const message = `Expected string to contain length: ${expected}${RawCRLF}\${string}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
+			const [_match, length = "", contentChunk = "", leftoverChunk = ""] =
+				result;
+			const expectedLength = yield* parseIntFromString(length);
+			const content = contentChunk.slice(0, expectedLength);
+			const actualLength = content.length;
+			if (actualLength !== expectedLength) {
+				const expected = Log.expected(expectedLength);
+				const received = Log.received(content);
+				const receivedLength = Log.received(actualLength);
+				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
+				return yield* parseFail(ast, content, message);
+			}
 
-				const expectedLength = yield* parseIntFromString(length);
-				const actualLength = string.length;
-				if (string.length !== expectedLength) {
-					const expected = Log.expected(expectedLength);
-					const received = Log.received(string);
-					const receivedLength = Log.received(actualLength);
-					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-					return yield* parseFail(ast, string, message);
-				}
+			const crlfPosition = expectedLength;
+			const crlfWithLeftover = contentChunk.slice(crlfPosition) + leftoverChunk;
+			const leftoverPosition = CRLF.length;
+			const receivedCrlf = crlfWithLeftover.slice(0, leftoverPosition);
 
-				return string;
-			});
-		},
-		encode(s) {
-			return ParseResult.succeed(`${s.length}${CRLF}${s}`);
+			if (receivedCrlf !== CRLF) {
+				return yield* pipe(
+					crlfWithLeftover,
+					getCrlfPosition,
+					Option.match({
+						*onSome(actualCrlfPosition) {
+							const expected = Log.expected(expectedLength);
+
+							const extraContent = crlfWithLeftover.slice(
+								0,
+								actualCrlfPosition,
+							);
+							const received = Log.received(content + extraContent);
+
+							const extraLength = actualLength + actualCrlfPosition;
+							const receivedLength = Log.received(extraLength);
+							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
+							return yield* parseFail(ast, content, message);
+						},
+						*onNone() {
+							const errorMessage =
+								"Could not locate CRLF in a bulk string - this should never happen";
+							yield* Effect.logError(errorMessage);
+
+							const expectedCrlf = Log.expected(CRLF);
+							const expectedPosition = Log.expected(crlfPosition);
+							const received = Log.received(receivedCrlf);
+							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
+							return yield* parseFail(ast, crlfWithLeftover, message);
+						},
+					}),
+				);
+			}
+
+			const leftover = crlfWithLeftover.slice(leftoverPosition);
+			type Output = typeof LeftoverString.Type;
+			const output: Output = { data: content, leftover };
+			return output;
+		}),
+		encode(input) {
+			const content = input.data;
+			return ParseResult.succeed(
+				`${content.length}${CRLF}${content}${CRLF}${input.leftover}`,
+			);
 		},
 	}),
-	Schema.annotations({ identifier: "StringFromBulkString" }),
+	Schema.annotations({ identifier: "LeftoverBulkStringContent" }),
 );
 
 export const BulkStringPrefix = "$";
-const BulkStringTemplate = Schema.TemplateLiteralParser(
+export const LeftoverBulkString = Schema.TemplateLiteralParser(
 	BulkStringPrefix,
-	Schema.String,
-	CRLF,
-).pipe(Schema.annotations({ identifier: "BulkString" }));
-export const BulkString = BulkStringTemplate.pipe(
-	Schema.transform(BulkStringBase, {
+	LeftoverBulkStringContent,
+).pipe(Schema.annotations({ identifier: "LeftoverBulkString" }));
+
+export const BulkString = LeftoverBulkString.pipe(
+	noLeftover((t) => t[1].leftover, "BulkString"),
+	Schema.transform(Schema.String, {
 		decode(template) {
-			return template[1];
+			return template[1].data;
 		},
-		encode(s) {
-			type Result = typeof BulkStringTemplate.Type;
-			const result: Result = [BulkStringPrefix, s, CRLF];
-			return result;
+		encode(data): typeof LeftoverBulkString.Type {
+			return [BulkStringPrefix, { data, leftover: "" }];
 		},
 	}),
 );
@@ -138,22 +212,22 @@ export const String_ = Schema.declare(
 );
 
 export const BulkErrorPrefix = "!";
-const BulkErrorTemplate = Schema.TemplateLiteralParser(
+export const LeftoverBulkStringError = Schema.TemplateLiteralParser(
 	BulkErrorPrefix,
-	BulkStringBase,
-	CRLF,
-).pipe(Schema.annotations({ identifier: "BulkStringError" }));
-export const ErrorFromBulkString = BulkErrorTemplate.pipe(
+	LeftoverBulkStringContent,
+).pipe(Schema.annotations({ identifier: "LeftoverBulkStringError" }));
+
+export const ErrorFromBulkString = LeftoverBulkStringError.pipe(
+	noLeftover((t) => t[1].leftover, "BulkStringError"),
 	Schema.transform(Error_, {
 		decode(template) {
-			const message = template[1];
+			const message = template[1].data;
 			const { _tag } = Error_;
 			return { _tag, message };
 		},
-		encode(error) {
-			type Result = typeof BulkErrorTemplate.Type;
-			const result: Result = [BulkErrorPrefix, error.message, CRLF];
-			return result;
+		encode(error): typeof LeftoverBulkStringError.Type {
+			const data = error.message;
+			return [BulkErrorPrefix, { data, leftover: "" }];
 		},
 	}),
 );
@@ -190,62 +264,104 @@ export class VerbatimString extends Schema.Class<VerbatimString>(
 	text: Schema.String,
 }) {}
 
-const VerbatimStringRegex = /^(\d+)\r\n([\s\S]{3}):([\s\S]*)$/;
-export const VerbatimStringPrefix = "=";
-const VerbatimStringTemplate = Schema.TemplateLiteralParser(
-	VerbatimStringPrefix,
-	Schema.String,
-	CRLF,
-).pipe(Schema.annotations({ identifier: "RawVerbatimString" }));
-export const VerbatimStringFromString = VerbatimStringTemplate.pipe(
-	Schema.transformOrFail(VerbatimString, {
-		decode(template, _, ast) {
-			const input = template[1];
-			return Effect.gen(function* () {
-				const result = VerbatimStringRegex.exec(input);
-				if (result === null) {
-					const expected = Log.expected(
-						`\${length}${CRLF}\${encoding}:\${string}`,
-					);
-					const received = Log.received(input);
-					const message = `Expected string matching: ${expected}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
+const ENCODING_LENGTH = 3;
+const VerbatimStringRegex = /^(\d+)\r\n([\s\S]{3}:[\s\S]*)(\r\n[\s\S]*)$/;
+const LeftoverVerbatimStringContent = Schema.String.pipe(
+	Schema.transformOrFail(LeftoverData(VerbatimString), {
+		decode: Effect.fn(function* (input, _opts, ast) {
+			const result = VerbatimStringRegex.exec(input);
+			if (result === null) {
+				const expected = Log.expected(
+					`{length}${CRLF}{XXX}:{content}${CRLF}{leftover}`,
+				);
+				const received = Log.received(input);
+				const message = `Expected string matching: ${expected}. Received ${received}`;
+				return yield* parseFail(ast, input, message);
+			}
 
-				const [match, length, encoding, text = ""] = result;
-				if (length === undefined) {
-					const expected = `${Log.expected("${length}")}${RawCRLF}\${encoding}:\${string}`;
-					const received = Log.received(match);
-					const message = `Expected string to contain length: ${expected}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
+			const [_match, length = "", contentChunk = "", leftoverChunk = ""] =
+				result;
+			const expectedLength = yield* parseIntFromString(length);
+			const content = contentChunk.slice(0, expectedLength);
+			const actualLength = content.length;
 
-				if (encoding === undefined) {
-					const expected = `\${length}${RawCRLF}${Log.expected("${encoding}")}:\${string}`;
-					const received = Log.received(match);
-					const message = `Expected string to contain encoding: ${expected}. Received ${received}`;
-					return yield* parseFail(ast, input, message);
-				}
+			if (actualLength !== expectedLength) {
+				const expected = Log.expected(expectedLength);
+				const received = Log.received(content);
+				const receivedLength = Log.received(actualLength);
+				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
+				return yield* parseFail(ast, content, message);
+			}
 
-				const expectedLength = yield* parseIntFromString(length);
-				const actualLength = encoding.length + 1 + text.length; // +1 for ":"
-				if (actualLength !== expectedLength) {
-					const expected = Log.expected(expectedLength);
-					const received = Log.received(text);
-					const receivedLength = Log.received(actualLength);
-					const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-					return yield* parseFail(ast, text, message);
-				}
+			const crlfPosition = expectedLength;
+			const crlfWithLeftover = contentChunk.slice(crlfPosition) + leftoverChunk;
+			const leftoverPosition = CRLF.length;
+			const receivedCrlf = crlfWithLeftover.slice(0, leftoverPosition);
 
-				return { encoding, text };
-			});
-		},
-		encode(str) {
+			if (receivedCrlf !== CRLF) {
+				return yield* pipe(
+					crlfWithLeftover,
+					getCrlfPosition,
+					Option.match({
+						*onSome(actualCrlfPosition) {
+							const expected = Log.expected(expectedLength);
+
+							const extraContent = crlfWithLeftover.slice(
+								0,
+								actualCrlfPosition,
+							);
+							const received = Log.received(content + extraContent);
+
+							const extraLength = actualLength + actualCrlfPosition;
+							const receivedLength = Log.received(extraLength);
+							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
+							return yield* parseFail(ast, content, message);
+						},
+						*onNone() {
+							const errorMessage =
+								"Could not locate CRLF in a verbatim string - this should never happen";
+							yield* Effect.logError(errorMessage);
+
+							const expectedCrlf = Log.expected(CRLF);
+							const expectedPosition = Log.expected(crlfPosition);
+							const received = Log.received(receivedCrlf);
+							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
+							return yield* parseFail(ast, crlfWithLeftover, message);
+						},
+					}),
+				);
+			}
+
+			const encoding = content.slice(0, ENCODING_LENGTH);
+			const text = content.slice(ENCODING_LENGTH + 1);
+			const leftover = crlfWithLeftover.slice(leftoverPosition);
+			type Output = LeftoverData<VerbatimString>;
+			const output: Output = { data: { encoding, text }, leftover };
+			return output;
+		}),
+		encode(input) {
+			const str = input.data;
 			const message = `${str.encoding}:${str.text}`;
-			const data = `${message.length}${CRLF}${message}`;
-			type Result = typeof VerbatimStringTemplate.Type;
-			const result: Result = [VerbatimStringPrefix, data, CRLF];
-			return ParseResult.succeed(result);
+			const output = `${message.length}${CRLF}${message}${CRLF}${input.leftover}`;
+			return ParseResult.succeed(output);
+		},
+	}),
+);
+
+export const VerbatimStringPrefix = "=";
+export const LeftoverVerbatimString = Schema.TemplateLiteralParser(
+	VerbatimStringPrefix,
+	LeftoverVerbatimStringContent,
+).pipe(Schema.annotations({ identifier: "LeftoverVerbatimString" }));
+
+export const VerbatimStringFromString = LeftoverVerbatimString.pipe(
+	noLeftover((t) => t[1].leftover, "VerbatimString"),
+	Schema.transform(Schema.typeSchema(VerbatimString), {
+		decode(template) {
+			return template[1].data;
+		},
+		encode(data): typeof LeftoverVerbatimString.Type {
+			return [VerbatimStringPrefix, { data, leftover: "" }];
 		},
 	}),
 );

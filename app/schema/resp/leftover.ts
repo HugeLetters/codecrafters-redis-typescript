@@ -1,10 +1,15 @@
 import { Schema } from "effect";
 import { Log } from "../utils";
 
-export type LeftoverData<T> = {
-	readonly data: T;
-	readonly leftover: string;
-};
+export function LeftoverData<TType, TEncoded, TReq>(
+	schema: Schema.Schema<TType, TEncoded, TReq>,
+) {
+	return Schema.Struct({ data: schema, leftover: Schema.String });
+}
+
+export type LeftoverData<T> = ReturnType<
+	typeof LeftoverData<T, string, never>
+>["Type"];
 
 export function noLeftover<TType, TEncoded>(
 	getLeftover: (value: TType) => string,
