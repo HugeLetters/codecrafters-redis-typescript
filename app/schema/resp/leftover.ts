@@ -1,10 +1,12 @@
+import { Log } from "$/schema/utils";
 import { Schema } from "effect";
-import { Log } from "../utils";
 
 export function LeftoverData<TType, TEncoded, TReq>(
 	schema: Schema.Schema<TType, TEncoded, TReq>,
 ) {
-	return Schema.Struct({ data: schema, leftover: Schema.String });
+	return Schema.Struct({ data: schema, leftover: Schema.String }).pipe(
+		Schema.annotations({ identifier: `LeftoverData<${schema}>` }),
+	);
 }
 
 export type LeftoverData<T> = ReturnType<
