@@ -85,6 +85,11 @@ describe("Integer", () => {
 				const result = yield* $int.decodeFail(":123.45\r\n");
 				expectParseError(result);
 			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $int.decodeFail(":123\r\nleft\r\nover");
+				expectParseError(result);
+			});
 		});
 
 		describe("is not encoded", () => {
@@ -287,6 +292,11 @@ describe("Double", () => {
 
 			test.effect("when missing comma prefix", function* () {
 				const result = yield* $double.decodeFail("1.23\r\n");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $double.decodeFail(",1.23e1\r\nleft\r\nover");
 				expectParseError(result);
 			});
 		});
