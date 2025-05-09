@@ -4,7 +4,7 @@ import { noLeftover } from "$/schema/resp/leftover";
 import { notPattern } from "$/schema/string";
 import { Log, parseFail } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
-import { LeftoverString } from "./utils";
+import { LeftoverError, LeftoverString } from "./utils";
 
 const CleanString = Schema.String.pipe(
 	notPattern(/[\r\n]/),
@@ -55,21 +55,37 @@ export const SimpleString = LeftoverSimpleString.pipe(
 );
 
 export const SimpleErrorPrefix = "-";
-export const LeftoverSimpleError = Schema.TemplateLiteralParser(
+const LeftoverSimpleErrorTemplate = Schema.TemplateLiteralParser(
 	SimpleErrorPrefix,
 	LeftoverSimpleStringContent,
 ).pipe(Schema.annotations({ identifier: "LeftoverSimpleError" }));
 
-export const SimpleError = LeftoverSimpleError.pipe(
-	noLeftover((t) => t[1].leftover, "SimpleError"),
-	Schema.transform(Error_, {
+export const LeftoverSimpleError = LeftoverSimpleErrorTemplate.pipe(
+	Schema.transform(LeftoverError, {
 		decode(template) {
-			const message = template[1].data;
+			const data = template[1];
+			const message = data.data;
 			const { _tag } = Error_;
-			return { _tag, message };
+			return { data: { _tag, message }, leftover: data.leftover };
+		},
+		encode(data): typeof LeftoverSimpleErrorTemplate.Type {
+			return [
+				SimpleErrorPrefix,
+				{ data: data.data.message, leftover: data.leftover },
+			];
+		},
+	}),
+);
+
+export const SimpleError = LeftoverSimpleError.pipe(
+	noLeftover((t) => t.leftover, "SimpleError"),
+	Schema.transform(Schema.typeSchema(Error_), {
+		decode(template) {
+			return template.data;
 		},
 		encode(err): typeof LeftoverSimpleError.Type {
-			return [SimpleErrorPrefix, { data: err.message, leftover: "" }];
+			return { data: err, leftover: "" };
 		},
+		strict: true,
 	}),
 );

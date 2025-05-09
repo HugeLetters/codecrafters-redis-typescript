@@ -9,15 +9,16 @@ export function LeftoverData<TType, TEncoded, TReq>(
 	);
 }
 
-export type LeftoverData<T> = ReturnType<
-	typeof LeftoverData<T, string, never>
->["Type"];
+type LeftoverSchema<TType, TEncoded = unknown, TReq = never> = ReturnType<
+	typeof LeftoverData<TType, TEncoded, TReq>
+>;
+export type LeftoverData<T> = LeftoverSchema<T>["Type"];
 
-export function noLeftover<TType, TEncoded>(
+export function noLeftover<TType, TEncoded, TReq>(
 	getLeftover: (value: TType) => string,
 	identifier: string,
 ) {
-	return Schema.filter<Schema.Schema<TType, TEncoded>>(
+	return Schema.filter<Schema.Schema<TType, TEncoded, TReq>>(
 		(data) => {
 			const leftover = getLeftover(data);
 			if (leftover === "") {
