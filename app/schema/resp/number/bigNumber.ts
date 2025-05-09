@@ -1,28 +1,58 @@
 import { CRLF } from "$/schema/resp/constants";
-import { DigitString, ImplicitNumberSign } from "$/schema/string";
-import { BigInt as BigInt_, Schema } from "effect";
+import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
+import { ImplicitNumberSign } from "$/schema/string";
+import { Log, parseFail } from "$/schema/utils";
+import { BigInt as BigInt_, Effect, ParseResult, Schema } from "effect";
 
 export const BigNumberPrefix = "(";
-export const BigNumber = Schema.TemplateLiteralParser(
+const LeftoverBigNumber_ = Schema.TemplateLiteralParser(
 	BigNumberPrefix,
 	ImplicitNumberSign,
-	DigitString.pipe(Schema.compose(Schema.BigInt)),
-	CRLF,
-).pipe(
-	Schema.annotations({ identifier: "BigNumber" }),
+	Schema.String,
+).pipe(Schema.annotations({ identifier: "LeftoverBigNumber" }));
+
+const BigIntRegex = /^(\d+)\r\n([\s\S]*)$/;
+const parseBigIntFromString = ParseResult.decode(Schema.BigInt);
+export const LeftoverBigNumber = LeftoverBigNumber_.pipe(
+	Schema.transformOrFail(LeftoverData(Schema.BigIntFromSelf), {
+		decode: Effect.fn(function* (template, _opts, ast) {
+			const str = template[2];
+			const result = BigIntRegex.exec(str);
+			if (result === null) {
+				const expected = Log.expected(`{bigint}${CRLF}{leftover}`);
+				const received = Log.received(str);
+				const message = `Expected string matching: ${expected}. Received ${received}`;
+				return yield* parseFail(ast, str, message);
+			}
+
+			const [_match, digits = "", leftover = ""] = result;
+			const number = yield* parseBigIntFromString(digits);
+			const sign = template[1] === "+" ? 1n : -1n;
+			const output = sign * number;
+			return { data: output, leftover };
+		}),
+		encode(input) {
+			const integer = input.data;
+			type Output = typeof LeftoverBigNumber_.Type;
+			const output: Output = [
+				BigNumberPrefix,
+				integer < 0 ? "-" : "+",
+				`${BigInt_.abs(integer)}${CRLF}${input.leftover}`,
+			];
+			return ParseResult.succeed(output);
+		},
+		strict: true,
+	}),
+);
+
+export const BigNumber = LeftoverBigNumber.pipe(
+	noLeftover((t) => t.leftover, "BigNumber"),
 	Schema.transform(Schema.BigIntFromSelf, {
 		decode(template) {
-			const biging = template[2];
-			const sign = template[1] === "+" ? 1n : -1n;
-			return sign * biging;
+			return template.data;
 		},
 		encode(bigint) {
-			return [
-				BigNumberPrefix,
-				bigint < 0 ? "-" : "+",
-				BigInt_.abs(bigint),
-				CRLF,
-			] as const;
+			return { data: bigint, leftover: "" };
 		},
 	}),
 );
