@@ -1,4 +1,4 @@
-import { Error_ } from "$/schema/resp/string";
+import { Error_ } from "$/schema/resp/error";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
