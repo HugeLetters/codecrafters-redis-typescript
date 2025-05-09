@@ -3,7 +3,12 @@ import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
 import { Log, parseFail } from "$/schema/utils";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
-import { LeftoverString, getCrlfPosition, parseIntFromString } from "./utils";
+import {
+	LeftoverError,
+	LeftoverString,
+	getCrlfPosition,
+	parseIntFromString,
+} from "./utils";
 
 const BulkStringRegex = /^(\d+)\r\n([\s\S]*)(\r\n[\s\S]*)$/;
 const LeftoverBulkStringContent = Schema.String.pipe(
@@ -105,22 +110,36 @@ export const BulkString = LeftoverBulkString.pipe(
 );
 
 export const BulkErrorPrefix = "!";
-export const LeftoverBulkError = Schema.TemplateLiteralParser(
+const LeftoverBulkErrorTemplate = Schema.TemplateLiteralParser(
 	BulkErrorPrefix,
 	LeftoverBulkStringContent,
 ).pipe(Schema.annotations({ identifier: "LeftoverBulkError" }));
 
-export const BulkError = LeftoverBulkError.pipe(
-	noLeftover((t) => t[1].leftover, "BulkError"),
-	Schema.transform(Error_, {
+export const LeftoverBulkError = LeftoverBulkErrorTemplate.pipe(
+	Schema.transform(LeftoverError, {
 		decode(template) {
-			const message = template[1].data;
+			const data = template[1];
+			const message = data.data;
 			const { _tag } = Error_;
-			return { _tag, message };
+			return { data: { _tag, message }, leftover: data.leftover };
 		},
-		encode(error): typeof LeftoverBulkError.Type {
-			const data = error.message;
-			return [BulkErrorPrefix, { data, leftover: "" }];
+		encode(data): typeof LeftoverBulkErrorTemplate.Type {
+			return [
+				BulkErrorPrefix,
+				{ data: data.data.message, leftover: data.leftover },
+			];
+		},
+	}),
+);
+
+export const BulkError = LeftoverBulkError.pipe(
+	noLeftover((t) => t.leftover, "BulkError"),
+	Schema.transform(Schema.typeSchema(Error_), {
+		decode(template) {
+			return template.data;
+		},
+		encode(data): typeof LeftoverBulkError.Type {
+			return { data, leftover: "" };
 		},
 	}),
 );
