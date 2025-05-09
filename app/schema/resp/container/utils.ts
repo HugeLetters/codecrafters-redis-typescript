@@ -1,22 +1,21 @@
-import { BigNumber, Double, Integer } from "$/schema/resp/number";
-import { Boolean_, PlainNull } from "$/schema/resp/primitives";
-import {
-	ErrorFromString,
-	String_,
-	VerbatimStringFromString,
-} from "$/schema/resp/string";
+import { Number_ } from "$/schema/resp/number";
+import { Primitive } from "$/schema/resp/primitive";
+import { String_ } from "$/schema/resp/string";
 import { Schema } from "effect";
 import { Array_ } from "./array";
 
 const RespBasicSchema = Schema.Union(
-	String_,
-	VerbatimStringFromString,
-	Integer,
-	Double,
-	BigNumber,
-	PlainNull,
-	Boolean_,
-	ErrorFromString,
+	String_.String,
+	String_.VerbatimString,
+
+	Number_.Integer,
+	Number_.Double,
+	Number_.BigNumber,
+
+	Primitive.PlainNull,
+	Primitive.Boolean,
+
+	String_.ErrorFromString,
 );
 
 /** For encoding only */
