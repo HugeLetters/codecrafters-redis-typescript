@@ -1,6 +1,5 @@
 export { Array_ as Array } from "./container/array";
 export { BigNumber, Double, Integer } from "./number";
-export { Boolean_ as Boolean, Null } from "./primitives";
 export {
 	BulkString,
 	Error_ as Error,
@@ -8,3 +7,4 @@ export {
 	ErrorFromSimpleString,
 	SimpleString,
 } from "./string";
+export { Primitive } from "./primitive";
