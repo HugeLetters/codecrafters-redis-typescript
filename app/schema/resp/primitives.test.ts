@@ -1,12 +1,11 @@
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
-import { Boolean_, Null } from "./primitives";
-
-const Invalid = "invalid";
+import { Boolean_, LeftoverNull, Null } from "./primitives";
 
 describe("null", () => {
 	const $null = createSchemaHelpers(Null);
+	const $leftoverNull = createSchemaHelpers(LeftoverNull);
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {
@@ -15,7 +14,7 @@ describe("null", () => {
 				expect(result).toBe(null);
 			});
 
-			test.effect("for null nulk string", function* () {
+			test.effect("for null bulk string", function* () {
 				const result = yield* $null.decode("$-1\r\n");
 				expect(result).toBe(null);
 			});
@@ -23,6 +22,21 @@ describe("null", () => {
 			test.effect("for null array", function* () {
 				const result = yield* $null.decode("*-1\r\n");
 				expect(result).toBe(null);
+			});
+
+			test.effect("for null with leftover", function* () {
+				const result = yield* $leftoverNull.decode("_\r\nleft\r\nover");
+				expect(result).toStrictEqual([null, "left\r\nover"]);
+			});
+
+			test.effect("for null bulk string with leftover", function* () {
+				const result = yield* $leftoverNull.decode("$-1\r\nleft\r\nover");
+				expect(result).toStrictEqual([null, "left\r\nover"]);
+			});
+
+			test.effect("for null array with leftover", function* () {
+				const result = yield* $leftoverNull.decode("*-1\r\nleft\r\nover");
+				expect(result).toStrictEqual([null, "left\r\nover"]);
 			});
 		});
 
@@ -33,14 +47,18 @@ describe("null", () => {
 	});
 
 	describe("with invalid data", () => {
-		test.effect("is not decoded", function* () {
-			const result = yield* $null.decodeFail(Invalid);
-			expectParseError(result);
+		describe("is not decoded", () => {
+			test.effect("with malformed data", function* () {
+				const result = yield* $null.decodeFail("invalid");
+				expectParseError(result);
+			});
 		});
 
-		test.effect("is not encoded", function* () {
-			const result = yield* $null.encodeFail(Invalid);
-			expectParseError(result);
+		describe("is not encoded", () => {
+			test.effect("with string", function* () {
+				const result = yield* $null.encodeFail("invalid");
+				expectParseError(result);
+			});
 		});
 	});
 });
@@ -78,14 +96,21 @@ describe("boolean", () => {
 	});
 
 	describe("with invalid data", () => {
-		test.effect("is not decoded", function* () {
-			const result = yield* $boolean.decodeFail(Invalid);
-			expectParseError(result);
+		describe("is not decoded", () => {
+			test.effect("with malformed data", function* () {
+				const result = yield* $boolean.decodeFail("invalid");
+				expectParseError(result);
+			});
+
+			test.effect("with leftover", function* () {
+				const result = yield* $boolean.decodeFail("#t\r\nleft\r\nover");
+				expectParseError(result);
+			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("from string", function* () {
-				const result = yield* $boolean.encodeFail(Invalid);
+				const result = yield* $boolean.encodeFail("invalid");
 				expectParseError(result);
 			});
 
