@@ -1,65 +1,15 @@
 import { IntegerFromString } from "$/schema/number";
-import {
-	BigNumber,
-	BigNumberPrefix,
-	Double,
-	DoublePrefix,
-	Integer,
-	IntegerPrefix,
-} from "$/schema/resp/number";
-import {
-	ArrayNull,
-	BooleanPrefix,
-	Boolean_,
-	BulkStringNull,
-	NullPrefix,
-	PlainNull,
-} from "$/schema/resp/primitives";
-import {
-	BulkErrorPrefix,
-	BulkString,
-	BulkStringPrefix,
-	ErrorFromBulkString,
-	ErrorFromSimpleString,
-	SimpleErrorPrefix,
-	SimpleString,
-	SimpleStringPrefix,
-	VerbatimStringFromString,
-	VerbatimStringPrefix,
-} from "$/schema/resp/string";
+import { CRLF, RawCRLF } from "$/schema/resp/constants";
+import type { LeftoverData } from "$/schema/resp/leftover";
+import { Number_ } from "$/schema/resp/number";
+import { Primitive } from "$/schema/resp/primitive";
+import { String_ } from "$/schema/resp/string";
 import { Log, parseFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { Effect, ParseResult, Schema, type SchemaAST } from "effect";
-import { type RespData, RespSchema } from "./shared";
-import { CRLF, RawCRLF } from "../constants";
-import type { LeftoverData } from "../leftover";
+import { type RespData, RespSchema } from "./utils";
 
 export const ArrayPrefix = "*";
-
-const regexDecoder = function (regex: RegExp) {
-	return Effect.fn(function* <T, E extends string>(
-		input: string,
-		schema: Schema.Schema<T, E>,
-		ast: SchemaAST.AST,
-	): EffectGen<LeftoverData<T>, ParseResult.ParseIssue> {
-		const result = regex.exec(input);
-		if (result === null) {
-			const expected = Log.expected(regex.source);
-			const received = Log.received(input);
-			const message = `Expected string matching: ${expected}. Received ${received}`;
-			return yield* parseFail(ast, input, message);
-		}
-
-		const [_match, element, leftover = ""] = result;
-		const parsed = yield* ParseResult.decodeUnknown(schema)(element);
-		return { data: parsed, leftover };
-	});
-};
-
-const SimpleArrayElementRegex = /([\s\S]+?\r\n)([\s\S]*)/;
-const decodeSimpleElement = regexDecoder(SimpleArrayElementRegex);
-const PrefixedStringArrayRegex = /([\s\S]+?\r\n[\s\S]+?\r\n)([\s\S]*)/;
-const decodePrefixedString = regexDecoder(PrefixedStringArrayRegex);
 
 const decodeNextArrayItem = Effect.fn(function* (
 	input: string,
@@ -68,40 +18,60 @@ const decodeNextArrayItem = Effect.fn(function* (
 	const prefix = input[0];
 
 	switch (prefix) {
-		case SimpleStringPrefix: {
-			return yield* decodeSimpleElement(input, SimpleString, ast);
+		case String_.SimpleStringPrefix: {
+			return yield* ParseResult.decodeUnknown(String_.LeftoverSimpleString)(
+				input,
+			).pipe(Effect.map(([, data]) => data));
 		}
-		case BulkStringPrefix: {
-			return yield* decodeSimpleElement(input, BulkStringNull, ast).pipe(
-				Effect.orElse(() => decodePrefixedString(input, BulkString, ast)),
+		case String_.BulkStringPrefix: {
+			return yield* ParseResult.decodeUnknown(Primitive.LeftoverBulkStringNull)(
+				input,
+			).pipe(
+				Effect.map(([data, leftover]) => ({ data, leftover })),
+				Effect.orElse(() =>
+					ParseResult.decodeUnknown(String_.LeftoverBulkString)(input).pipe(
+						Effect.map(([, data]) => data),
+					),
+				),
 			);
 		}
-		case VerbatimStringPrefix: {
-			return yield* decodePrefixedString(input, VerbatimStringFromString, ast);
+		case String_.VerbatimStringPrefix: {
+			return yield* ParseResult.decodeUnknown(String_.LeftoverVerbatimString)(
+				input,
+			).pipe(Effect.map(([, data]) => data));
 		}
-		case IntegerPrefix: {
-			return yield* decodeSimpleElement(input, Integer, ast);
+		case Number_.IntegerPrefix: {
+			return yield* ParseResult.decodeUnknown(Number_.LeftoverInteger)(input);
 		}
-		case DoublePrefix: {
-			return yield* decodeSimpleElement(input, Double, ast);
+		case Number_.DoublePrefix: {
+			return yield* ParseResult.decodeUnknown(Number_.LeftoverDouble)(input);
 		}
-		case BigNumberPrefix: {
-			return yield* decodeSimpleElement(input, BigNumber, ast);
+		case Number_.BigNumberPrefix: {
+			return yield* ParseResult.decodeUnknown(Number_.LeftoverBigNumber)(input);
 		}
-		case BooleanPrefix: {
-			return yield* decodeSimpleElement(input, Boolean_, ast);
+		case Primitive.BooleanPrefix: {
+			return yield* ParseResult.decodeUnknown(Primitive.LeftoverBoolean)(
+				input,
+			).pipe(Effect.map(([, data, , leftover]) => ({ data, leftover })));
 		}
-		case NullPrefix: {
-			return yield* decodeSimpleElement(input, PlainNull, ast);
+		case Primitive.NullPrefix: {
+			return yield* ParseResult.decodeUnknown(Primitive.LeftoverPlainNull)(
+				input,
+			).pipe(Effect.map(([data, leftover]) => ({ data, leftover })));
 		}
-		case SimpleErrorPrefix: {
-			return yield* decodeSimpleElement(input, ErrorFromSimpleString, ast);
+		case String_.SimpleErrorPrefix: {
+			return yield* ParseResult.decodeUnknown(String_.LeftoverSimpleError)(
+				input,
+			);
 		}
-		case BulkErrorPrefix: {
-			return yield* decodePrefixedString(input, ErrorFromBulkString, ast);
+		case String_.BulkErrorPrefix: {
+			return yield* ParseResult.decodeUnknown(String_.LeftoverBulkError)(input);
 		}
 		case ArrayPrefix: {
-			return yield* decodeSimpleElement(input, ArrayNull, ast).pipe(
+			return yield* ParseResult.decodeUnknown(Primitive.LeftoverArrayNull)(
+				input,
+			).pipe(
+				Effect.map(([data, leftover]) => ({ data, leftover })),
 				Effect.orElse(() => decodeArrayWithRest(input, ast)),
 			);
 		}
