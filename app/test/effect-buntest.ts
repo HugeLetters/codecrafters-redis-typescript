@@ -28,7 +28,7 @@ export namespace EffectBunTest {
 
 	export type TestFunction<A, E, R, TestArgs extends Array<unknown>> = (
 		...args: TestArgs
-	) => EffectGen<A, E, R>;
+	) => EffectGen<Effect.Effect<A, E, R>>;
 
 	export type Test<R> = <A, E>(
 		name: string,
