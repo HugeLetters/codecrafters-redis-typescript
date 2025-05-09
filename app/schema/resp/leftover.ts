@@ -1,5 +1,5 @@
 import { Log } from "$/schema/utils";
-import { Schema } from "effect";
+import { Schema, type Effect, type ParseResult } from "effect";
 
 export function LeftoverData<TType, TEncoded, TReq>(
 	schema: Schema.Schema<TType, TEncoded, TReq>,
@@ -13,6 +13,10 @@ type LeftoverSchema<TType, TEncoded = unknown, TReq = never> = ReturnType<
 	typeof LeftoverData<TType, TEncoded, TReq>
 >;
 export type LeftoverData<T> = LeftoverSchema<T>["Type"];
+export type LeftoverParseResult<T> = Effect.Effect<
+	LeftoverData<T>,
+	ParseResult.ParseIssue
+>;
 
 export function noLeftover<TType, TEncoded, TReq>(
 	getLeftover: (value: TType) => string,
