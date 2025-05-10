@@ -1,7 +1,7 @@
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";
-import { Log, parseFail } from "$/schema/utils";
+import { Log, parseTypeFail } from "$/schema/utils";
 import { BigInt as BigInt_, Effect, ParseResult, Schema } from "effect";
 
 export const BigNumberPrefix = "(";
@@ -22,7 +22,7 @@ export const LeftoverBigNumber = LeftoverBigNumber_.pipe(
 				const expected = Log.expected(`{bigint}${CRLF}{leftover}`);
 				const received = Log.received(str);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseFail(ast, str, message);
+				return yield* parseTypeFail(ast, str, message);
 			}
 
 			const [_match, digits = "", leftover = ""] = result;

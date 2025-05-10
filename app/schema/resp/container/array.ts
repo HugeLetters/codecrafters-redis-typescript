@@ -1,7 +1,7 @@
 import { IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
-import { Log, parseFail } from "$/schema/utils";
+import { Log, parseTypeFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { Effect, ParseResult, Schema, type SchemaAST, identity } from "effect";
 import { type RespData, RespSchema, decodeLeftoverItem } from "./utils";
@@ -19,7 +19,7 @@ const decodeArrayLength = Effect.fn(function* (
 		const expected = Log.expected(`${ArrayPrefix}{length}${CRLF}{items}`);
 		const received = Log.received(input);
 		const message = `Expected string matching: ${expected}. Received ${received}`;
-		return yield* parseFail(ast, input, message);
+		return yield* parseTypeFail(ast, input, message);
 	}
 
 	const [_match, rawLength, content = ""] = result;
@@ -41,7 +41,7 @@ export const decodeLeftoverArray = Effect.fn(function* (
 			const received = Log.received(result.length);
 			const receivedInput = Log.received(input);
 			const message = `Expected array of length ${expected}. Received ${received} elements decoded from ${receivedInput}`;
-			return yield* parseFail(ast, input, message);
+			return yield* parseTypeFail(ast, input, message);
 		}
 
 		const { data, leftover } = yield* decodeLeftoverItem(encoded, ast);

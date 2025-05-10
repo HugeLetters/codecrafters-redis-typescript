@@ -2,7 +2,7 @@ import { green, red } from "$/utils/stdout";
 import { ParseResult, pipe } from "effect";
 import type { AST } from "effect/SchemaAST";
 
-export function parseFail(ast: AST, actual: unknown, message: string) {
+export function parseTypeFail(ast: AST, actual: unknown, message: string) {
 	const issue = new ParseResult.Type(ast, actual, message);
 	return ParseResult.fail(issue);
 }

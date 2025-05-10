@@ -1,7 +1,7 @@
 import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
-import { Log, parseFail } from "$/schema/utils";
+import { Log, parseTypeFail } from "$/schema/utils";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
 import {
 	LeftoverError,
@@ -21,7 +21,7 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 				);
 				const received = Log.received(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseFail(ast, input, message);
+				return yield* parseTypeFail(ast, input, message);
 			}
 
 			const [_match, length = "", contentChunk = "", leftoverChunk = ""] =
@@ -34,7 +34,7 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 				const received = Log.received(content);
 				const receivedLength = Log.received(actualLength);
 				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-				return yield* parseFail(ast, content, message);
+				return yield* parseTypeFail(ast, content, message);
 			}
 
 			const crlfPosition = expectedLength;
@@ -59,7 +59,7 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 							const extraLength = actualLength + actualCrlfPosition;
 							const receivedLength = Log.received(extraLength);
 							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-							return yield* parseFail(ast, content, message);
+							return yield* parseTypeFail(ast, content, message);
 						},
 						*onNone() {
 							const errorMessage =
@@ -70,7 +70,7 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 							const expectedPosition = Log.expected(crlfPosition);
 							const received = Log.received(receivedCrlf);
 							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
-							return yield* parseFail(ast, crlfWithLeftover, message);
+							return yield* parseTypeFail(ast, crlfWithLeftover, message);
 						},
 					}),
 				);
