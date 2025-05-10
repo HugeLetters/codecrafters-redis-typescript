@@ -134,7 +134,8 @@ describe("Array", () => {
 			});
 
 			test.effect("malformed inner element", function* () {
-				const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}notvalid`);
+				const input = `*10\r\n${bulk("str")}${err("err")}notvalid${simple("simple")}`;
+				const result = yield* $array.decodeFail(input);
 				expectParseError(result);
 			});
 
