@@ -1,20 +1,13 @@
 import { CR, CRLF, LF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
-import { notPattern } from "$/schema/string";
 import { Log, parseFail } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
 import { LeftoverError, LeftoverString } from "./utils";
 
-const CleanString = Schema.String.pipe(
-	notPattern(/[\r\n]/),
-	Schema.annotations({
-		identifier: `string w/o ${Log.received(CR)} or ${Log.received(LF)}`,
-	}),
-);
-const validateCleanString = ParseResult.validate(CleanString);
-
 const SimpleStringRegex = /^([\s\S]*?)\r\n([\s\S]*)$/;
+const ClRfRegex = /[\r\n]/;
+const ClRfFilterMessage = `Leftover string data cannot contain ${Log.received(CR)} or ${Log.received(LF)}`;
 const LeftoverSimpleStringContent = Schema.String.pipe(
 	Schema.transformOrFail(LeftoverString, {
 		decode: Effect.fn(function* (input, _opts, ast) {
@@ -26,14 +19,19 @@ const LeftoverSimpleStringContent = Schema.String.pipe(
 				return yield* parseFail(ast, input, message);
 			}
 
-			const [_match, content = "", leftover = ""] = match;
-			const data = yield* validateCleanString(content);
+			const [_match, data = "", leftover = ""] = match;
 			return { data, leftover };
 		}),
 		encode(data) {
 			return ParseResult.succeed(`${data.data}${CRLF}${data.leftover}`);
 		},
 	}),
+	Schema.filter((input) => {
+		if (ClRfRegex.test(input.data)) {
+			return `${ClRfFilterMessage}. Received ${Log.received(input.data)}`;
+		}
+	}),
+	Schema.annotations({ identifier: "LeftoverSimpleStringContent" }),
 );
 
 export const SimpleStringPrefix = "+";
