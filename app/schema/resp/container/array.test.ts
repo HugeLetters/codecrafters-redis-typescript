@@ -20,7 +20,7 @@ describe("Array", () => {
 				expect(result).toStrictEqual([]);
 			});
 
-			test.effect("single element", function* () {
+			test.effect("single item", function* () {
 				const result = yield* $array.decode(`*1\r\n${int(123)}`);
 				expect(result).toStrictEqual([123]);
 			});
@@ -90,7 +90,7 @@ describe("Array", () => {
 				expect(result).toBe("*0\r\n");
 			});
 
-			test.effect("single element array", function* () {
+			test.effect("single item array", function* () {
 				const result = yield* $array.encode([123]);
 				expect(result).toBe(`*1\r\n${int(123)}`);
 			});
@@ -122,26 +122,38 @@ describe("Array", () => {
 
 	describe("with invalid data", () => {
 		describe("is not decoded", () => {
-			test.effect("wrong element count (too few)", function* () {
+			test.effect("too few items", function* () {
 				const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}`);
 				expectParseError(result);
 			});
 
-			test.effect("wrong element count (too many)", function* () {
+			test.effect("nested array with too few items", function* () {
+				const input = `*2\r\n*1\r\n${bulk("a")}*2\r\n${bulk("c")}`;
+				const result = yield* $array.decodeFail(input);
+				expectParseError(result);
+			});
+
+			test.effect("too many items", function* () {
 				const data = `*1\r\n${bulk("a")}${bulk("b")}`;
 				const result = yield* $array.decodeFail(data);
 				expectParseError(result);
 			});
 
-			test.effect("malformed inner element", function* () {
-				const input = `*10\r\n${bulk("str")}${err("err")}notvalid${simple("simple")}`;
+			test.effect("invalid item", function* () {
+				const input = `*4\r\n${bulk("a")}${bulk("b")}$invalid\r\n${simple("c")}`;
+				const result = yield* $array.decodeFail(input);
+				expectParseError(result);
+			});
+
+			test.effect("invalid nested array", function* () {
+				const input = `*4\r\n${bulk("a")}${bulk("b")}*2\r\n${bulk("c")}*1\r\n:invalid\r\n${simple("d")}`;
 				const result = yield* $array.decodeFail(input);
 				expectParseError(result);
 			});
 
 			test.effect("missing array prefix", function* () {
-				const data = `2\r\n${bulk("a")}${bulk("b")}`;
-				const result = yield* $array.decodeFail(data);
+				const input = `2\r\n${bulk("a")}${bulk("b")}`;
+				const result = yield* $array.decodeFail(input);
 				expectParseError(result);
 			});
 
@@ -149,20 +161,26 @@ describe("Array", () => {
 				const result = yield* $array.decodeFail(`*2${bulk("a")}${bulk("b")}`);
 				expectParseError(result);
 			});
+
+			test.effect("non-numeric count", function* () {
+				const input = `*a\r\n${bulk("a")}${bulk("b")}`;
+				const result = yield* $array.decodeFail(input);
+				expectParseError(result);
+			});
 		});
 
 		describe("is not encoded", () => {
-			test.effect("non-array input", function* () {
+			test.effect("string", function* () {
 				const result = yield* $array.encodeFail("not-an-array");
 				expectParseError(result);
 			});
 
-			test.effect("array with invalid element: undefined", function* () {
+			test.effect("array with undefined", function* () {
 				const result = yield* $array.encodeFail([undefined]);
 				expectParseError(result);
 			});
 
-			test.effect("array with invalid element: object", function* () {
+			test.effect("array with object", function* () {
 				const result = yield* $array.encodeFail([{ a: 3 }]);
 				expectParseError(result);
 			});
