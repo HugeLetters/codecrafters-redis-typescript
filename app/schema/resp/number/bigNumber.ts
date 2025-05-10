@@ -19,8 +19,8 @@ export const LeftoverBigNumber = LeftoverBigNumber_.pipe(
 			const str = template[2];
 			const result = BigIntRegex.exec(str);
 			if (result === null) {
-				const expected = Log.expected(`{bigint}${CRLF}{leftover}`);
-				const received = Log.received(str);
+				const expected = Log.good(`{bigint}${CRLF}{leftover}`);
+				const received = Log.bad(str);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseTypeFail(ast, str, message);
 			}

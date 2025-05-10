@@ -16,10 +16,8 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 		decode: Effect.fn(function* (input, _opts, ast) {
 			const result = BulkStringRegex.exec(input);
 			if (result === null) {
-				const expected = Log.expected(
-					`{length}${CRLF}{content}${CRLF}{leftover}`,
-				);
-				const received = Log.received(input);
+				const expected = Log.good(`{length}${CRLF}{content}${CRLF}{leftover}`);
+				const received = Log.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseTypeFail(ast, input, message);
 			}
@@ -30,9 +28,9 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 			const content = contentChunk.slice(0, expectedLength);
 			const actualLength = content.length;
 			if (actualLength !== expectedLength) {
-				const expected = Log.expected(expectedLength);
-				const received = Log.received(content);
-				const receivedLength = Log.received(actualLength);
+				const expected = Log.good(expectedLength);
+				const received = Log.bad(content);
+				const receivedLength = Log.bad(actualLength);
 				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 				return yield* parseTypeFail(ast, content, message);
 			}
@@ -48,16 +46,16 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 					getCrlfPosition,
 					Option.match({
 						*onSome(actualCrlfPosition) {
-							const expected = Log.expected(expectedLength);
+							const expected = Log.good(expectedLength);
 
 							const extraContent = crlfWithLeftover.slice(
 								0,
 								actualCrlfPosition,
 							);
-							const received = Log.received(content + extraContent);
+							const received = Log.bad(content + extraContent);
 
 							const extraLength = actualLength + actualCrlfPosition;
-							const receivedLength = Log.received(extraLength);
+							const receivedLength = Log.bad(extraLength);
 							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 							return yield* parseTypeFail(ast, content, message);
 						},
@@ -66,9 +64,9 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 								"Could not locate CRLF in a bulk string - this should never happen";
 							yield* Effect.logError(errorMessage);
 
-							const expectedCrlf = Log.expected(CRLF);
-							const expectedPosition = Log.expected(crlfPosition);
-							const received = Log.received(receivedCrlf);
+							const expectedCrlf = Log.good(CRLF);
+							const expectedPosition = Log.good(crlfPosition);
+							const received = Log.bad(receivedCrlf);
 							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
 							return yield* parseTypeFail(ast, crlfWithLeftover, message);
 						},

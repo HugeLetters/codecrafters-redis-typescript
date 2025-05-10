@@ -57,8 +57,8 @@ export const LeftoverDouble = LeftoverDouble_.pipe(
 			const input = template[1];
 			const result = LeftoverDoubleRegex.exec(input);
 			if (!result) {
-				const expected = Log.expected(`{content}${CRLF}{leftover}`);
-				const received = Log.received(input);
+				const expected = Log.good(`{content}${CRLF}{leftover}`);
+				const received = Log.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseTypeFail(ast, input, message);
 			}

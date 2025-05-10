@@ -9,11 +9,11 @@ export function parseTypeFail(ast: AST, actual: unknown, message: string) {
 }
 
 export namespace Log {
-	export function received(value: unknown) {
+	export function bad(value: unknown) {
 		return pipe(value, normalize, red);
 	}
 
-	export function expected(value: unknown) {
+	export function good(value: unknown) {
 		return pipe(value, normalize, green);
 	}
 }

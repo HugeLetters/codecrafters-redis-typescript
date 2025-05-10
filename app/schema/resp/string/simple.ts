@@ -7,14 +7,14 @@ import { LeftoverError, LeftoverString } from "./utils";
 
 const SimpleStringRegex = /^([\s\S]*?)\r\n([\s\S]*)$/;
 const ClRfRegex = /[\r\n]/;
-const ClRfFilterMessage = `Leftover string data cannot contain ${Log.received(CR)} or ${Log.received(LF)}`;
+const ClRfFilterMessage = `Leftover string data cannot contain ${Log.bad(CR)} or ${Log.bad(LF)}`;
 const LeftoverSimpleStringContent = Schema.String.pipe(
 	Schema.transformOrFail(LeftoverString, {
 		decode: Effect.fn(function* (input, _opts, ast) {
 			const match = SimpleStringRegex.exec(input);
 			if (!match) {
-				const expected = Log.expected(`{content}${CRLF}{leftover}`);
-				const received = Log.received(input);
+				const expected = Log.good(`{content}${CRLF}{leftover}`);
+				const received = Log.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				return yield* parseTypeFail(ast, input, message);
 			}
@@ -28,7 +28,7 @@ const LeftoverSimpleStringContent = Schema.String.pipe(
 	}),
 	Schema.filter((input) => {
 		if (ClRfRegex.test(input.data)) {
-			return `${ClRfFilterMessage}. Received ${Log.received(input.data)}`;
+			return `${ClRfFilterMessage}. Received ${Log.bad(input.data)}`;
 		}
 	}),
 	Schema.annotations({ identifier: "LeftoverSimpleStringContent" }),

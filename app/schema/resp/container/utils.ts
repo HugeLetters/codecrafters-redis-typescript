@@ -73,9 +73,9 @@ export const decodeLeftoverItem = Effect.fn(function* (
 		}
 	}
 
-	const expected = Log.expected("{resp_prefix}");
-	const received = Log.received(input);
-	const message = `Expected string matching: ${expected}{items}. Received ${received}`;
+	const expected = Log.good("{resp_prefix}");
+	const received = Log.bad(input);
+	const message = `Expected string matching: ${expected}{content}{items}. Received ${received}`;
 	return yield* parseTypeFail(ast, input, message);
 });
 

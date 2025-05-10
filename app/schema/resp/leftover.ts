@@ -29,7 +29,7 @@ export function noLeftover<TType, TEncoded, TReq>(
 				return;
 			}
 
-			const received = Log.received(leftover);
+			const received = Log.bad(leftover);
 			return `Leftover data must be empty. Received ${received}`;
 		},
 		{ identifier },
