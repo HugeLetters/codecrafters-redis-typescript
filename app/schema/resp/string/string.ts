@@ -1,56 +1,50 @@
 import { Error_ } from "$/schema/resp/error";
-import { Effect, ParseResult, Schema } from "effect";
+import { ParseResult, Schema } from "effect";
 import { BulkError, BulkString } from "./bulk";
 import { SimpleError, SimpleString } from "./simple";
 
-export const String_ = Schema.declare(
-	[SimpleString, BulkString],
-	{
-		decode(simple, bulk) {
-			const decode = ParseResult.decodeUnknown(Schema.Union(simple, bulk));
-			return function (input, opts) {
-				return decode(input, opts);
-			};
-		},
-		encode(simple, bulk) {
-			const encodeSimple = ParseResult.encode(simple);
-			const encodeBulk = ParseResult.encode(bulk);
-			const decodeString = ParseResult.decodeUnknown(Schema.String);
-			return Effect.fn(function* (input, opts) {
-				const str = yield* decodeString(input);
-				if (str.length < 10) {
-					return yield* encodeSimple(str, opts);
-				}
+const RespString = Schema.Union(SimpleString, BulkString);
+const RespStringEncoded = RespString.pipe(Schema.encodedSchema);
 
-				return yield* encodeBulk(str, opts);
-			});
+const decodeRespString = ParseResult.decode(RespString);
+const encodeSimpleString = ParseResult.encode(SimpleString);
+const encodeBulkString = ParseResult.encode(BulkString);
+
+export const String_ = RespStringEncoded.pipe(
+	Schema.transformOrFail(Schema.String, {
+		decode(input) {
+			return decodeRespString(input);
 		},
-	},
-	{ identifier: "RespString" },
+		encode(input, opts) {
+			if (input.length < 10) {
+				return encodeSimpleString(input, opts);
+			}
+
+			return encodeBulkString(input, opts);
+		},
+	}),
+	Schema.annotations({ identifier: "RespString" }),
 );
 
-export const ErrorFromString = Schema.declare(
-	[SimpleError, BulkError],
-	{
-		decode(simple, bulk) {
-			const decode = ParseResult.decodeUnknown(Schema.Union(simple, bulk));
-			return function (input, opts) {
-				return decode(input, opts);
-			};
-		},
-		encode(simple, bulk) {
-			const encodeSimple = ParseResult.encode(simple);
-			const encodeBulk = ParseResult.encode(bulk);
-			const decodeError = ParseResult.decodeUnknown(Error_);
-			return Effect.fn(function* (input, opts) {
-				const err = yield* decodeError(input);
-				if (err.message.length < 10) {
-					return yield* encodeSimple(err, opts);
-				}
+const RespError = Schema.Union(SimpleError, BulkError);
+const RespErrorEncoded = RespError.pipe(Schema.encodedSchema);
 
-				return yield* encodeBulk(err, opts);
-			});
+const decodeRespError = ParseResult.decode(RespError);
+const encodeSimpleError = ParseResult.encode(SimpleError);
+const encodeBulkError = ParseResult.encode(BulkError);
+
+export const ErrorFromString = RespErrorEncoded.pipe(
+	Schema.transformOrFail(Schema.typeSchema(Error_), {
+		decode(input) {
+			return decodeRespError(input);
 		},
-	},
-	{ identifier: "RespStringError" },
+		encode(input, opts, _ast) {
+			if (input.message.length < 10) {
+				return encodeSimpleError(input, opts);
+			}
+
+			return encodeBulkError(input, opts);
+		},
+	}),
+	Schema.annotations({ identifier: "RespErrorFromString" }),
 );
