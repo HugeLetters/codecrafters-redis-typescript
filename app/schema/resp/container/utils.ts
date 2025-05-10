@@ -69,10 +69,7 @@ export const decodeLeftoverItem = Effect.fn(function* (
 			return yield* decodeLeftoverBulkError(input);
 		}
 		case ArrayPrefix: {
-			// todo - union these schemas
-			return yield* decodeLeftoverArrayNull(input).pipe(
-				Effect.orElse(() => decodeLeftoverArray(input, ast)),
-			);
+			return yield* decodeLeftoverArrayValue(input, ast);
 		}
 	}
 
@@ -98,7 +95,6 @@ const decodeLeftoverBulkString: LeftoverDecoder<string> = flow(
 	Effect.map(([, data]) => data),
 );
 function decodeLeftoverBulkValue(value: string) {
-	// todo - union these schemas
 	return decodeLeftoverBulkStringNull(value).pipe(
 		Effect.orElse(() => decodeLeftoverBulkString(value)),
 	);
@@ -138,3 +134,9 @@ const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
 	ParseResult.decodeUnknown(Primitive.LeftoverArrayNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
+
+function decodeLeftoverArrayValue(input: string, ast: SchemaAST.AST) {
+	return decodeLeftoverArrayNull(input).pipe(
+		Effect.orElse(() => decodeLeftoverArray(input, ast)),
+	);
+}

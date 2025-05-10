@@ -1,15 +1,15 @@
 import { IntegerFromString } from "$/schema/number";
-import { CRLF, RawCRLF } from "$/schema/resp/constants";
-import type { LeftoverParseResult } from "$/schema/resp/leftover";
+import { CRLF } from "$/schema/resp/constants";
+import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import { Log, parseFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
-import { Effect, ParseResult, Schema, type SchemaAST } from "effect";
+import { Effect, ParseResult, Schema, type SchemaAST, identity } from "effect";
 import { type RespData, RespSchema, decodeLeftoverItem } from "./utils";
 
 export const ArrayPrefix = "*";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
-const decodeIntFromString = ParseResult.decode(IntegerFromString);
+const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
 const decodeArrayLength = Effect.fn(function* (
 	input: string,
 	ast: SchemaAST.AST,
@@ -22,29 +22,16 @@ const decodeArrayLength = Effect.fn(function* (
 		return yield* parseFail(ast, input, message);
 	}
 
-	const [match, length, content = ""] = result;
-	if (length === undefined) {
-		const expected = Log.expected("{length}");
-		const received = Log.received(match);
-		const message = `Expected string to contain length: ${ArrayPrefix}${expected}${RawCRLF}{string}. Received ${received}`;
-		return yield* parseFail(ast, input, message);
-	}
-
-	const parsedLength = yield* decodeIntFromString(length);
-
-	return { length: parsedLength, content };
+	const [_match, rawLength, content = ""] = result;
+	const length = yield* decodeIntFromString(rawLength);
+	return { length, content };
 });
 
-// todo - turn this into a schema with a transform to array_ schema
 export const decodeLeftoverArray = Effect.fn(function* (
 	input: string,
 	ast: SchemaAST.AST,
 ): EffectGen<LeftoverParseResult<ReadonlyArray<RespData>>> {
 	const { length, content } = yield* decodeArrayLength(input, ast);
-
-	if (length === 0) {
-		return { data: [], leftover: content };
-	}
 
 	const result: Array<RespData> = [];
 	let encoded = content;
@@ -67,6 +54,8 @@ export const decodeLeftoverArray = Effect.fn(function* (
 
 type Array_ = Schema.Schema<ReadonlyArray<RespData>, string>;
 const decodeString = ParseResult.decodeUnknown(Schema.String);
+const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
+const validateNoleftover = ParseResult.validate(NoLeftover);
 export const Array_: Array_ = Schema.declare(
 	[Schema.Array(RespSchema)],
 	{
@@ -74,13 +63,7 @@ export const Array_: Array_ = Schema.declare(
 			return Effect.fn(function* (input, _opts, ast) {
 				const str = yield* decodeString(input);
 				const result = yield* decodeLeftoverArray(str, ast);
-
-				if (result.leftover !== "") {
-					const received = Log.received(result.leftover);
-					const message = `Array contains unexpected data at the tail: ${received}`;
-					yield* parseFail(ast, input, message);
-				}
-
+				yield* validateNoleftover(result.leftover);
 				return result.data;
 			});
 		},
@@ -93,5 +76,5 @@ export const Array_: Array_ = Schema.declare(
 			});
 		},
 	},
-	{},
+	{ identifier: "RespArray" },
 );
