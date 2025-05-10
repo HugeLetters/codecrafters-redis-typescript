@@ -7,7 +7,7 @@ import { String_ } from "$/schema/resp/string";
 import type { VerbatimString } from "$/schema/resp/string/verbatim";
 import { Log, parseTypeFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
-import { Effect, ParseResult, Schema, type SchemaAST, flow } from "effect";
+import { Effect, ParseResult, Schema, SchemaAST, flow } from "effect";
 import { ArrayPrefix, Array_, decodeLeftoverArray } from "./array";
 
 const RespBasicSchema = Schema.Union(
@@ -139,4 +139,10 @@ function decodeLeftoverArrayValue(input: string, ast: SchemaAST.AST) {
 	return decodeLeftoverArrayNull(input).pipe(
 		Effect.orElse(() => decodeLeftoverArray(input, ast)),
 	);
+}
+
+export function namedAst(name: string) {
+	return new SchemaAST.Literal("", {
+		[SchemaAST.IdentifierAnnotationId]: name,
+	});
 }
