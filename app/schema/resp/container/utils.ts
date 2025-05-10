@@ -4,7 +4,6 @@ import type { LeftoverParseResult } from "$/schema/resp/leftover";
 import { Number_ } from "$/schema/resp/number";
 import { Primitive } from "$/schema/resp/primitive";
 import { String_ } from "$/schema/resp/string";
-import type { VerbatimString } from "$/schema/resp/string/verbatim";
 import { Log } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { Effect, ParseResult, Schema, SchemaAST, flow } from "effect";
@@ -111,10 +110,11 @@ function decodeLeftoverBulkValue(value: string) {
 	);
 }
 
-const decodeLeftoverVerbatimString: LeftoverDecoder<VerbatimString> = flow(
-	ParseResult.decodeUnknown(String_.LeftoverVerbatimString),
-	Effect.map(([, data]) => data),
-);
+const decodeLeftoverVerbatimString: LeftoverDecoder<String_.VerbatimString> =
+	flow(
+		ParseResult.decodeUnknown(String_.LeftoverVerbatimString),
+		Effect.map(([, data]) => data),
+	);
 
 const decodeLeftoverInteger: LeftoverDecoder<typeof Integer.Type> =
 	ParseResult.decodeUnknown(Number_.LeftoverInteger);
