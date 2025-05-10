@@ -3,57 +3,113 @@ import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import { Log, parseTypeFail } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
-import { Effect, ParseResult, Schema, type SchemaAST, identity } from "effect";
-import { type RespData, RespSchema, decodeLeftoverItem } from "./utils";
+import { normalize } from "$/utils/string";
+import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
+import {
+	type RespData,
+	RespSchema,
+	decodeLeftoverItem,
+	namedAst,
+} from "./utils";
 
 export const ArrayPrefix = "*";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
 const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
-const decodeArrayLength = Effect.fn(function* (
-	input: string,
-	ast: SchemaAST.AST,
-) {
-	const result = ArrayRegex.exec(input);
-	if (result === null) {
-		const expected = Log.expected(`${ArrayPrefix}{length}${CRLF}{items}`);
-		const received = Log.received(input);
-		const message = `Expected string matching: ${expected}. Received ${received}`;
-		return yield* parseTypeFail(ast, input, message);
-	}
+const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
+const lengthTransform = new SchemaAST.Transformation(
+	namedAst(`\`${normalize(RespArrayTemplate)}\``),
+	namedAst("[Length, Items]"),
+	SchemaAST.composeTransformation,
+);
 
-	const [_match, rawLength, content = ""] = result;
-	const length = yield* decodeIntFromString(rawLength);
-	return { length, content };
-});
-
-export const decodeLeftoverArray = Effect.fn(function* (
-	input: string,
-	ast: SchemaAST.AST,
-): EffectGen<LeftoverParseResult<ReadonlyArray<RespData>>> {
-	const { length, content } = yield* decodeArrayLength(input, ast);
-
-	const result: Array<RespData> = [];
-	let encoded = content;
-	while (result.length !== length) {
-		if (encoded === "") {
-			const expected = Log.expected(length);
-			const received = Log.received(result.length);
-			const receivedInput = Log.received(input);
-			const message = `Expected array of length ${expected}. Received ${received} elements decoded from ${receivedInput}`;
+const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
+	const decodeResult = Effect.gen(function* () {
+		const result = ArrayRegex.exec(input);
+		if (result === null) {
+			const expected = Log.good(RespArrayTemplate);
+			const received = Log.bad(input);
+			const message = `Expected string matching: ${expected}. Received ${received}`;
 			return yield* parseTypeFail(ast, input, message);
 		}
 
-		const { data, leftover } = yield* decodeLeftoverItem(encoded, ast);
-		result.push(data);
-		encoded = leftover;
-	}
+		const [_match, rawLength, items = ""] = result;
+		const length = yield* decodeIntFromString(rawLength).pipe(
+			ParseResult.mapError(
+				(issue) => new ParseResult.Pointer("Length", rawLength, issue),
+			),
+		);
 
-	return { data: result, leftover: encoded };
-});
+		return { length, items };
+	});
+
+	return decodeResult.pipe(
+		ParseResult.mapError((issue) => {
+			return new ParseResult.Transformation(
+				lengthTransform,
+				input,
+				"Encoded",
+				issue,
+			);
+		}),
+	);
+};
+
+const decodeString = ParseResult.decodeUnknown(Schema.String);
+export const decodeLeftoverArray = function (
+	input: unknown,
+	toAst: SchemaAST.AST,
+) {
+	const ast = new SchemaAST.Transformation(
+		SchemaAST.stringKeyword,
+		SchemaAST.typeAST(toAst),
+		SchemaAST.composeTransformation,
+	);
+
+	type DecodeResult = EffectGen<LeftoverParseResult<ReadonlyArray<RespData>>>;
+	const decodeResult = Effect.gen(function* (): DecodeResult {
+		const str = yield* decodeString(input);
+		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
+
+		const result: Array<RespData> = Object.assign([], {
+			toString() {
+				return `[${result.join(", ")}]`;
+			},
+		});
+
+		let encoded = items;
+		while (result.length !== length) {
+			if (encoded === "") {
+				const expected = Log.good(length);
+				const received = Log.bad(result.length);
+				const receivedInput = Log.bad(str);
+				const message = `Expected array of length ${expected}. Decoded ${received} item(s) in ${Log.bad(result)} from ${receivedInput}`;
+				return yield* parseTypeFail(ast, str, message);
+			}
+
+			const { data, leftover } = yield* decodeLeftoverItem(encoded, ast).pipe(
+				ParseResult.mapError((issue) => {
+					const message = `Decoded ${Log.good(result)} but encountered error at ${Log.bad(encoded)}`;
+					const itemAst = namedAst(message);
+					return new ParseResult.Composite(itemAst, items, issue);
+				}),
+			);
+
+			result.push(data);
+			encoded = leftover;
+		}
+
+		return { data: result, leftover: encoded };
+	});
+
+	return decodeResult.pipe(
+		ParseResult.mapError(
+			(issue) => new ParseResult.Transformation(ast, input, "Encoded", issue),
+		),
+	);
+};
 
 type Array_ = Schema.Schema<ReadonlyArray<RespData>, string>;
-const decodeString = ParseResult.decodeUnknown(Schema.String);
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
 const validateNoleftover = ParseResult.validate(NoLeftover);
 export const Array_: Array_ = Schema.declare(
@@ -61,8 +117,7 @@ export const Array_: Array_ = Schema.declare(
 	{
 		decode() {
 			return Effect.fn(function* (input, _opts, ast) {
-				const str = yield* decodeString(input);
-				const result = yield* decodeLeftoverArray(str, ast);
+				const result = yield* decodeLeftoverArray(input, ast);
 				yield* validateNoleftover(result.leftover);
 				return result.data;
 			});
