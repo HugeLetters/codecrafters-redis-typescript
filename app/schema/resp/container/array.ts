@@ -10,6 +10,7 @@ import {
 	RespSchema,
 	decodeLeftoverItem,
 	namedAst,
+	serializeRespValue,
 } from "./utils";
 
 export const ArrayPrefix = "*";
@@ -72,26 +73,23 @@ export const decodeLeftoverArray = function (
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
 
-		const result: Array<RespData> = Object.assign([], {
-			toString() {
-				return `[${result.join(", ")}]`;
-			},
-		});
-
+		const result: Array<RespData> = [];
 		let encoded = items;
 		while (result.length !== length) {
 			if (encoded === "") {
 				const expected = Log.good(length);
 				const received = Log.bad(result.length);
+				const receivedItems = Log.bad(serializeRespValue(result));
 				const receivedInput = Log.bad(str);
-				const message = `Expected ${expected} item(s). Decoded ${received} item(s) in ${Log.bad(result)} from ${receivedInput}`;
+				const message = `Expected ${expected} item(s). Decoded ${received} item(s) in ${receivedItems} from ${receivedInput}`;
 				const issue = new ParseResult.Type(ast, str, message);
 				return yield* ParseResult.fail(issue);
 			}
 
 			const { data, leftover } = yield* decodeLeftoverItem(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
-					const message = `Decoded ${Log.good(result)} but encountered error at ${Log.bad(encoded)}`;
+					const receivedInput = Log.bad(encoded);
+					const message = `Decoded ${Log.good(serializeRespValue(result))} but encountered error at ${receivedInput}`;
 					const itemAst = namedAst(message);
 					return new ParseResult.Composite(itemAst, items, issue);
 				}),

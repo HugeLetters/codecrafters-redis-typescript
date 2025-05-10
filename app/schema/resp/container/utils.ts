@@ -6,7 +6,14 @@ import { Primitive } from "$/schema/resp/primitive";
 import { String_ } from "$/schema/resp/string";
 import { Log } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
-import { Effect, ParseResult, Schema, SchemaAST, flow } from "effect";
+import {
+	Array as Arr,
+	Effect,
+	ParseResult,
+	Schema,
+	SchemaAST,
+	flow,
+} from "effect";
 import { ArrayPrefix, Array_, decodeLeftoverArray } from "./array";
 
 const RespBasicSchema = Schema.Union(
@@ -165,4 +172,12 @@ export function namedAst(name: string) {
 	return new SchemaAST.Literal("", {
 		[SchemaAST.IdentifierAnnotationId]: name,
 	});
+}
+
+export function serializeRespValue(value: RespData): string {
+	if (Arr.isArray<RespData>(value)) {
+		return `[${value.map(serializeRespValue).join(", ")}]`;
+	}
+
+	return String(value);
 }
