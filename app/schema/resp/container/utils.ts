@@ -94,9 +94,19 @@ const decodeLeftoverBulkString: LeftoverDecoder<string> = flow(
 	ParseResult.decodeUnknown(String_.LeftoverBulkString),
 	Effect.map(([, data]) => data),
 );
+const LeftoverBulkValueAST = namedAst("LeftoverBulkValue");
 function decodeLeftoverBulkValue(value: string) {
 	return decodeLeftoverBulkStringNull(value).pipe(
-		Effect.orElse(() => decodeLeftoverBulkString(value)),
+		Effect.catchAll((nullIssue) =>
+			decodeLeftoverBulkString(value).pipe(
+				ParseResult.mapError((arrayIssue) => {
+					return new ParseResult.Composite(LeftoverBulkValueAST, value, [
+						nullIssue,
+						arrayIssue,
+					]);
+				}),
+			),
+		),
 	);
 }
 
@@ -134,10 +144,19 @@ const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
 	ParseResult.decodeUnknown(Primitive.LeftoverArrayNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
-
+const LeftoverArrayValueAST = namedAst("LeftoverArrayValue");
 function decodeLeftoverArrayValue(input: string, ast: SchemaAST.AST) {
 	return decodeLeftoverArrayNull(input).pipe(
-		Effect.orElse(() => decodeLeftoverArray(input, ast)),
+		Effect.catchAll((nullIssue) =>
+			decodeLeftoverArray(input, ast).pipe(
+				ParseResult.mapError((arrayIssue) => {
+					return new ParseResult.Composite(LeftoverArrayValueAST, input, [
+						nullIssue,
+						arrayIssue,
+					]);
+				}),
+			),
+		),
 	);
 }
 
