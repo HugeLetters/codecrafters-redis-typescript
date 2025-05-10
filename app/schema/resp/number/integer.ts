@@ -2,7 +2,7 @@ import { IntegerFromString, Integer as Integer_ } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";
-import { Log, parseTypeFail } from "$/schema/utils";
+import { Log } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
 
 export const IntegerPrefix = ":";
@@ -23,7 +23,8 @@ export const LeftoverInteger = LeftoverInteger_.pipe(
 				const expected = Log.good(`{integer}${CRLF}{leftover}`);
 				const received = Log.bad(str);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseTypeFail(ast, str, message);
+				const issue = new ParseResult.Type(ast, str, message);
+				return yield* ParseResult.fail(issue);
 			}
 
 			const [_match, digits = "", leftover = ""] = result;

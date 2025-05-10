@@ -1,7 +1,7 @@
 import { NaN_ } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
-import { Log, parseTypeFail } from "$/schema/utils";
+import { Log } from "$/schema/utils";
 import { Effect, ParseResult, Schema } from "effect";
 import { toOptimalExponential } from "./utils";
 
@@ -60,7 +60,8 @@ export const LeftoverDouble = LeftoverDouble_.pipe(
 				const expected = Log.good(`{content}${CRLF}{leftover}`);
 				const received = Log.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseTypeFail(ast, input, message);
+				const issue = new ParseResult.Type(ast, input, message);
+				return yield* ParseResult.fail(issue);
 			}
 
 			const [_match, data = "", leftover = ""] = result;

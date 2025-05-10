@@ -1,7 +1,7 @@
 import { IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
-import { Log, parseTypeFail } from "$/schema/utils";
+import { Log } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
@@ -30,7 +30,8 @@ const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
 			const expected = Log.good(RespArrayTemplate);
 			const received = Log.bad(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
-			return yield* parseTypeFail(ast, input, message);
+			const issue = new ParseResult.Type(ast, input, message);
+			return yield* ParseResult.fail(issue);
 		}
 
 		const [_match, rawLength, items = ""] = result;
@@ -83,8 +84,9 @@ export const decodeLeftoverArray = function (
 				const expected = Log.good(length);
 				const received = Log.bad(result.length);
 				const receivedInput = Log.bad(str);
-				const message = `Expected array of length ${expected}. Decoded ${received} item(s) in ${Log.bad(result)} from ${receivedInput}`;
-				return yield* parseTypeFail(ast, str, message);
+				const message = `Expected ${expected} item(s). Decoded ${received} item(s) in ${Log.bad(result)} from ${receivedInput}`;
+				const issue = new ParseResult.Type(ast, str, message);
+				return yield* ParseResult.fail(issue);
 			}
 
 			const { data, leftover } = yield* decodeLeftoverItem(encoded, ast).pipe(

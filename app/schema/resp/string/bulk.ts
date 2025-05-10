@@ -1,7 +1,7 @@
 import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
-import { Log, parseTypeFail } from "$/schema/utils";
+import { Log } from "$/schema/utils";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
 import {
 	LeftoverError,
@@ -19,7 +19,8 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 				const expected = Log.good(`{length}${CRLF}{content}${CRLF}{leftover}`);
 				const received = Log.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
-				return yield* parseTypeFail(ast, input, message);
+				const issue = new ParseResult.Type(ast, input, message);
+				return yield* ParseResult.fail(issue);
 			}
 
 			const [_match, length = "", contentChunk = "", leftoverChunk = ""] =
@@ -32,32 +33,31 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 				const received = Log.bad(content);
 				const receivedLength = Log.bad(actualLength);
 				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-				return yield* parseTypeFail(ast, content, message);
+				const issue = new ParseResult.Type(ast, content, message);
+				return yield* ParseResult.fail(issue);
 			}
 
 			const crlfPosition = expectedLength;
-			const crlfWithLeftover = contentChunk.slice(crlfPosition) + leftoverChunk;
+			const afterContent = contentChunk.slice(crlfPosition) + leftoverChunk;
 			const leftoverPosition = CRLF.length;
-			const receivedCrlf = crlfWithLeftover.slice(0, leftoverPosition);
+			const receivedCrlf = afterContent.slice(0, leftoverPosition);
 
 			if (receivedCrlf !== CRLF) {
 				return yield* pipe(
-					crlfWithLeftover,
+					afterContent,
 					getCrlfPosition,
 					Option.match({
 						*onSome(actualCrlfPosition) {
 							const expected = Log.good(expectedLength);
 
-							const extraContent = crlfWithLeftover.slice(
-								0,
-								actualCrlfPosition,
-							);
+							const extraContent = afterContent.slice(0, actualCrlfPosition);
 							const received = Log.bad(content + extraContent);
 
 							const extraLength = actualLength + actualCrlfPosition;
 							const receivedLength = Log.bad(extraLength);
 							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
-							return yield* parseTypeFail(ast, content, message);
+							const issue = new ParseResult.Type(ast, content, message);
+							return yield* ParseResult.fail(issue);
 						},
 						*onNone() {
 							const errorMessage =
@@ -68,13 +68,14 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 							const expectedPosition = Log.good(crlfPosition);
 							const received = Log.bad(receivedCrlf);
 							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
-							return yield* parseTypeFail(ast, crlfWithLeftover, message);
+							const issue = new ParseResult.Type(ast, afterContent, message);
+							return yield* ParseResult.fail(issue);
 						},
 					}),
 				);
 			}
 
-			const leftover = crlfWithLeftover.slice(leftoverPosition);
+			const leftover = afterContent.slice(leftoverPosition);
 			type Output = typeof LeftoverString.Type;
 			const output: Output = { data: content, leftover };
 			return output;

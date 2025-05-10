@@ -5,7 +5,7 @@ import { Number_ } from "$/schema/resp/number";
 import { Primitive } from "$/schema/resp/primitive";
 import { String_ } from "$/schema/resp/string";
 import type { VerbatimString } from "$/schema/resp/string/verbatim";
-import { Log, parseTypeFail } from "$/schema/utils";
+import { Log } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { Effect, ParseResult, Schema, SchemaAST, flow } from "effect";
 import { ArrayPrefix, Array_, decodeLeftoverArray } from "./array";
@@ -76,7 +76,8 @@ export const decodeLeftoverItem = Effect.fn(function* (
 	const expected = Log.good("{resp_prefix}");
 	const received = Log.bad(input);
 	const message = `Expected string matching: ${expected}{content}{items}. Received ${received}`;
-	return yield* parseTypeFail(ast, input, message);
+	const issue = new ParseResult.Type(ast, input, message);
+	return yield* ParseResult.fail(issue);
 });
 
 type LeftoverDecoder<T> = (value: string) => LeftoverParseResult<T>;
