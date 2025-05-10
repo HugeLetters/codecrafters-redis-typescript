@@ -1,4 +1,5 @@
 import { green, red } from "$/utils/stdout";
+import { normalize } from "$/utils/string";
 import { ParseResult, pipe } from "effect";
 import type { AST } from "effect/SchemaAST";
 
@@ -14,14 +15,5 @@ export namespace Log {
 
 	export function expected(value: unknown) {
 		return pipe(value, normalize, green);
-	}
-
-	function normalize(value: unknown) {
-		if (typeof value !== "string") {
-			return value;
-		}
-
-		const normalized = JSON.stringify(value);
-		return normalized.slice(1, normalized.length - 1);
 	}
 }
