@@ -18,7 +18,7 @@ import { ArrayPrefix } from "./prefix";
 
 const RespBasicSchema = Schema.Union(
 	String_.String,
-	String_.VerbatimString,
+	String_.VerbatimStringFromString,
 
 	Number_.Integer,
 	Number_.Double,
