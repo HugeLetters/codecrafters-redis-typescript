@@ -37,7 +37,9 @@ export const RespSchema = Schema.Union(
 ).pipe(Schema.annotations({ identifier: "RespValue" }));
 
 type RespArrayType = ReadonlyArray<RespData>;
-export type RespData = typeof RespBasicSchema.Type | RespArrayType;
+type RespHashableType = typeof RespBasicSchema.Type;
+
+export type RespData = RespHashableType | RespArrayType;
 
 export function decodeLeftoverItem(
 	input: string,
