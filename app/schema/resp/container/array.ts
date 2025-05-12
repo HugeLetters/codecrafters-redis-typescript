@@ -109,8 +109,9 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 type Array_ = Schema.Schema<RespArrayType, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
 const validateNoleftover = ParseResult.validate(NoLeftover);
+const EncodingSchema = Schema.suspend(() => Schema.Array(RespSchema));
 export const Array_: Array_ = Schema.declare(
-	[Schema.Array(RespSchema)],
+	[EncodingSchema],
 	{
 		decode() {
 			return Effect.fn(function* (input, _opts, ast) {
