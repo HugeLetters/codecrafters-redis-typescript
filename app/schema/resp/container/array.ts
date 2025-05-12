@@ -7,7 +7,8 @@ import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
 import { ArrayPrefix } from "./prefix";
 import {
-	type RespData,
+	type RespArrayType,
+	type RespValue,
 	RespSchema,
 	decodeLeftoverItem,
 	namedAst,
@@ -64,12 +65,12 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		SchemaAST.composeTransformation,
 	);
 
-	type DecodeResult = EffectGen<LeftoverParseResult<ReadonlyArray<RespData>>>;
+	type DecodeResult = EffectGen<LeftoverParseResult<RespArrayType>>;
 	const decodeResult = Effect.gen(function* (): DecodeResult {
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
 
-		const result: Array<RespData> = [];
+		const result: Array<RespValue> = [];
 		let encoded = items;
 		while (result.length !== length) {
 			if (encoded === "") {
@@ -105,7 +106,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 	);
 }
 
-type Array_ = Schema.Schema<ReadonlyArray<RespData>, string>;
+type Array_ = Schema.Schema<RespArrayType, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
 const validateNoleftover = ParseResult.validate(NoLeftover);
 export const Array_: Array_ = Schema.declare(

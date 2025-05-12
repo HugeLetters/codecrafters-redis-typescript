@@ -36,15 +36,18 @@ export const RespSchema = Schema.Union(
 	Schema.suspend(() => Array_),
 ).pipe(Schema.annotations({ identifier: "RespValue" }));
 
-type RespArrayType = ReadonlyArray<RespData>;
-type RespHashableType = typeof RespBasicSchema.Type;
+export type RespPrimitiveValue = typeof RespBasicSchema.Type;
 
-export type RespData = RespHashableType | RespArrayType;
+export type RespArrayType = ReadonlyArray<RespValue>;
+
+type RespNonPrimitiveValue = RespArrayType;
+
+export type RespValue = RespPrimitiveValue | RespNonPrimitiveValue;
 
 export function decodeLeftoverItem(
 	input: string,
 	ast: SchemaAST.AST,
-): LeftoverParseResult<RespData> {
+): LeftoverParseResult<RespValue> {
 	const prefix = input[0];
 	switch (prefix) {
 		case String_.SimpleStringPrefix: {
@@ -118,10 +121,8 @@ const decodeLeftoverBulkString: LeftoverDecoder<string> = flow(
 	Effect.map(([, data]) => data),
 );
 const LeftoverBulkValueAST = namedAst("LeftoverBulkValue");
-const decodeLeftoverBulkValue: LeftoverDecoder<string | null> = function (
-	value,
-	ast,
-) {
+type DecodeBulkValue = LeftoverDecoder<string | null>;
+const decodeLeftoverBulkValue: DecodeBulkValue = function (value, ast) {
 	return decodeLeftoverBulkStringNull(value, ast).pipe(
 		Effect.catchAll((nullIssue) =>
 			decodeLeftoverBulkString(value, ast).pipe(
@@ -136,11 +137,11 @@ const decodeLeftoverBulkValue: LeftoverDecoder<string | null> = function (
 	);
 };
 
-const decodeLeftoverVerbatimString: LeftoverDecoder<String_.VerbatimString> =
-	flow(
-		createDecoder(String_.LeftoverVerbatimString),
-		Effect.map(([, data]) => data),
-	);
+type DecodeVerbatimString = LeftoverDecoder<String_.VerbatimString>;
+const decodeLeftoverVerbatimString: DecodeVerbatimString = flow(
+	createDecoder(String_.LeftoverVerbatimString),
+	Effect.map(([, data]) => data),
+);
 
 type Int = typeof Integer.Type;
 const decodeLeftoverInteger: LeftoverDecoder<Int> = createDecoder(
@@ -177,21 +178,21 @@ const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
 const LeftoverArrayValueAST = namedAst("LeftoverArrayValue");
-const decodeLeftoverArrayValue: LeftoverDecoder<RespArrayType | null> =
-	function (input, ast) {
-		return decodeLeftoverArrayNull(input, ast).pipe(
-			Effect.catchAll((nullIssue) =>
-				decodeLeftoverArray(input, ast).pipe(
-					ParseResult.mapError((arrayIssue) => {
-						return new ParseResult.Composite(LeftoverArrayValueAST, input, [
-							nullIssue,
-							arrayIssue,
-						]);
-					}),
-				),
+type DecodeArrayValue = LeftoverDecoder<RespArrayType | null>;
+const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
+	return decodeLeftoverArrayNull(input, ast).pipe(
+		Effect.catchAll((nullIssue) =>
+			decodeLeftoverArray(input, ast).pipe(
+				ParseResult.mapError((arrayIssue) => {
+					return new ParseResult.Composite(LeftoverArrayValueAST, input, [
+						nullIssue,
+						arrayIssue,
+					]);
+				}),
 			),
-		);
-	};
+		),
+	);
+};
 
 export function namedAst(name: string) {
 	return new SchemaAST.Literal("", {
@@ -199,8 +200,8 @@ export function namedAst(name: string) {
 	});
 }
 
-export function serializeRespValue(value: RespData): string {
-	if (Arr.isArray<RespData>(value)) {
+export function serializeRespValue(value: RespValue): string {
+	if (Arr.isArray<RespValue>(value)) {
 		return `[${value.map(serializeRespValue).join(", ")}]`;
 	}
 
