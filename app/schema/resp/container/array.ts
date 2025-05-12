@@ -58,10 +58,7 @@ const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
 };
 
 const decodeString = ParseResult.decodeUnknown(Schema.String);
-export const decodeLeftoverArray = function (
-	input: unknown,
-	toAst: SchemaAST.AST,
-) {
+export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 	const ast = new SchemaAST.Transformation(
 		SchemaAST.stringKeyword,
 		SchemaAST.typeAST(toAst),
@@ -107,7 +104,7 @@ export const decodeLeftoverArray = function (
 			(issue) => new ParseResult.Transformation(ast, input, "Encoded", issue),
 		),
 	);
-};
+}
 
 type Array_ = Schema.Schema<ReadonlyArray<RespData>, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));

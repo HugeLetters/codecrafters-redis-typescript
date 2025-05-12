@@ -5,7 +5,6 @@ import { Number_ } from "$/schema/resp/number";
 import { Primitive } from "$/schema/resp/primitive";
 import { String_ } from "$/schema/resp/string";
 import { Log } from "$/schema/utils";
-import type { EffectGen } from "$/utils/effect";
 import {
 	Array as Arr,
 	Effect,
@@ -38,44 +37,44 @@ export const RespSchema = Schema.Union(
 
 export type RespData = typeof RespBasicSchema.Type | ReadonlyArray<RespData>;
 
-export const decodeLeftoverItem = Effect.fn(function* (
+export function decodeLeftoverItem(
 	input: string,
 	ast: SchemaAST.AST,
-): EffectGen<LeftoverParseResult<RespData>> {
+): LeftoverParseResult<RespData> {
 	const prefix = input[0];
 	switch (prefix) {
 		case String_.SimpleStringPrefix: {
-			return yield* decodeLeftoverSimpleString(input);
+			return decodeLeftoverSimpleString(input);
 		}
 		case String_.BulkStringPrefix: {
-			return yield* decodeLeftoverBulkValue(input);
+			return decodeLeftoverBulkValue(input);
 		}
 		case String_.VerbatimStringPrefix: {
-			return yield* decodeLeftoverVerbatimString(input);
+			return decodeLeftoverVerbatimString(input);
 		}
 		case Number_.IntegerPrefix: {
-			return yield* decodeLeftoverInteger(input);
+			return decodeLeftoverInteger(input);
 		}
 		case Number_.DoublePrefix: {
-			return yield* decodeLeftoverDouble(input);
+			return decodeLeftoverDouble(input);
 		}
 		case Number_.BigNumberPrefix: {
-			return yield* decodeLeftoverBigNumber(input);
+			return decodeLeftoverBigNumber(input);
 		}
 		case Primitive.BooleanPrefix: {
-			return yield* decodeLeftoverBoolean(input);
+			return decodeLeftoverBoolean(input);
 		}
 		case Primitive.NullPrefix: {
-			return yield* decodeLeftoverPlainNull(input);
+			return decodeLeftoverPlainNull(input);
 		}
 		case String_.SimpleErrorPrefix: {
-			return yield* decodeLeftoverSimpleError(input);
+			return decodeLeftoverSimpleError(input);
 		}
 		case String_.BulkErrorPrefix: {
-			return yield* decodeLeftoverBulkError(input);
+			return decodeLeftoverBulkError(input);
 		}
 		case ArrayPrefix: {
-			return yield* decodeLeftoverArrayValue(input, ast);
+			return decodeLeftoverArrayValue(input, ast);
 		}
 	}
 
@@ -83,8 +82,8 @@ export const decodeLeftoverItem = Effect.fn(function* (
 	const received = Log.bad(input);
 	const message = `Expected string matching: ${expected}{content}{items}. Received ${received}`;
 	const issue = new ParseResult.Type(ast, input, message);
-	return yield* ParseResult.fail(issue);
-});
+	return ParseResult.fail(issue);
+}
 
 type LeftoverDecoder<T> = (value: string) => LeftoverParseResult<T>;
 
