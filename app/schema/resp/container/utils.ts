@@ -13,7 +13,8 @@ import {
 	SchemaAST,
 	flow,
 } from "effect";
-import { ArrayPrefix, Array_, decodeLeftoverArray } from "./array";
+import { Array_, decodeLeftoverArray } from "./array";
+import { ArrayPrefix } from "./prefix";
 
 const RespBasicSchema = Schema.Union(
 	String_.String,

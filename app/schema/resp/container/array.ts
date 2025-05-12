@@ -5,6 +5,7 @@ import { Log } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
+import { ArrayPrefix } from "./prefix";
 import {
 	type RespData,
 	RespSchema,
@@ -12,8 +13,6 @@ import {
 	namedAst,
 	serializeRespValue,
 } from "./utils";
-
-export const ArrayPrefix = "*";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
 const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
