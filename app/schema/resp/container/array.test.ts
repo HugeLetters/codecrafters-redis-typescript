@@ -1,17 +1,9 @@
-import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Array_ } from "./array";
-
-const arr = (arr: Array<string>) => `*${arr.length}${CRLF}${arr.join("")}`;
-
-const bulk = (s: string) => `$${s.length}\r\n${s}\r\n`;
-const int = (n: number) => `:${n}\r\n`;
-const simple = (s: string) => `+${s}\r\n`;
-const err = (s: string) => `-${s}\r\n`;
-const null_ = "_\r\n";
+import { arr, bulk, err, int, null_, simple } from "./test-utils";
 
 describe("Array", () => {
 	const $array = createSchemaHelpers(Array_);
