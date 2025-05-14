@@ -7,9 +7,9 @@ import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
 import { ArrayPrefix } from "./prefix";
 import {
-	type RespArrayType,
-	type RespValue,
+	type RespArrayValue,
 	RespSchema,
+	type RespValue,
 	decodeLeftoverItem,
 	namedAst,
 	serializeRespValue,
@@ -65,7 +65,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		SchemaAST.composeTransformation,
 	);
 
-	type DecodeResult = EffectGen<LeftoverParseResult<RespArrayType>>;
+	type DecodeResult = EffectGen<LeftoverParseResult<RespArrayValue>>;
 	const decodeResult = Effect.gen(function* (): DecodeResult {
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
@@ -106,7 +106,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 	);
 }
 
-type Array_ = Schema.Schema<RespArrayType, string>;
+type Array_ = Schema.Schema<RespArrayValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
 const validateNoleftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => Schema.Array(RespSchema));

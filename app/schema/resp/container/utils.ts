@@ -8,12 +8,16 @@ import { Log } from "$/schema/utils";
 import {
 	Array as Arr,
 	Effect,
+	Hash,
+	HashMap,
+	Iterable,
 	ParseResult,
 	Schema,
 	SchemaAST,
 	flow,
 } from "effect";
 import { Array_, decodeLeftoverArray } from "./array";
+import { Map_ } from "./map";
 import { ArrayPrefix } from "./prefix";
 
 const RespBasicSchema = Schema.Union(
@@ -34,15 +38,17 @@ const RespBasicSchema = Schema.Union(
 export const RespSchema = Schema.Union(
 	...RespBasicSchema.members,
 	Schema.suspend(() => Array_),
+	Schema.suspend(() => Map_),
 ).pipe(Schema.annotations({ identifier: "RespValue" }));
 
 export type RespPrimitiveValue = typeof RespBasicSchema.Type;
 
-export type RespArrayType = ReadonlyArray<RespValue>;
+export type RespArrayValue = ReadonlyArray<RespValue>;
 
-type RespNonPrimitiveValue = RespArrayType;
+export type RespMapValue = HashMap.HashMap<RespHashableValue, RespValue>;
+export type RespHashableValue = RespPrimitiveValue | RespMapValue;
 
-export type RespValue = RespPrimitiveValue | RespNonPrimitiveValue;
+export type RespValue = RespHashableValue | RespArrayValue;
 
 export function decodeLeftoverItem(
 	input: string,
@@ -178,7 +184,7 @@ const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
 const LeftoverArrayValueAST = namedAst("LeftoverArrayValue");
-type DecodeArrayValue = LeftoverDecoder<RespArrayType | null>;
+type DecodeArrayValue = LeftoverDecoder<RespArrayValue | null>;
 const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
 	return decodeLeftoverArrayNull(input, ast).pipe(
 		Effect.catchAll((nullIssue) =>
@@ -205,5 +211,23 @@ export function serializeRespValue(value: RespValue): string {
 		return `[${value.map(serializeRespValue).join(", ")}]`;
 	}
 
+	if (HashMap.isHashMap(value)) {
+		const entries = HashMap.entries(value);
+		const items = Iterable.map(entries, ([key, value]) => {
+			return `${serializeRespValue(key)} ~> ${serializeRespValue(value)}`;
+		});
+		return `HashMap(${[...items].join(", ")})`;
+	}
+
 	return String(value);
+}
+
+export function hashableRespValue(
+	value: RespValue,
+): RespHashableValue | number {
+	if (Arr.isArray<RespValue>(value)) {
+		return Hash.array(value);
+	}
+
+	return value;
 }
