@@ -1,8 +1,11 @@
+import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Array_ } from "./array";
+
+const arr = (arr: Array<string>) => `*${arr.length}${CRLF}${arr.join("")}`;
 
 const bulk = (s: string) => `$${s.length}\r\n${s}\r\n`;
 const int = (n: number) => `:${n}\r\n`;
@@ -16,61 +19,65 @@ describe("Array", () => {
 	describe("with valid data", () => {
 		describe("is decoded", () => {
 			test.effect("empty", function* () {
-				const result = yield* $array.decode("*0\r\n");
+				const result = yield* $array.decode(arr([]));
 				expect(result).toStrictEqual([]);
 			});
 
 			test.effect("single item", function* () {
-				const result = yield* $array.decode(`*1\r\n${int(123)}`);
+				const result = yield* $array.decode(arr([int(123)]));
 				expect(result).toStrictEqual([123]);
 			});
 
 			test.effect("integers", function* () {
-				const encoded = `3\r\n${int(1)}${int(2)}${int(3)}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([int(1), int(2), int(3)]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([1, 2, 3]);
 			});
 
 			test.effect("bulk strings", function* () {
-				const encoded = `2\r\n${bulk("hello")}${bulk("world!")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const input = arr([bulk("hello"), bulk("world!")]);
+				const result = yield* $array.decode(input);
 				expect(result).toStrictEqual(["hello", "world!"]);
 			});
 
 			test.effect("mixed types", function* () {
-				const encoded = `4\r\n${bulk("foo")}${int(42)}${simple("OK")}${err("ERR")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([bulk("foo"), int(42), simple("OK"), err("ERR")]);
+				const result = yield* $array.decode(encoded);
 				const expected = ["foo", 42, "OK", new Error_({ message: "ERR" })];
 				expect(result).toStrictEqual(expected);
 			});
 
 			test.effect("nested arrays", function* () {
-				const encoded = `2\r\n*2\r\n${int(1)}${int(2)}*1\r\n${bulk("bar")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([arr([int(1), int(2)]), arr([bulk("bar")])]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([[1, 2], ["bar"]]);
 			});
 
 			test.effect("deeply nested arrays", function* () {
-				const encoded = `1\r\n*1\r\n*1\r\n${bulk("deep")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([arr([arr([bulk("deep")])])]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([[["deep"]]]);
 			});
 
 			test.effect("nested array in the middle", function* () {
-				const encoded = `3\r\n${bulk("hello")}*2\r\n${bulk("a")}${bulk("b")}${bulk("world")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([
+					bulk("hello"),
+					arr([bulk("a"), bulk("b")]),
+					bulk("world"),
+				]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual(["hello", ["a", "b"], "world"]);
 			});
 
 			test.effect("nested array at end", function* () {
-				const encoded = `3\r\n${int(1)}${int(2)}*2\r\n${bulk("a")}${bulk("b")}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([int(1), int(2), arr([bulk("a"), bulk("b")])]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([1, 2, ["a", "b"]]);
 			});
 
 			test.effect("nulls", function* () {
-				const encoded = `3\r\n${null_}${bulk("x")}${null_}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([null_, bulk("x"), null_]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([null, "x", null]);
 			});
 
@@ -78,8 +85,8 @@ describe("Array", () => {
 				const cr = "c\rr";
 				const lf = "l\nf";
 				const crlf = "cr\r\nlf";
-				const encoded = `3\r\n${bulk(cr)}${bulk(lf)}${bulk(crlf)}`;
-				const result = yield* $array.decode(`*${encoded}`);
+				const encoded = arr([bulk(cr), bulk(lf), bulk(crlf)]);
+				const result = yield* $array.decode(encoded);
 				expect(result).toStrictEqual([cr, lf, crlf]);
 			});
 		});
