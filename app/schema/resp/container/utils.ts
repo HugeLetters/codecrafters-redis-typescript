@@ -17,7 +17,11 @@ import {
 	flow,
 } from "effect";
 import { Array_, decodeLeftoverArray } from "./array";
-import { Map_ } from "./map";
+import {
+	MapPrefix,
+	Map_,
+	decodeLeftoverMap as decodeLeftoverMap_,
+} from "./map";
 import { ArrayPrefix } from "./prefix";
 
 const RespBasicSchema = Schema.Union(
@@ -88,6 +92,9 @@ export function decodeLeftoverItem(
 		}
 		case ArrayPrefix: {
 			return decodeLeftoverArrayValue(input, ast);
+		}
+		case MapPrefix: {
+			return decodeLeftoverMap(input, ast);
 		}
 	}
 
@@ -198,6 +205,10 @@ const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
 			),
 		),
 	);
+};
+
+const decodeLeftoverMap: LeftoverDecoder<RespMapValue> = function (input, ast) {
+	return decodeLeftoverMap_(input, ast);
 };
 
 export function namedAst(name: string) {
