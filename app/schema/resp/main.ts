@@ -1,30 +1,4 @@
 import type { Integer } from "$/schema/number";
-import { Array_, decodeLeftoverArray } from "$/schema/resp/container/array";
-import { decodeLeftoverAttribute } from "$/schema/resp/container/attribute";
-import {
-	Map_,
-	decodeLeftoverMap as decodeLeftoverMap_,
-} from "$/schema/resp/container/map";
-import {
-	ArrayPrefix,
-	AttributePrefix,
-	MapPrefix,
-	SetPrefix,
-} from "$/schema/resp/container/prefix";
-import {
-	Set_,
-	decodeLeftoverSet as decodeLeftoverSet_,
-} from "$/schema/resp/container/set";
-import { serializeRespValue } from "$/schema/resp/container/utils";
-import type { Error_ } from "$/schema/resp/error";
-import {
-	type LeftoverData,
-	type LeftoverParseResult,
-	noLeftover,
-} from "$/schema/resp/leftover";
-import { Number_ } from "$/schema/resp/number";
-import { Primitive } from "$/schema/resp/primitive";
-import { String_ } from "$/schema/resp/string";
 import { Log, decodeString, namedAst } from "$/schema/utils";
 import {
 	Effect,
@@ -36,6 +10,38 @@ import {
 	flow,
 	identity,
 } from "effect";
+import { Array_, decodeLeftoverArray } from "./container/array";
+import { decodeLeftoverAttribute } from "./container/attribute";
+import { Map_, decodeLeftoverMap as decodeLeftoverMap_ } from "./container/map";
+import {
+	ArrayPrefix,
+	AttributePrefix,
+	MapPrefix,
+	SetPrefix,
+} from "./container/prefix";
+import { Set_, decodeLeftoverSet as decodeLeftoverSet_ } from "./container/set";
+import { serializeRespValue } from "./container/utils";
+import type { Error_ } from "./error";
+import {
+	type LeftoverData,
+	type LeftoverParseResult,
+	noLeftover,
+} from "./leftover";
+import { Number_ } from "./number";
+import { LeftoverBigNumber } from "./number/bigNumber";
+import { LeftoverDouble } from "./number/double";
+import { LeftoverInteger } from "./number/integer";
+import { Primitive } from "./primitive";
+import { LeftoverBoolean } from "./primitive/boolean";
+import {
+	LeftoverArrayNull,
+	LeftoverBulkStringNull,
+	LeftoverPlainNull,
+} from "./primitive/null";
+import { String_ } from "./string";
+import { LeftoverBulkError, LeftoverBulkString } from "./string/bulk";
+import { LeftoverSimpleError, LeftoverSimpleString } from "./string/simple";
+import { LeftoverVerbatimString } from "./string/verbatim";
 
 export function decodeLeftoverValue(
 	input: string,
@@ -169,16 +175,16 @@ function createDecoder<TType, TEncoded extends string>(
 }
 
 const decodeLeftoverSimpleString: LeftoverDecoder<string> = flow(
-	createDecoder(String_.LeftoverSimpleString),
+	createDecoder(LeftoverSimpleString),
 	Effect.map(([, data]) => data),
 );
 
 const decodeLeftoverBulkStringNull: LeftoverDecoder<null> = flow(
-	createDecoder(Primitive.LeftoverBulkStringNull),
+	createDecoder(LeftoverBulkStringNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
 const decodeLeftoverBulkString: LeftoverDecoder<string> = flow(
-	createDecoder(String_.LeftoverBulkString),
+	createDecoder(LeftoverBulkString),
 	Effect.map(([, data]) => data),
 );
 const LeftoverBulkValueAST = namedAst("LeftoverBulkValue");
@@ -200,42 +206,37 @@ const decodeLeftoverBulkValue: DecodeBulkValue = function (value, ast) {
 
 type DecodeVerbatimString = LeftoverDecoder<String_.VerbatimString>;
 const decodeLeftoverVerbatimString: DecodeVerbatimString = flow(
-	createDecoder(String_.LeftoverVerbatimString),
+	createDecoder(LeftoverVerbatimString),
 	Effect.map(([, data]) => data),
 );
 
 type Int = typeof Integer.Type;
-const decodeLeftoverInteger: LeftoverDecoder<Int> = createDecoder(
-	Number_.LeftoverInteger,
-);
+const decodeLeftoverInteger: LeftoverDecoder<Int> =
+	createDecoder(LeftoverInteger);
 
-const decodeLeftoverDouble: LeftoverDecoder<number> = createDecoder(
-	Number_.LeftoverDouble,
-);
-const decodeLeftoverBigNumber: LeftoverDecoder<bigint> = createDecoder(
-	Number_.LeftoverBigNumber,
-);
+const decodeLeftoverDouble: LeftoverDecoder<number> =
+	createDecoder(LeftoverDouble);
+const decodeLeftoverBigNumber: LeftoverDecoder<bigint> =
+	createDecoder(LeftoverBigNumber);
 
 const decodeLeftoverBoolean: LeftoverDecoder<boolean> = flow(
-	createDecoder(Primitive.LeftoverBoolean),
+	createDecoder(LeftoverBoolean),
 	Effect.map(([, data, , leftover]) => ({ data, leftover })),
 );
 
 const decodeLeftoverPlainNull: LeftoverDecoder<null> = flow(
-	createDecoder(Primitive.LeftoverPlainNull),
+	createDecoder(LeftoverPlainNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
 
-const decodeLeftoverSimpleError: LeftoverDecoder<Error_> = createDecoder(
-	String_.LeftoverSimpleError,
-);
+const decodeLeftoverSimpleError: LeftoverDecoder<Error_> =
+	createDecoder(LeftoverSimpleError);
 
-const decodeLeftoverBulkError: LeftoverDecoder<Error_> = createDecoder(
-	String_.LeftoverBulkError,
-);
+const decodeLeftoverBulkError: LeftoverDecoder<Error_> =
+	createDecoder(LeftoverBulkError);
 
 const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
-	createDecoder(Primitive.LeftoverArrayNull),
+	createDecoder(LeftoverArrayNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
 const LeftoverArrayValueAST = namedAst("LeftoverArrayValue");

@@ -3,12 +3,8 @@ export {
 	BulkErrorPrefix,
 	BulkString,
 	BulkStringPrefix,
-	LeftoverBulkError,
-	LeftoverBulkString,
 } from "./bulk";
 export {
-	LeftoverSimpleError,
-	LeftoverSimpleString,
 	SimpleError,
 	SimpleErrorPrefix,
 	SimpleString,
@@ -16,7 +12,6 @@ export {
 } from "./simple";
 export { ErrorFromString, String_ as String } from "./string";
 export {
-	LeftoverVerbatimString,
 	VerbatimString,
 	VerbatimStringFromString,
 	VerbatimStringPrefix,
