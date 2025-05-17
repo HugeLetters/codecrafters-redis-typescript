@@ -7,8 +7,7 @@ import {
 	SimpleStringPrefix,
 } from "$/schema/resp/string/simple";
 import { HashMap } from "effect";
-import { MapPrefix } from "./map";
-import { ArrayPrefix } from "./prefix";
+import { ArrayPrefix, MapPrefix } from "./prefix";
 
 export function arr(arr: Array<string>) {
 	return `${ArrayPrefix}${arr.length}${CRLF}${arr.join("")}`;

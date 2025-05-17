@@ -1,6 +1,11 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
-import { Log } from "$/schema/utils";
+import {
+	RespData,
+	type RespMapValue,
+	decodeLeftoverValue,
+} from "$/schema/resp/main";
+import { Log, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import {
@@ -12,19 +17,13 @@ import {
 	SchemaAST,
 	identity,
 } from "effect";
+import { AttributePrefix } from "./prefix";
 import {
-	type RespMapValue,
-	RespSchema,
 	decodeIntFromString,
-	decodeLeftoverValue,
-	decodeString,
 	entryPlural,
 	hashableRespValue,
-	namedAst,
 	serializeRespValue,
 } from "./utils";
-
-export const AttributePrefix = "|";
 
 const AttributeRegex = /^\|(\d+)\r\n([\s\S]*)$/;
 const AttributeTemplate = `${AttributePrefix}{size}${CRLF}{entries}`;
@@ -127,9 +126,9 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 
 type Attribute = Schema.Schema<RespMapValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "Attribute"));
-const validateNoleftover = ParseResult.validate(NoLeftover);
+const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => {
-	return Schema.HashMapFromSelf({ key: RespSchema, value: RespSchema });
+	return Schema.HashMapFromSelf({ key: RespData, value: RespData });
 });
 export const Attribute: Attribute = Schema.declare(
 	[EncodingSchema],
@@ -137,7 +136,7 @@ export const Attribute: Attribute = Schema.declare(
 		decode() {
 			return Effect.fn(function* (input, _opts, ast) {
 				const result = yield* decodeLeftoverAttribute(input, ast);
-				yield* validateNoleftover(result.leftover);
+				yield* validateNoLeftover(result.leftover);
 				return result.data;
 			});
 		},

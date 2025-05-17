@@ -1,3 +1,4 @@
+import type { RespHashableValue, RespValue } from "$/schema/resp/main";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
@@ -14,7 +15,6 @@ import {
 	respmap,
 	simple,
 } from "./test-utils";
-import type { RespHashableValue, RespValue } from "./utils";
 
 describe("Map", () => {
 	const $map = createSchemaHelpers(Map_);
@@ -22,7 +22,7 @@ describe("Map", () => {
 	describe("with valid data", () => {
 		describe("is decoded", () => {
 			test.effect("empty map", function* () {
-				const result = yield* $map.decode("%0\r\n");
+				const result = yield* $map.decode(respmap([]));
 				expect(result).toStrictEqual(HashMap.fromIterable([]));
 			});
 
@@ -122,7 +122,7 @@ describe("Map", () => {
 				);
 			});
 
-			test.effect("map with nested array of maps", function* () {
+			test.effect("nested array of maps", function* () {
 				const innerMap = respmap([[simple("a"), int(1)]]);
 				const encoded = respmap([[simple("foo"), arr([innerMap, innerMap])]]);
 				const result = yield* $map.decode(encoded);
@@ -135,7 +135,7 @@ describe("Map", () => {
 		describe("is encoded", () => {
 			test.effect("empty map", function* () {
 				const result = yield* $map.encode(HashMap.empty());
-				expect(result).toBe("%0\r\n");
+				expect(result).toBe(respmap([]));
 			});
 
 			test.effect("single entry", function* () {
@@ -158,7 +158,7 @@ describe("Map", () => {
 				);
 			});
 
-			test.effect("map with nested map value", function* () {
+			test.effect("nested map value", function* () {
 				const input = hashmap([
 					[
 						"outer",
@@ -181,12 +181,12 @@ describe("Map", () => {
 				expect(result).toBe(expected);
 			});
 
-			test.effect("map with null value", function* () {
+			test.effect("null value", function* () {
 				const result = yield* $map.encode(hashmap([["foo", null]]));
 				expect(result).toBe(respmap([[simple("foo"), null_]]));
 			});
 
-			test.effect("map with nested array of maps", function* () {
+			test.effect("nested array of maps", function* () {
 				const input = hashmap([
 					["foo", [hashmap([["a", 1]]), hashmap([["a", 1]])]],
 				]);

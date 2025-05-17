@@ -1,21 +1,17 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
-import { Log } from "$/schema/utils";
+import {
+	type RespArrayValue,
+	RespData,
+	type RespValue,
+	decodeLeftoverValue,
+} from "$/schema/resp/main";
+import { Log, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
 import { ArrayPrefix } from "./prefix";
-import {
-	type RespArrayValue,
-	RespSchema,
-	type RespValue,
-	decodeIntFromString,
-	decodeLeftoverValue,
-	decodeString,
-	itemPlural,
-	namedAst,
-	serializeRespValue,
-} from "./utils";
+import { decodeIntFromString, itemPlural, serializeRespValue } from "./utils";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
 const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
@@ -112,15 +108,15 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 
 type Array_ = Schema.Schema<RespArrayValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
-const validateNoleftover = ParseResult.validate(NoLeftover);
-const EncodingSchema = Schema.suspend(() => Schema.Array(RespSchema));
+const validateNoLeftover = ParseResult.validate(NoLeftover);
+const EncodingSchema = Schema.suspend(() => Schema.Array(RespData));
 export const Array_: Array_ = Schema.declare(
 	[EncodingSchema],
 	{
 		decode() {
 			return Effect.fn(function* (input, _opts, ast) {
 				const result = yield* decodeLeftoverArray(input, ast);
-				yield* validateNoleftover(result.leftover);
+				yield* validateNoLeftover(result.leftover);
 				return result.data;
 			});
 		},
