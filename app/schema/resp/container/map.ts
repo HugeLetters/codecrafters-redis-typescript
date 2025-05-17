@@ -18,6 +18,7 @@ import {
 	decodeIntFromString,
 	decodeLeftoverValue,
 	decodeString,
+	entryPlural,
 	hashableRespValue,
 	namedAst,
 	serializeRespValue,
@@ -26,10 +27,10 @@ import {
 export const MapPrefix = "%";
 
 const MapRegex = /^%(\d+)\r\n([\s\S]*)$/;
-const RespMapTemplate = `${MapPrefix}{size}${CRLF}{items}`;
+const RespMapTemplate = `${MapPrefix}{size}${CRLF}{entries}`;
 const sizeTransform = new SchemaAST.Transformation(
 	namedAst(`\`${normalize(RespMapTemplate)}\``),
-	namedAst("[Size, Items<Key, Value>]"),
+	namedAst("[Size, Entries<Key, Value>]"),
 	SchemaAST.composeTransformation,
 );
 
@@ -44,14 +45,14 @@ const decodeLeftoverMapSize = function (input: string, ast: SchemaAST.AST) {
 			return yield* ParseResult.fail(issue);
 		}
 
-		const [_match, rawSize, items = ""] = result;
+		const [_match, rawSize, entries = ""] = result;
 		const size = yield* decodeIntFromString(rawSize).pipe(
 			ParseResult.mapError(
 				(issue) => new ParseResult.Pointer("Size", rawSize, issue),
 			),
 		);
 
-		return { size, items };
+		return { size, entries };
 	});
 
 	return decodeResult.pipe(
@@ -79,18 +80,22 @@ export const decodeLeftoverMap = function (
 	type DecodeResult = EffectGen<LeftoverParseResult<RespMapValue>>;
 	const decodeResult = Effect.gen(function* (): DecodeResult {
 		const str = yield* decodeString(input);
-		const { size, items } = yield* decodeLeftoverMapSize(str, ast);
+		const { size, entries } = yield* decodeLeftoverMapSize(str, ast);
 
 		let map: RespMapValue = HashMap.empty().pipe(HashMap.beginMutation);
 
-		let encoded = items;
+		let encoded = entries;
 		while (HashMap.size(map) !== size) {
 			if (encoded === "") {
-				const expected = Log.good(size);
-				const received = Log.bad(HashMap.size(map));
-				const receivedItems = Log.bad(serializeRespValue(map));
+				const expectedSize = Log.good(size);
+				const expected = `Expected ${expectedSize} ${entryPlural(size)}`;
+
+				const receivedSize = HashMap.size(map);
+				const receivedEntries = Log.bad(serializeRespValue(map));
 				const receivedInput = Log.bad(str);
-				const message = `Expected ${expected} item(s). Decoded ${received} item(s) in ${receivedItems} from ${receivedInput}`;
+				const received = `Decoded ${Log.bad(receivedSize)} ${entryPlural(receivedSize)} in ${receivedEntries} from ${receivedInput}`;
+
+				const message = `${expected}. ${received}`;
 				const issue = new ParseResult.Type(ast, str, message);
 				return yield* ParseResult.fail(issue);
 			}
@@ -104,8 +109,7 @@ export const decodeLeftoverMap = function (
 					const receivedInput = Log.bad(encoded);
 					const decoded = Log.good(serializeRespValue(map));
 					const message = `Decoded ${decoded} but encountered error at ${receivedInput}`;
-					const itemAst = namedAst(message);
-					return new ParseResult.Composite(itemAst, items, issue);
+					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),
 			);
 
@@ -113,7 +117,8 @@ export const decodeLeftoverMap = function (
 			encoded = value.leftover;
 		}
 
-		return { data: HashMap.endMutation(map), leftover: encoded };
+		const data = HashMap.endMutation(map);
+		return { data, leftover: encoded };
 	});
 
 	return decodeResult.pipe(

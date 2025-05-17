@@ -248,3 +248,4 @@ export const decodeString = ParseResult.decodeUnknown(Schema.String);
 export const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
 
 export const itemPlural = createPluralizer({ one: "item", many: "items" });
+export const entryPlural = createPluralizer({ one: "entry", many: "entries" });
