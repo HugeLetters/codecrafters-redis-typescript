@@ -25,7 +25,7 @@ const lengthTransform = new SchemaAST.Transformation(
 	SchemaAST.composeTransformation,
 );
 
-const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
+function decodeLeftoverArrayLength(input: string, ast: SchemaAST.AST) {
 	const decodeResult = Effect.gen(function* () {
 		const result = ArrayRegex.exec(input);
 		if (result === null) {
@@ -56,7 +56,7 @@ const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
 			);
 		}),
 	);
-};
+}
 
 export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 	const ast = new SchemaAST.Transformation(

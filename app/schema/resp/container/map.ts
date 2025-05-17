@@ -34,7 +34,7 @@ const sizeTransform = new SchemaAST.Transformation(
 	SchemaAST.composeTransformation,
 );
 
-const decodeLeftoverMapSize = function (input: string, ast: SchemaAST.AST) {
+function decodeLeftoverMapSize(input: string, ast: SchemaAST.AST) {
 	const decodeResult = Effect.gen(function* () {
 		const result = MapRegex.exec(input);
 		if (result === null) {
@@ -65,12 +65,9 @@ const decodeLeftoverMapSize = function (input: string, ast: SchemaAST.AST) {
 			);
 		}),
 	);
-};
+}
 
-export const decodeLeftoverMap = function (
-	input: unknown,
-	toAst: SchemaAST.AST,
-) {
+export function decodeLeftoverMap(input: unknown, toAst: SchemaAST.AST) {
 	const ast = new SchemaAST.Transformation(
 		SchemaAST.stringKeyword,
 		SchemaAST.typeAST(toAst),
@@ -126,7 +123,7 @@ export const decodeLeftoverMap = function (
 			(issue) => new ParseResult.Transformation(ast, input, "Encoded", issue),
 		),
 	);
-};
+}
 
 type Map_ = Schema.Schema<RespMapValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespMap"));
