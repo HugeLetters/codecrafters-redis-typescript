@@ -1,6 +1,6 @@
 import type { Integer } from "$/schema/number";
 import { Array_, decodeLeftoverArray } from "$/schema/resp/container/array";
-import { decodeLeftoverAttribute as decodeLeftoverAttribute_ } from "$/schema/resp/container/attribute";
+import { decodeLeftoverAttribute } from "$/schema/resp/container/attribute";
 import {
 	Map_,
 	decodeLeftoverMap as decodeLeftoverMap_,
@@ -73,10 +73,7 @@ export function decodeLeftoverValue(
 			return decodeLeftoverMap(input, ast);
 		}
 		case AttributePrefix: {
-			// we just ignore attributes
-			return decodeLeftoverAttribute(input, ast).pipe(
-				Effect.flatMap((value) => decodeLeftoverValue(value.leftover, ast)),
-			);
+			return skipLeftoverAttribute(input, ast);
 		}
 	}
 
@@ -245,5 +242,9 @@ const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
 type DecodeMap = LeftoverDecoder<RespMapValue>;
 const decodeLeftoverMap: DecodeMap = decodeLeftoverMap_;
 
-type DecodeAttribute = LeftoverDecoder<RespMapValue>;
-const decodeLeftoverAttribute: DecodeAttribute = decodeLeftoverAttribute_;
+type DecodeAttribute = LeftoverDecoder<RespValue>;
+const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
+	return decodeLeftoverAttribute(input, ast).pipe(
+		Effect.flatMap((value) => decodeLeftoverValue(value.leftover, ast)),
+	);
+};
