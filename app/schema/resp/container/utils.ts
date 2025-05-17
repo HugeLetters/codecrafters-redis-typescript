@@ -19,6 +19,10 @@ import {
 } from "effect";
 import { Array_, decodeLeftoverArray } from "./array";
 import {
+	AttributePrefix,
+	decodeLeftoverAttribute as decodeLeftoverAttribute_,
+} from "./attribute";
+import {
 	MapPrefix,
 	Map_,
 	decodeLeftoverMap as decodeLeftoverMap_,
@@ -96,6 +100,12 @@ export function decodeLeftoverValue(
 		}
 		case MapPrefix: {
 			return decodeLeftoverMap(input, ast);
+		}
+		case AttributePrefix: {
+			// we just ignore attributes
+			return decodeLeftoverAttribute(input, ast).pipe(
+				Effect.flatMap((value) => decodeLeftoverValue(value.leftover, ast)),
+			);
 		}
 	}
 
@@ -208,9 +218,11 @@ const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
 	);
 };
 
-const decodeLeftoverMap: LeftoverDecoder<RespMapValue> = function (input, ast) {
-	return decodeLeftoverMap_(input, ast);
-};
+type DecodeMap = LeftoverDecoder<RespMapValue>;
+const decodeLeftoverMap: DecodeMap = decodeLeftoverMap_;
+
+type DecodeAttribute = LeftoverDecoder<RespMapValue>;
+const decodeLeftoverAttribute: DecodeAttribute = decodeLeftoverAttribute_;
 
 export function namedAst(name: string) {
 	return new SchemaAST.Literal("", {
