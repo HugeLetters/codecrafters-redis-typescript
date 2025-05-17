@@ -6,17 +6,23 @@ import {
 	SimpleErrorPrefix,
 	SimpleStringPrefix,
 } from "$/schema/resp/string/simple";
-import { HashMap } from "effect";
-import { ArrayPrefix, MapPrefix } from "./prefix";
+import { HashMap, HashSet } from "effect";
+import { ArrayPrefix, MapPrefix, SetPrefix } from "./prefix";
 
-export function arr(arr: Array<string>) {
+export function arr(arr: ReadonlyArray<string>) {
 	return `${ArrayPrefix}${arr.length}${CRLF}${arr.join("")}`;
 }
 
-export function respmap(entries: Array<[string, string]>) {
+export function respmap(entries: ReadonlyArray<[string, string]>) {
 	return `${MapPrefix}${entries.length}${CRLF}${entries.map(([k, v]) => k + v).join("")}`;
 }
+export function respset(entries: ReadonlyArray<string>) {
+	const set = new Set(entries);
+	return `${SetPrefix}${set.size}${CRLF}${[...set].join("")}`;
+}
+
 export const hashmap = HashMap.fromIterable;
+export const hashset = HashSet.fromIterable;
 
 export function bulk(s: string) {
 	return `${BulkStringPrefix}${s.length}${CRLF}${s}${CRLF}`;
