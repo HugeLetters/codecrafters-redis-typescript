@@ -86,35 +86,33 @@ describe("Array", () => {
 		describe("is encoded", () => {
 			test.effect("empty array", function* () {
 				const result = yield* $array.encode([]);
-				expect(result).toBe("*0\r\n");
+				expect(result).toBe(arr([]));
 			});
 
 			test.effect("single item array", function* () {
 				const result = yield* $array.encode([123]);
-				expect(result).toBe(`*1\r\n${int(123)}`);
+				expect(result).toBe(arr([int(123)]));
 			});
 
 			test.effect("array of bulk strings", function* () {
 				const result = yield* $array.encode(["hello world!", "hello earth!"]);
-				expect(result).toBe(
-					`*2\r\n${bulk("hello world!")}${bulk("hello earth!")}`,
-				);
+				expect(result).toBe(arr([bulk("hello world!"), bulk("hello earth!")]));
 			});
 
 			test.effect("array of integers", function* () {
 				const result = yield* $array.encode([1, 2, 3]);
-				expect(result).toBe(`*3\r\n${int(1)}${int(2)}${int(3)}`);
+				expect(result).toBe(arr([int(1), int(2), int(3)]));
 			});
 
 			test.effect("nested arrays", function* () {
 				const result = yield* $array.encode([[1, 2], ["bar"]]);
-				const expected = `2\r\n*2\r\n${int(1)}${int(2)}*1\r\n${simple("bar")}`;
-				expect(result).toBe(`*${expected}`);
+				const expected = arr([arr([int(1), int(2)]), arr([simple("bar")])]);
+				expect(result).toBe(expected);
 			});
 
 			test.effect("deeply nested arrays", function* () {
 				const result = yield* $array.encode([[["deepnestedarray"]]]);
-				expect(result).toBe(`*1\r\n*1\r\n*1\r\n${bulk("deepnestedarray")}`);
+				expect(result).toBe(arr([arr([arr([bulk("deepnestedarray")])])]));
 			});
 		});
 	});
