@@ -142,9 +142,9 @@ export const Map_: Map_ = Schema.declare(
 		},
 		encode(schema) {
 			const encode = ParseResult.encodeUnknown(schema);
-			const stringifyMap = Iterable.reduce<string, [string, string]>(
+			const stringifyMap = Iterable.reduce(
 				"",
-				(result, [key, value]) => `${result}${key}${value}`,
+				(result, [key, value]: [string, string]) => `${result}${key}${value}`,
 			);
 
 			return Effect.fn(function* (input, _opt) {
