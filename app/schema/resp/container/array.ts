@@ -66,17 +66,17 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
 
-		const result: Array<RespValue> = [];
+		const array: Array<RespValue> = [];
 		let encoded = items;
-		while (result.length !== length) {
+		while (array.length !== length) {
 			if (encoded === "") {
 				const expectedLength = Log.good(length);
 				const expected = `Expected ${expectedLength} ${itemPlural(length)}`;
 
-				const receivedLength = Log.bad(result.length);
-				const receivedItems = Log.bad(serializeRespValue(result));
+				const receivedLength = Log.bad(array.length);
+				const receivedItems = Log.bad(serializeRespValue(array));
 				const receivedInput = Log.bad(str);
-				const received = `Decoded ${receivedLength} ${itemPlural(result.length)} in ${receivedItems} from ${receivedInput}`;
+				const received = `Decoded ${receivedLength} ${itemPlural(array.length)} in ${receivedItems} from ${receivedInput}`;
 
 				const message = `${expected}. ${received}`;
 				const issue = new ParseResult.Type(ast, str, message);
@@ -86,17 +86,17 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(serializeRespValue(result));
-					const message = `Decoded ${decoded} but encountered error at ${receivedInput}`;
+					const decoded = Log.good(serializeRespValue(array));
+					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),
 			);
 
-			result.push(data);
+			array.push(data);
 			encoded = leftover;
 		}
 
-		return { data: result, leftover: encoded };
+		return { data: array, leftover: encoded };
 	});
 
 	return decodeResult.pipe(

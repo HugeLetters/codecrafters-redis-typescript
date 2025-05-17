@@ -96,15 +96,20 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 				return yield* ParseResult.fail(issue);
 			}
 
-			const { key, value } = yield* Effect.Do.pipe(
-				Effect.bind("key", () => decodeLeftoverValue(encoded, ast)),
-				Effect.bind("value", ({ key }) =>
-					decodeLeftoverValue(key.leftover, ast),
-				),
+			const key = yield* decodeLeftoverValue(encoded, ast).pipe(
 				Effect.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
 					const decoded = Log.good(serializeRespValue(map));
-					const message = `Decoded ${decoded} but encountered error at ${receivedInput}`;
+					const message = `Decoded ${decoded} but got invalid key at ${receivedInput}`;
+					return new ParseResult.Composite(namedAst(message), entries, issue);
+				}),
+			);
+			const value = yield* decodeLeftoverValue(key.leftover, ast).pipe(
+				Effect.mapError((issue) => {
+					const receivedInput = Log.bad(key.leftover);
+					const decoded = Log.good(serializeRespValue(map));
+					const receivedKey = Log.good(serializeRespValue(key.data));
+					const message = `Decoded ${decoded} but key ${receivedKey} has invalid value at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),
 			);

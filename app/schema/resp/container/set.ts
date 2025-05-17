@@ -99,7 +99,7 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 				ParseResult.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
 					const decoded = Log.good(serializeRespValue(set));
-					const message = `Decoded ${decoded} but encountered error at ${receivedInput}`;
+					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),
 			);
