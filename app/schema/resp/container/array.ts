@@ -11,6 +11,7 @@ import {
 	type RespValue,
 	decodeIntFromString,
 	decodeLeftoverItem,
+	itemPlural,
 	namedAst,
 	serializeRespValue,
 } from "./utils";
@@ -73,11 +74,15 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		let encoded = items;
 		while (result.length !== length) {
 			if (encoded === "") {
-				const expected = Log.good(length);
-				const received = Log.bad(result.length);
+				const expectedLength = Log.good(length);
+				const expected = `Expected ${expectedLength} ${itemPlural(length)}`;
+
+				const receivedLength = Log.bad(result.length);
 				const receivedItems = Log.bad(serializeRespValue(result));
 				const receivedInput = Log.bad(str);
-				const message = `Expected ${expected} item(s). Decoded ${received} item(s) in ${receivedItems} from ${receivedInput}`;
+				const received = `Decoded ${receivedLength} ${itemPlural(result.length)} in ${receivedItems} from ${receivedInput}`;
+
+				const message = `${expected}. ${received}`;
 				const issue = new ParseResult.Type(ast, str, message);
 				return yield* ParseResult.fail(issue);
 			}

@@ -5,6 +5,7 @@ import { Number_ } from "$/schema/resp/number";
 import { Primitive } from "$/schema/resp/primitive";
 import { String_ } from "$/schema/resp/string";
 import { Log } from "$/schema/utils";
+import { createPluralizer } from "$/utils/locale";
 import {
 	Array as Arr,
 	Effect,
@@ -244,3 +245,4 @@ export function hashableRespValue(
 }
 
 export const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
+export const itemPlural = createPluralizer({ one: "item", many: "items" });
