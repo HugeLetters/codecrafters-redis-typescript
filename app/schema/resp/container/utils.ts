@@ -55,7 +55,7 @@ export type RespHashableValue = RespPrimitiveValue | RespMapValue;
 
 export type RespValue = RespHashableValue | RespArrayValue;
 
-export function decodeLeftoverItem(
+export function decodeLeftoverValue(
 	input: string,
 	ast: SchemaAST.AST,
 ): LeftoverParseResult<RespValue> {

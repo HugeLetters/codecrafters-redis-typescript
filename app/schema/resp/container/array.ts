@@ -10,7 +10,7 @@ import {
 	RespSchema,
 	type RespValue,
 	decodeIntFromString,
-	decodeLeftoverItem,
+	decodeLeftoverValue,
 	decodeString,
 	itemPlural,
 	namedAst,
@@ -87,12 +87,12 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 				return yield* ParseResult.fail(issue);
 			}
 
-			const { data, leftover } = yield* decodeLeftoverItem(encoded, ast).pipe(
+			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
-					const message = `Decoded ${Log.good(serializeRespValue(result))} but encountered error at ${receivedInput}`;
-					const itemAst = namedAst(message);
-					return new ParseResult.Composite(itemAst, items, issue);
+					const decoded = Log.good(serializeRespValue(result));
+					const message = `Decoded ${decoded} but encountered error at ${receivedInput}`;
+					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),
 			);
 

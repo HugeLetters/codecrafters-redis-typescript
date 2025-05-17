@@ -16,7 +16,7 @@ import {
 	type RespMapValue,
 	RespSchema,
 	decodeIntFromString,
-	decodeLeftoverItem,
+	decodeLeftoverValue,
 	decodeString,
 	hashableRespValue,
 	namedAst,
@@ -96,9 +96,9 @@ export const decodeLeftoverMap = function (
 			}
 
 			const { key, value } = yield* Effect.Do.pipe(
-				Effect.bind("key", () => decodeLeftoverItem(encoded, ast)),
+				Effect.bind("key", () => decodeLeftoverValue(encoded, ast)),
 				Effect.bind("value", ({ key }) =>
-					decodeLeftoverItem(key.leftover, ast),
+					decodeLeftoverValue(key.leftover, ast),
 				),
 				Effect.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
