@@ -1,10 +1,4 @@
 import type { RespHashableValue, RespValue } from "$/schema/resp/main";
-import { createSchemaHelpers, expectParseError } from "$/schema/test";
-import { test } from "$/test";
-import { describe, expect } from "bun:test";
-import { HashMap } from "effect";
-import { Error_ } from "../error";
-import { Map_ } from "./map";
 import {
 	arr,
 	bulk,
@@ -14,7 +8,13 @@ import {
 	null_,
 	respmap,
 	simple,
-} from "./test-utils";
+} from "$/schema/resp/test-utils";
+import { createSchemaHelpers, expectParseError } from "$/schema/test";
+import { test } from "$/test";
+import { describe, expect } from "bun:test";
+import { HashMap } from "effect";
+import { Error_ } from "../error";
+import { Map_ } from "./map";
 
 describe("Map", () => {
 	const $map = createSchemaHelpers(Map_);

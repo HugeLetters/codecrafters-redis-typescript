@@ -1,11 +1,19 @@
 import { CRLF } from "$/schema/resp/constants";
+import {
+	arr,
+	bulk,
+	hashmap,
+	int,
+	null_,
+	respmap,
+	simple,
+} from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
 import { HashMap } from "effect";
 import { Attribute } from "./attribute";
 import { AttributePrefix } from "./prefix";
-import { arr, bulk, hashmap, int, null_, respmap, simple } from "./test-utils";
 
 function attr(entries: Array<[string, string]>) {
 	return `${AttributePrefix}${entries.length}${CRLF}${entries.map(([k, v]) => k + v).join("")}`;

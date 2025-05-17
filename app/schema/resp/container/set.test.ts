@@ -1,9 +1,17 @@
 import { Error_ } from "$/schema/resp/error";
+import {
+	bulk,
+	err,
+	hashset,
+	int,
+	null_,
+	respset,
+	simple,
+} from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { expectEquivalence, test } from "$/test";
 import { describe, expect } from "bun:test";
 import { Set_ } from "./set";
-import { respset, bulk, err, int, null_, simple, hashset } from "./test-utils";
 
 describe("Set", () => {
 	const $set = createSchemaHelpers(Set_);

@@ -1,4 +1,9 @@
 import { CRLF } from "$/schema/resp/constants";
+import {
+	ArrayPrefix,
+	MapPrefix,
+	SetPrefix,
+} from "$/schema/resp/container/prefix";
 import { IntegerPrefix } from "$/schema/resp/number/integer";
 import { NullPrefix } from "$/schema/resp/primitive/null";
 import { BulkStringPrefix } from "$/schema/resp/string/bulk";
@@ -7,7 +12,6 @@ import {
 	SimpleStringPrefix,
 } from "$/schema/resp/string/simple";
 import { HashMap, HashSet } from "effect";
-import { ArrayPrefix, MapPrefix, SetPrefix } from "./prefix";
 
 export function arr(arr: ReadonlyArray<string>) {
 	return `${ArrayPrefix}${arr.length}${CRLF}${arr.join("")}`;
