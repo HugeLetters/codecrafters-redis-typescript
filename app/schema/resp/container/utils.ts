@@ -244,5 +244,7 @@ export function hashableRespValue(
 	return value;
 }
 
+export const decodeString = ParseResult.decodeUnknown(Schema.String);
 export const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
+
 export const itemPlural = createPluralizer({ one: "item", many: "items" });

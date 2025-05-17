@@ -17,6 +17,7 @@ import {
 	RespSchema,
 	decodeIntFromString,
 	decodeLeftoverItem,
+	decodeString,
 	hashableRespValue,
 	namedAst,
 	serializeRespValue,
@@ -65,7 +66,6 @@ const decodeLeftoverMapSize = function (input: string, ast: SchemaAST.AST) {
 	);
 };
 
-const decodeString = ParseResult.decodeUnknown(Schema.String);
 export const decodeLeftoverMap = function (
 	input: unknown,
 	toAst: SchemaAST.AST,

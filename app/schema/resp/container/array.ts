@@ -11,6 +11,7 @@ import {
 	type RespValue,
 	decodeIntFromString,
 	decodeLeftoverItem,
+	decodeString,
 	itemPlural,
 	namedAst,
 	serializeRespValue,
@@ -57,7 +58,6 @@ const decodeLeftoverArrayLength = function (input: string, ast: SchemaAST.AST) {
 	);
 };
 
-const decodeString = ParseResult.decodeUnknown(Schema.String);
 export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 	const ast = new SchemaAST.Transformation(
 		SchemaAST.stringKeyword,
