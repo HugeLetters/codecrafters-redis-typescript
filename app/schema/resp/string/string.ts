@@ -17,7 +17,9 @@ export const String_ = RespStringEncoded.pipe(
 		},
 		encode(input, opts) {
 			if (input.length < 10) {
-				return encodeSimpleString(input, opts);
+				return encodeSimpleString(input, opts).pipe(
+					ParseResult.orElse(() => encodeBulkString(input, opts)),
+				);
 			}
 
 			return encodeBulkString(input, opts);
@@ -40,7 +42,9 @@ export const ErrorFromString = RespErrorEncoded.pipe(
 		},
 		encode(input, opts, _ast) {
 			if (input.message.length < 10) {
-				return encodeSimpleError(input, opts);
+				return encodeSimpleError(input, opts).pipe(
+					ParseResult.orElse(() => encodeBulkError(input, opts)),
+				);
 			}
 
 			return encodeBulkError(input, opts);
