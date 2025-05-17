@@ -9,7 +9,12 @@ import {
 	ArrayPrefix,
 	AttributePrefix,
 	MapPrefix,
+	SetPrefix,
 } from "$/schema/resp/container/prefix";
+import {
+	Set_,
+	decodeLeftoverSet as decodeLeftoverSet_,
+} from "$/schema/resp/container/set";
 import type { Error_ } from "$/schema/resp/error";
 import {
 	type LeftoverData,
@@ -23,6 +28,7 @@ import { Log, decodeString, namedAst } from "$/schema/utils";
 import {
 	Effect,
 	type HashMap,
+	type HashSet,
 	ParseResult,
 	Schema,
 	type SchemaAST,
@@ -72,6 +78,9 @@ export function decodeLeftoverValue(
 		case MapPrefix: {
 			return decodeLeftoverMap(input, ast);
 		}
+		case SetPrefix: {
+			return decodeLeftoverSet(input, ast);
+		}
 		case AttributePrefix: {
 			return skipLeftoverAttribute(input, ast);
 		}
@@ -103,6 +112,7 @@ const RespSchema = Schema.Union(
 	...RespBasicSchema.members,
 	Schema.suspend(() => Array_),
 	Schema.suspend(() => Map_),
+	Schema.suspend(() => Set_),
 ).pipe(Schema.annotations({ identifier: "RespValue" }));
 
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespValue"));
@@ -133,7 +143,12 @@ export type RespPrimitiveValue = typeof RespBasicSchema.Type;
 export type RespArrayValue = ReadonlyArray<RespValue>;
 
 export type RespMapValue = HashMap.HashMap<RespHashableValue, RespValue>;
-export type RespHashableValue = RespPrimitiveValue | RespMapValue;
+export type RespSetValue = HashSet.HashSet<RespHashableValue>;
+
+export type RespHashableValue =
+	| RespPrimitiveValue
+	| RespMapValue
+	| RespSetValue;
 
 export type RespValue = RespHashableValue | RespArrayValue;
 
@@ -241,6 +256,9 @@ const decodeLeftoverArrayValue: DecodeArrayValue = function (input, ast) {
 
 type DecodeMap = LeftoverDecoder<RespMapValue>;
 const decodeLeftoverMap: DecodeMap = decodeLeftoverMap_;
+
+type DecodeSet = LeftoverDecoder<RespSetValue>;
+const decodeLeftoverSet: DecodeSet = decodeLeftoverSet_;
 
 type DecodeAttribute = LeftoverDecoder<RespValue>;
 const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {

@@ -1,7 +1,14 @@
 import { IntegerFromString } from "$/schema/number";
-import type { RespHashableValue, RespData } from "$/schema/resp/main";
+import type { RespHashableValue, RespValue } from "$/schema/resp/main";
 import { createPluralizer } from "$/utils/locale";
-import { Array as Arr, Hash, HashMap, Iterable, ParseResult } from "effect";
+import {
+	Array as Arr,
+	Hash,
+	HashMap,
+	HashSet,
+	Iterable,
+	ParseResult,
+} from "effect";
 
 export function serializeRespValue(value: RespValue): string {
 	if (Arr.isArray<RespValue>(value)) {
@@ -9,11 +16,15 @@ export function serializeRespValue(value: RespValue): string {
 	}
 
 	if (HashMap.isHashMap(value)) {
-		const entries = HashMap.entries(value);
-		const items = Iterable.map(entries, ([key, value]) => {
+		const items = Iterable.map(value, ([key, value]) => {
 			return `${serializeRespValue(key)} ~> ${serializeRespValue(value)}`;
 		});
-		return `HashMap(${[...items].join(", ")})`;
+		return `HashMap[${[...items].join(", ")}]`;
+	}
+
+	if (HashSet.isHashSet(value)) {
+		const items = Iterable.map(value, serializeRespValue);
+		return `HashSet[${[...items].join(", ")}]`;
 	}
 
 	return String(value);
