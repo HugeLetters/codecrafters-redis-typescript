@@ -15,6 +15,7 @@ import {
 	Set_,
 	decodeLeftoverSet as decodeLeftoverSet_,
 } from "$/schema/resp/container/set";
+import { serializeRespValue } from "$/schema/resp/container/utils";
 import type { Error_ } from "$/schema/resp/error";
 import {
 	type LeftoverData,
@@ -260,9 +261,23 @@ const decodeLeftoverMap: DecodeMap = decodeLeftoverMap_;
 type DecodeSet = LeftoverDecoder<RespSetValue>;
 const decodeLeftoverSet: DecodeSet = decodeLeftoverSet_;
 
+const RespValueWithAttributeAST = namedAst("RespValueWithAttribute");
 type DecodeAttribute = LeftoverDecoder<RespValue>;
 const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 	return decodeLeftoverAttribute(input, ast).pipe(
-		Effect.flatMap((value) => decodeLeftoverValue(value.leftover, ast)),
+		ParseResult.flatMap((value) =>
+			decodeLeftoverValue(value.leftover, ast).pipe(
+				Effect.mapError((issue) => {
+					return new ParseResult.Composite(RespValueWithAttributeAST, input, [
+						new ParseResult.Type(
+							RespValueWithAttributeAST,
+							input,
+							`Received ${serializeRespValue(value.data)} attribute`,
+						),
+						issue,
+					]);
+				}),
+			),
+		),
 	);
 };
