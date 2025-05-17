@@ -1,4 +1,4 @@
-import type { Integer } from "$/schema/number";
+import { type Integer, IntegerFromString } from "$/schema/number";
 import type { Error_ } from "$/schema/resp/error";
 import type { LeftoverData, LeftoverParseResult } from "$/schema/resp/leftover";
 import { Number_ } from "$/schema/resp/number";
@@ -242,3 +242,5 @@ export function hashableRespValue(
 
 	return value;
 }
+
+export const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);

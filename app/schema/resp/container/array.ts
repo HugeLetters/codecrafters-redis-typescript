@@ -1,4 +1,3 @@
-import { IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import { Log } from "$/schema/utils";
@@ -10,13 +9,13 @@ import {
 	type RespArrayValue,
 	RespSchema,
 	type RespValue,
+	decodeIntFromString,
 	decodeLeftoverItem,
 	namedAst,
 	serializeRespValue,
 } from "./utils";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
-const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
 const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
 const lengthTransform = new SchemaAST.Transformation(
 	namedAst(`\`${normalize(RespArrayTemplate)}\``),

@@ -1,4 +1,3 @@
-import { IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import { Log } from "$/schema/utils";
@@ -16,6 +15,7 @@ import {
 import {
 	type RespMapValue,
 	RespSchema,
+	decodeIntFromString,
 	decodeLeftoverItem,
 	hashableRespValue,
 	namedAst,
@@ -25,7 +25,6 @@ import {
 export const MapPrefix = "%";
 
 const MapRegex = /^%(\d+)\r\n([\s\S]*)$/;
-const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
 const RespMapTemplate = `${MapPrefix}{size}${CRLF}{items}`;
 const sizeTransform = new SchemaAST.Transformation(
 	namedAst(`\`${normalize(RespMapTemplate)}\``),
