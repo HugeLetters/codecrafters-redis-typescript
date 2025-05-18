@@ -7,7 +7,6 @@ const acquireServer = Effect.gen(function* () {
 	const config = yield* Config;
 
 	const server = Effect.async<Server>(function (resume) {
-		// todo - use bun api?
 		const server = createServer().listen(
 			{ host: config.HOST, port: config.PORT },
 			() => {
