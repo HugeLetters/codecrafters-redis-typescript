@@ -1,0 +1,131 @@
+diff --git a/node_modules/effect/.bun-tag-b4590271738bac31 b/.bun-tag-b4590271738bac31
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/dts/Match.d.ts b/dist/dts/Match.d.ts
+index 3e34c888c70a17d3846a7ca8da4119075ad7bdd9..391479e054c1ffa0b56b1b87fc5f2ffbd1f17422 100644
+--- a/dist/dts/Match.d.ts
++++ b/dist/dts/Match.d.ts
+@@ -1128,11 +1128,75 @@ export declare namespace Types {
+     type Simplify<A> = {
+         [K in keyof A]: A[K];
+     } & {};
+-    type ExtractAndNarrow<Input, P> = P extends Predicate.Refinement<infer _In, infer _Out> ? _Out extends Input ? Extract<_Out, Input> : Extract<Input, _Out> : P extends SafeRefinement<infer _In, infer _R> ? [0] extends [1 & _R] ? Input : _In extends Input ? Extract<_In, Input> : Extract<Input, _In> : P extends Predicate.Predicate<infer _In> ? Extract<Input, _In> : Input extends infer I ? Exclude<I extends ReadonlyArray<any> ? P extends ReadonlyArray<any> ? {
+-        readonly [K in keyof I]: K extends keyof P ? ExtractAndNarrow<I[K], P[K]> : I[K];
+-    } extends infer R ? Fail extends R[keyof R] ? never : R : never : never : IsPlainObject<I> extends true ? string extends keyof I ? I extends P ? I : never : symbol extends keyof I ? I extends P ? I : never : Simplify<{
+-        [RK in Extract<keyof I, keyof P>]-?: ExtractAndNarrow<I[RK], P[RK]>;
+-    } & Omit<I, keyof P>> extends infer R ? keyof P extends NonFailKeys<R> ? R : never : never : MaybeReplace<I, P> extends infer R ? [I] extends [R] ? I : R : never, Fail> : never;
++    type ExtractAndNarrow<Input, P> = P extends Predicate.Refinement<
++	infer _In,
++	infer _Out
++>
++	? _Out extends Input
++		? Extract<_Out, Input>
++		: Extract<Input, _Out>
++	: P extends SafeRefinement<infer _In, infer _R>
++		? [0] extends [1 & _R]
++			? Input
++			: _In extends Input
++				? Extract<_In, Input>
++				: Extract<Input, _In>
++		: P extends Predicate.Predicate<infer _In>
++			? Extract<Input, _In>
++			: Input extends infer I
++				? Exclude<
++						I extends ReadonlyArray<any>
++							? P extends ReadonlyArray<any>
++								? {
++										readonly [K in keyof I]: K extends keyof P
++											? ExtractAndNarrow<I[K], P[K]>
++											: I[K];
++									} extends infer R
++									? Fail extends R[keyof R]
++										? never
++										: MapUnknown<P> extends MapUnknown<R>
++											? readonly [
++													...ArrayRefinmentType<R, P>,
++													...ReadonlyArray<I[number]>,
++												]
++											: R
++									: never
++								: never
++							: IsPlainObject<I> extends true
++								? string extends keyof I
++									? I extends P
++										? I
++										: never
++									: symbol extends keyof I
++										? I extends P
++											? I
++											: never
++										: Simplify<
++													{
++														[RK in Extract<
++															keyof I,
++															keyof P
++														>]-?: ExtractAndNarrow<I[RK], P[RK]>;
++													} & Omit<I, keyof P>
++												> extends infer R
++											? keyof P extends NonFailKeys<R>
++												? R
++												: never
++											: never
++								: MaybeReplace<I, P> extends infer R
++									? [I] extends [R]
++										? I
++										: R
++									: never,
++						Fail
++					>
++				: never;
+     type NonFailKeys<A> = keyof A & {} extends infer K ? K extends keyof A ? A[K] extends Fail ? never : K : never : never;
++    type ArrayRefinmentType<I, P> = {
++	    readonly [K in keyof P]: ExtractAndNarrow<I[K & keyof I], P[K]>;
++    };
++    type MapUnknown<P> = {
++        readonly [K in keyof P]: unknown;
++    };
+ }
+ //# sourceMappingURL=Match.d.ts.map
+\ No newline at end of file
+diff --git a/dist/esm/SchemaAST.js b/dist/esm/SchemaAST.js
+index 1e66237a1bcc746dd653dc66ee333e71e87a49f1..51c9819e1f457a8e867d03e25c28b8970ac95e3f 100644
+--- a/dist/esm/SchemaAST.js
++++ b/dist/esm/SchemaAST.js
+@@ -876,10 +876,18 @@ const templateLiteralSpanUnionTypeToString = type => {
+       return type.types.map(templateLiteralSpanUnionTypeToString).join(" | ");
+   }
+ };
++function stringifyLiteral(value) {
++  if (typeof value !== "string") {
++    return String(value);
++  }
++
++  const normalized = JSON.stringify(value);
++  return normalized.slice(1, normalized.length - 1);
++}
+ const templateLiteralSpanTypeToString = type => {
+   switch (type._tag) {
+     case "Literal":
+-      return String(type.literal);
++      return stringifyLiteral(type.literal);
+     case "StringKeyword":
+       return "${string}";
+     case "NumberKeyword":
+@@ -912,7 +920,7 @@ export class TemplateLiteralSpan {
+    * @since 3.10.0
+    */
+   toString() {
+-    return templateLiteralSpanTypeToString(this.type) + this.literal;
++    return templateLiteralSpanTypeToString(this.type) + stringifyLiteral(this.literal);
+   }
+   /**
+    * @since 3.10.0
+@@ -959,7 +967,7 @@ export class TemplateLiteral {
+     };
+   }
+ }
+-const formatTemplateLiteral = ast => "`" + ast.head + ast.spans.map(String).join("") + "`";
++const formatTemplateLiteral = ast => "`" + stringifyLiteral(ast.head) + ast.spans.map(String).join("") + "`";
+ /**
+  * @category guards
+  * @since 3.10.0
