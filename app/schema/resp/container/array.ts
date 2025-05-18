@@ -2,16 +2,16 @@ import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
 	type RespArrayValue,
-	RespData,
-	type RespValue,
+	RespValue,
 	decodeLeftoverValue,
+	formatRespValue,
 } from "$/schema/resp/main";
 import { Log, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
 import { ArrayPrefix } from "./prefix";
-import { decodeIntFromString, itemPlural, serializeRespValue } from "./utils";
+import { decodeIntFromString, itemPlural } from "./utils";
 
 const ArrayRegex = /^\*(\d+)\r\n([\s\S]*)$/;
 const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
@@ -74,7 +74,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 				const expected = `Expected ${expectedLength} ${itemPlural(length)}`;
 
 				const receivedLength = Log.bad(array.length);
-				const receivedItems = Log.bad(serializeRespValue(array));
+				const receivedItems = Log.bad(formatRespValue(array));
 				const receivedInput = Log.bad(str);
 				const received = `Decoded ${receivedLength} ${itemPlural(array.length)} in ${receivedItems} from ${receivedInput}`;
 
@@ -86,7 +86,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(serializeRespValue(array));
+					const decoded = Log.good(formatRespValue(array));
 					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),
@@ -109,7 +109,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 type Array_ = Schema.Schema<RespArrayValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
-const EncodingSchema = Schema.suspend(() => Schema.Array(RespData));
+const EncodingSchema = Schema.suspend(() => Schema.Array(RespValue));
 export const Array_: Array_ = Schema.declare(
 	[EncodingSchema],
 	{

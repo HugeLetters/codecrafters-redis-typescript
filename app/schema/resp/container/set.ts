@@ -1,9 +1,10 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
-	RespData,
 	type RespSetValue,
+	RespValue,
 	decodeLeftoverValue,
+	formatRespValue,
 } from "$/schema/resp/main";
 import { Log, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -18,12 +19,7 @@ import {
 	identity,
 } from "effect";
 import { SetPrefix } from "./prefix";
-import {
-	decodeIntFromString,
-	hashableRespValue,
-	itemPlural,
-	serializeRespValue,
-} from "./utils";
+import { decodeIntFromString, hashableRespValue, itemPlural } from "./utils";
 
 const SetRegex = /^~(\d+)\r\n([\s\S]*)$/;
 const RespSetTemplate = `${SetPrefix}{size}${CRLF}{items}`;
@@ -86,7 +82,7 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 				const expected = `Expected ${expectedSize} ${itemPlural(size)}`;
 
 				const receivedSize = HashSet.size(set);
-				const receivedItems = Log.bad(serializeRespValue(set));
+				const receivedItems = Log.bad(formatRespValue(set));
 				const receivedInput = Log.bad(str);
 				const received = `Decoded ${Log.good(receivedSize)} ${itemPlural(receivedSize)} in ${receivedItems} from ${receivedInput}`;
 
@@ -98,7 +94,7 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(serializeRespValue(set));
+					const decoded = Log.good(formatRespValue(set));
 					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),
@@ -122,7 +118,7 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 type Set_ = Schema.Schema<RespSetValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespSet"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
-const EncodingSchema = Schema.suspend(() => Schema.HashSetFromSelf(RespData));
+const EncodingSchema = Schema.suspend(() => Schema.HashSetFromSelf(RespValue));
 export const Set_: Set_ = Schema.declare(
 	[EncodingSchema],
 	{

@@ -1,9 +1,10 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
-	RespData,
 	type RespMapValue,
+	RespValue,
 	decodeLeftoverValue,
+	formatRespValue,
 } from "$/schema/resp/main";
 import { Log, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -18,12 +19,7 @@ import {
 	identity,
 } from "effect";
 import { MapPrefix } from "./prefix";
-import {
-	decodeIntFromString,
-	entryPlural,
-	hashableRespValue,
-	serializeRespValue,
-} from "./utils";
+import { decodeIntFromString, entryPlural, hashableRespValue } from "./utils";
 
 const MapRegex = /^%(\d+)\r\n([\s\S]*)$/;
 const RespMapTemplate = `${MapPrefix}{size}${CRLF}{entries}`;
@@ -87,7 +83,7 @@ export function decodeLeftoverMap(input: unknown, toAst: SchemaAST.AST) {
 				const expected = `Expected ${expectedSize} ${entryPlural(size)}`;
 
 				const receivedSize = HashMap.size(map);
-				const receivedEntries = Log.bad(serializeRespValue(map));
+				const receivedEntries = Log.bad(formatRespValue(map));
 				const receivedInput = Log.bad(str);
 				const received = `Decoded ${Log.bad(receivedSize)} ${entryPlural(receivedSize)} in ${receivedEntries} from ${receivedInput}`;
 
@@ -99,7 +95,7 @@ export function decodeLeftoverMap(input: unknown, toAst: SchemaAST.AST) {
 			const key = yield* decodeLeftoverValue(encoded, ast).pipe(
 				Effect.mapError((issue) => {
 					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(serializeRespValue(map));
+					const decoded = Log.good(formatRespValue(map));
 					const message = `Decoded ${decoded} but got invalid key at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),
@@ -107,8 +103,8 @@ export function decodeLeftoverMap(input: unknown, toAst: SchemaAST.AST) {
 			const value = yield* decodeLeftoverValue(key.leftover, ast).pipe(
 				Effect.mapError((issue) => {
 					const receivedInput = Log.bad(key.leftover);
-					const decoded = Log.good(serializeRespValue(map));
-					const receivedKey = Log.good(serializeRespValue(key.data));
+					const decoded = Log.good(formatRespValue(map));
+					const receivedKey = Log.good(formatRespValue(key.data));
 					const message = `Decoded ${decoded} but key ${receivedKey} has invalid value at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),
@@ -133,7 +129,7 @@ type Map_ = Schema.Schema<RespMapValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespMap"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => {
-	return Schema.HashMapFromSelf({ key: RespData, value: RespData });
+	return Schema.HashMapFromSelf({ key: RespValue, value: RespValue });
 });
 export const Map_: Map_ = Schema.declare(
 	[EncodingSchema],

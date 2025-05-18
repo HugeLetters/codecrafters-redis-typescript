@@ -15,8 +15,8 @@ const main = Effect.gen(function* () {
 	return yield* Stream.runDrain(socketHandlerStream);
 });
 
-const decodeResp = Schema.decode(Resp.RespData);
-const encodeResp = Schema.encode(Resp.RespData);
+const decodeResp = Schema.decode(Resp.RespValue);
+const encodeResp = Schema.encode(Resp.RespValue);
 const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
 	yield* Effect.logInfo("Received", str);

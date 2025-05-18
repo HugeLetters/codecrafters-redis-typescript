@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test";
 import { AttributePrefix } from "$/schema/resp/container/prefix";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { RespData } from "./main";
+import { RespValue } from "./main";
 import { arr, bulk, hashmap, int, respmap, simple } from "./test-utils";
 
 function respattribute(entries: Array<[string, string]>) {
@@ -14,8 +14,8 @@ function withAttribute(data: string) {
 	return `${Attribute}${data}`;
 }
 
-describe("RespData", () => {
-	const $resp = createSchemaHelpers(RespData);
+describe("RespValue", () => {
+	const $resp = createSchemaHelpers(RespValue);
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {

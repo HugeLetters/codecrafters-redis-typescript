@@ -1,9 +1,11 @@
 import type { Integer } from "$/schema/number";
 import { Log, decodeString, namedAst } from "$/schema/utils";
 import {
+	Array as Arr,
 	Effect,
-	type HashMap,
-	type HashSet,
+	HashMap,
+	HashSet,
+	Iterable,
 	ParseResult,
 	Schema,
 	type SchemaAST,
@@ -20,7 +22,6 @@ import {
 	SetPrefix,
 } from "./container/prefix";
 import { Set_, decodeLeftoverSet as decodeLeftoverSet_ } from "./container/set";
-import { serializeRespValue } from "./container/utils";
 import type { Error_ } from "./error";
 import {
 	type LeftoverData,
@@ -124,7 +125,7 @@ const RespSchema = Schema.Union(
 
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespValue"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
-export const RespData = Schema.declare(
+export const RespValue = Schema.declare(
 	[RespSchema],
 	{
 		decode() {
@@ -273,7 +274,7 @@ const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 						new ParseResult.Type(
 							RespValueWithAttributeAST,
 							input,
-							`Received ${serializeRespValue(value.data)} attribute`,
+							`Received ${formatRespValue(value.data)} attribute`,
 						),
 						issue,
 					]);
@@ -282,3 +283,23 @@ const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 		),
 	);
 };
+
+export function formatRespValue(value: RespValue): string {
+	if (Arr.isArray<RespValue>(value)) {
+		return `[${value.map(formatRespValue).join(", ")}]`;
+	}
+
+	if (HashMap.isHashMap(value)) {
+		const items = Iterable.map(value, ([key, value]) => {
+			return `${formatRespValue(key)} ~> ${formatRespValue(value)}`;
+		});
+		return `HashMap[${[...items].join(", ")}]`;
+	}
+
+	if (HashSet.isHashSet(value)) {
+		const items = Iterable.map(value, formatRespValue);
+		return `HashSet[${[...items].join(", ")}]`;
+	}
+
+	return String(value);
+}
