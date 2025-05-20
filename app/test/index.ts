@@ -1,4 +1,4 @@
-import { green, red } from "$/utils/stdout";
+import { Stdout } from "$/utils/stdout";
 import { inspect } from "bun";
 import { expect } from "bun:test";
 import { Effect, Equal, flow } from "effect";
@@ -17,6 +17,6 @@ const unexpectedSuccess = flow(
 );
 
 export function expectEquivalence<T>(self: T, that: T) {
-	const message = `Expected ${red(self)} to equal ${green(that)}.`;
+	const message = `Expected ${Stdout.colored("red", self)} to equal ${Stdout.green(that)}.`;
 	return expect(Equal.equals(self, that), message).toBeTrue();
 }

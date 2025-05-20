@@ -1,13 +1,14 @@
-import { BunRuntime } from "@effect/platform-bun";
-import { Effect, Match, Schema, Stream } from "effect";
-import { provideConfigService } from "./config";
-import { Resp } from "./schema/resp";
-import { acquireSocketResourceStream } from "./server";
+import { provideConfigService } from "$/config";
+import { Resp } from "$/schema/resp";
+import { acquireSocketResourceStream } from "$/server";
 import {
 	type SocketResource,
 	getSocketDataStream,
 	getSocketWriter,
-} from "./server/socket";
+} from "$/server/socket";
+import { normalize } from "$/utils/string";
+import { BunRuntime } from "@effect/platform-bun";
+import { Effect, Match, Schema, Stream } from "effect";
 
 const main = Effect.gen(function* () {
 	const socketStream = yield* acquireSocketResourceStream;
@@ -22,9 +23,9 @@ const decodeResp = Schema.decode(Resp.RespValue);
 const encodeResp = Schema.encode(Resp.RespValue);
 const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
-	yield* Effect.logInfo("Received", str);
+	yield* Effect.logInfo("Received", normalize(str));
 	const decoded = yield* decodeResp(str);
-	yield* Effect.logInfo("Decoded", str, "to", decoded);
+	yield* Effect.logInfo("Decoded", Resp.format(decoded));
 	return decoded;
 });
 
@@ -37,7 +38,7 @@ const handleSocketResource = Effect.fn(function* (resource: SocketResource) {
 		Stream.map(getCommandResponse),
 		Stream.mapEffect(encodeResp),
 		Stream.mapEffect(write),
-		Stream.catchAll((err) => Effect.logError(err)),
+		Stream.catchAll(Effect.logError),
 		Stream.runDrain,
 	);
 }, Effect.scoped);
