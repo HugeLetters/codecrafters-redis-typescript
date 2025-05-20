@@ -1,7 +1,7 @@
 import { Config } from "$/config";
-import { Effect, type Scope, Stream, flow } from "effect";
-import { type Server, type Socket, createServer } from "node:net";
-import { acquireSocket } from "./socket";
+import { Effect, Stream, flow } from "effect";
+import { type Server, createServer } from "node:net";
+import { type SocketResource, acquireSocketResource } from "./socket";
 
 const acquireServer = Effect.gen(function* () {
 	const config = yield* Config;
@@ -24,10 +24,10 @@ const acquireServer = Effect.gen(function* () {
 	);
 });
 
-export const acquireSocketStream = Effect.gen(function* () {
+export const acquireSocketResourceStream = Effect.gen(function* () {
 	const server = yield* acquireServer;
-	return Stream.async<Socket, never, Scope.Scope>((emit) => {
-		const handler = flow(acquireSocket, (x) => emit.fromEffect(x));
+	return Stream.async<SocketResource>((emit) => {
+		const handler = flow(acquireSocketResource, (x) => emit.single(x));
 		server.on("connection", handler);
 
 		return Effect.sync(() => {

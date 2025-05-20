@@ -1,7 +1,9 @@
 import { Data, Effect, Stream } from "effect";
 import type { Socket } from "node:net";
 
-export function acquireSocket(s: Socket) {
+export type SocketResource = ReturnType<typeof acquireSocketResource>;
+
+export function acquireSocketResource(s: Socket) {
 	const socket = Effect.async<Socket>((resume) => {
 		if (s.readyState === "open") {
 			const log = Effect.log("Socket already open");

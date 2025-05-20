@@ -1,18 +1,21 @@
 import { BunRuntime } from "@effect/platform-bun";
 import { Effect, Match, Schema, Stream } from "effect";
-import type { Socket } from "node:net";
 import { provideConfigService } from "./config";
 import { Resp } from "./schema/resp";
-import { acquireSocketStream } from "./server";
-import { getSocketDataStream, getSocketWriter } from "./server/socket";
+import { acquireSocketResourceStream } from "./server";
+import {
+	type SocketResource,
+	getSocketDataStream,
+	getSocketWriter,
+} from "./server/socket";
 
 const main = Effect.gen(function* () {
-	const socketStream = yield* acquireSocketStream;
+	const socketStream = yield* acquireSocketResourceStream;
 	const socketHandlerStream = socketStream.pipe(
-		Stream.mapEffect(handleSocket, { concurrency: "unbounded" }),
+		Stream.mapEffect(handleSocketResource, { concurrency: "unbounded" }),
 	);
 
-	return yield* Stream.runDrain(socketHandlerStream);
+	yield* Stream.runDrain(socketHandlerStream);
 });
 
 const decodeResp = Schema.decode(Resp.RespValue);
@@ -25,19 +28,19 @@ const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	return decoded;
 });
 
-function handleSocket(s: Socket): Effect.Effect<void, never, never> {
-	const write = getSocketWriter(s);
-	const dataStream = getSocketDataStream(s);
-	return dataStream.pipe(
+const handleSocketResource = Effect.fn(function* (resource: SocketResource) {
+	const socket = yield* resource;
+	const write = getSocketWriter(socket);
+	const dataStream = getSocketDataStream(socket);
+	return yield* dataStream.pipe(
 		Stream.mapEffect(decodeRespBuffer),
 		Stream.map(getCommandResponse),
 		Stream.mapEffect(encodeResp),
 		Stream.mapEffect(write),
 		Stream.catchAll((err) => Effect.logError(err)),
 		Stream.runDrain,
-		Effect.tap(Effect.log("Disconnected")),
 	);
-}
+}, Effect.scoped);
 
 const getCommandResponse = Match.type<Resp.RespValue>().pipe(
 	Match.when(["PING"], () => "PONG"),
