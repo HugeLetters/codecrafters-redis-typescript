@@ -1,9 +1,9 @@
 import { Config } from "$/config";
-import { Effect, Stream, flow } from "effect";
+import { Effect, FiberSet, type Scope, flow } from "effect";
 import { type Server, createServer } from "node:net";
-import { type SocketResource, acquireSocketResource } from "./socket";
+import { type Socket, createSocketResource } from "./socket";
 
-const acquireServer = Effect.gen(function* () {
+const serverResource = Effect.gen(function* () {
 	const config = yield* Config;
 
 	const server = Effect.async<Server>(function (resume) {
@@ -24,14 +24,22 @@ const acquireServer = Effect.gen(function* () {
 	);
 });
 
-export const acquireSocketResourceStream = Effect.gen(function* () {
-	const server = yield* acquireServer;
-	return Stream.async<SocketResource>((emit) => {
-		const handler = flow(acquireSocketResource, (x) => emit.single(x));
-		server.on("connection", handler);
+export const runSocketHandler = Effect.fn(function* (
+	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope>,
+) {
+	const server = yield* serverResource;
+	const run = yield* FiberSet.makeRuntime<never, void, never>();
+	return yield* Effect.async<never>(() => {
+		const onConnection = flow(
+			createSocketResource,
+			Effect.flatMap(handler),
+			Effect.scoped,
+			run,
+		);
 
+		server.on("connection", onConnection);
 		return Effect.sync(() => {
-			server.off("connection", handler);
+			server.off("connection", onConnection);
 		});
 	});
 });

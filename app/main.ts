@@ -1,22 +1,17 @@
 import { provideConfigService } from "$/config";
 import { Resp } from "$/schema/resp";
-import { acquireSocketResourceStream } from "$/server";
+import { runSocketHandler } from "$/server";
 import {
-	type SocketResource,
-	getSocketDataStream,
-	getSocketWriter,
+	type Socket,
+	runSocketDataHandler,
+	writeToSocket,
 } from "$/server/socket";
 import { normalize } from "$/utils/string";
 import { BunRuntime } from "@effect/platform-bun";
-import { Effect, Match, Schema, Stream } from "effect";
+import { Effect, Match, Queue, Schema, flow } from "effect";
 
 const main = Effect.gen(function* () {
-	const socketStream = yield* acquireSocketResourceStream;
-	const socketHandlerStream = socketStream.pipe(
-		Stream.mapEffect(handleSocketResource, { concurrency: "unbounded" }),
-	);
-
-	yield* Stream.runDrain(socketHandlerStream);
+	yield* runSocketHandler(handleSocket);
 });
 
 const decodeResp = Schema.decode(Resp.RespValue);
@@ -29,19 +24,38 @@ const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	return decoded;
 });
 
-const handleSocketResource = Effect.fn(function* (resource: SocketResource) {
-	const socket = yield* resource;
-	const write = getSocketWriter(socket);
-	const dataStream = getSocketDataStream(socket);
-	return yield* dataStream.pipe(
-		Stream.mapEffect(decodeRespBuffer),
-		Stream.map(getCommandResponse),
-		Stream.mapEffect(encodeResp),
-		Stream.mapEffect(write),
-		Stream.catchAll(Effect.logError),
-		Stream.runDrain,
+const handleSocket = Effect.fn(function* (socket: Socket) {
+	const dataQueue = yield* Queue.bounded<Resp.RespValue>(1);
+	const enqueueMessage = flow(
+		decodeRespBuffer,
+		Effect.flatMap((data) => Queue.offer(dataQueue, data)),
+		Effect.catchTag("ParseError", (e) =>
+			Effect.logError("Received invalid message", e.message),
+		),
 	);
-}, Effect.scoped);
+
+	const messageTask = Effect.gen(function* () {
+		const write = writeToSocket.bind(null, socket);
+		while (true) {
+			yield* Queue.take(dataQueue).pipe(
+				Effect.map(getCommandResponse),
+				Effect.flatMap(encodeResp),
+				Effect.flatMap(write),
+				Effect.catchTags({
+					ParseError(e) {
+						return Effect.logError("Sent invalid message", e.message);
+					},
+					SocketWrite(e) {
+						return Effect.logError("Could not write to socket", e.message);
+					},
+				}),
+			);
+		}
+	});
+
+	yield* messageTask.pipe(Effect.fork);
+	yield* runSocketDataHandler(socket, enqueueMessage);
+});
 
 const getCommandResponse = Match.type<Resp.RespValue>().pipe(
 	Match.when(["PING"], () => "PONG"),
