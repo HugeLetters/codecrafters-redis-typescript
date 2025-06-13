@@ -1,4 +1,4 @@
-import { Config, provideConfigService } from "$/config";
+import { Config, ConfigLive } from "$/config";
 import { Resp } from "$/schema/resp";
 import { BunRuntime } from "@effect/platform-bun";
 import { Effect, FiberSet, Schema, flow } from "effect";
@@ -132,7 +132,7 @@ const encodeResp = Schema.encode(Resp.RespValue);
 
 export const createSocket = flow(
 	initializeSocket,
-	provideConfigService(),
+	Effect.provide(ConfigLive()),
 	Effect.scoped,
 	BunRuntime.runMain,
 );

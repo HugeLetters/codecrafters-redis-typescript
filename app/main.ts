@@ -1,4 +1,4 @@
-import { provideConfigService } from "$/config";
+import { ConfigLive } from "$/config";
 import { Resp } from "$/schema/resp";
 import { runSocketHandler } from "$/server";
 import {
@@ -63,4 +63,4 @@ const getCommandResponse = Match.type<Resp.RespValue>().pipe(
 	Match.orElse((_value) => new Resp.Error({ message: "Unrecognized command" })),
 );
 
-main.pipe(provideConfigService(), Effect.scoped, BunRuntime.runMain);
+main.pipe(Effect.provide([ConfigLive()]), Effect.scoped, BunRuntime.runMain);

@@ -1,5 +1,5 @@
 import { Integer, IntegerFromString } from "$/schema/number";
-import { Config as C, ConfigProvider, Effect, Schema, flow } from "effect";
+import { Config as C, ConfigProvider, Effect, Layer, Schema } from "effect";
 
 const HOST = C.string("HOST").pipe(C.withDefault("0.0.0.0"));
 
@@ -12,9 +12,7 @@ export class Config extends Effect.Service<Config>()("Config", {
 	effect: C.all({ HOST, PORT }),
 }) {}
 
-export function provideConfigService(provider = ConfigProvider.fromEnv()) {
-	return flow(
-		Effect.provide(Config.Default),
-		Effect.withConfigProvider(provider),
-	);
+export function ConfigLive(provider = ConfigProvider.fromEnv()) {
+	const ConfigProviderLayer = Layer.setConfigProvider(provider);
+	return Config.Default.pipe(Layer.provide(ConfigProviderLayer));
 }
