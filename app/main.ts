@@ -7,8 +7,9 @@ import {
 	writeToSocket,
 } from "$/server/socket";
 import { normalize } from "$/utils/string";
-import { BunRuntime } from "@effect/platform-bun";
-import { Effect, Match, Queue, Schema, flow } from "effect";
+import { DevTools } from "@effect/experimental";
+import { BunRuntime, BunSocket } from "@effect/platform-bun";
+import { Effect, Layer, Match, Queue, Schema, flow } from "effect";
 
 const main = Effect.gen(function* () {
 	yield* runSocketHandler(handleSocket);
@@ -63,4 +64,12 @@ const getCommandResponse = Match.type<Resp.RespValue>().pipe(
 	Match.orElse((_value) => new Resp.Error({ message: "Unrecognized command" })),
 );
 
-main.pipe(Effect.provide([ConfigLive()]), Effect.scoped, BunRuntime.runMain);
+const DevToolsLive = DevTools.layerWebSocket().pipe(
+	Layer.provide(BunSocket.layerWebSocketConstructor),
+);
+
+main.pipe(
+	Effect.provide([ConfigLive(), DevToolsLive]),
+	Effect.scoped,
+	BunRuntime.runMain,
+);
