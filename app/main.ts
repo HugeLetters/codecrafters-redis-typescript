@@ -6,10 +6,12 @@ import {
 	runSocketDataHandler,
 	writeToSocket,
 } from "$/server/socket";
+import { JobQueue } from "$/utils/job-queue";
 import { normalize } from "$/utils/string";
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
-import { Effect, Layer, Match, Queue, Schema, flow } from "effect";
+import { Effect, Layer, Match, Schema, flow } from "effect";
+import { Integer } from "./schema/number";
 
 const main = Effect.gen(function* () {
 	yield* runSocketHandler(handleSocket);
@@ -26,35 +28,31 @@ const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 });
 
 const handleSocket = Effect.fn(function* (socket: Socket) {
-	const dataQueue = yield* Queue.bounded<Resp.RespValue>(1);
+	const messageQueue = yield* JobQueue.make(Integer.make(1));
+	const handleCommand = flow(
+		getCommandResponse,
+		encodeResp,
+		Effect.flatMap((data) => writeToSocket(socket, data)),
+		Effect.catchTags({
+			ParseError(e) {
+				return Effect.logError("Sent invalid message", e.message);
+			},
+			SocketWrite(e) {
+				return Effect.logError("Could not write to socket", e.message);
+			},
+		}),
+	);
+
 	const enqueueMessage = flow(
 		decodeRespBuffer,
-		Effect.flatMap((data) => Queue.offer(dataQueue, data)),
+		Effect.flatMap(
+			flow(handleCommand, (job) => JobQueue.offer(messageQueue, job)),
+		),
 		Effect.catchTag("ParseError", (e) =>
 			Effect.logError("Received invalid message", e.message),
 		),
 	);
 
-	const messageTask = Effect.gen(function* () {
-		const write = writeToSocket.bind(null, socket);
-		while (true) {
-			yield* Queue.take(dataQueue).pipe(
-				Effect.map(getCommandResponse),
-				Effect.flatMap(encodeResp),
-				Effect.flatMap(write),
-				Effect.catchTags({
-					ParseError(e) {
-						return Effect.logError("Sent invalid message", e.message);
-					},
-					SocketWrite(e) {
-						return Effect.logError("Could not write to socket", e.message);
-					},
-				}),
-			);
-		}
-	});
-
-	yield* messageTask.pipe(Effect.fork);
 	yield* runSocketDataHandler(socket, enqueueMessage);
 });
 
