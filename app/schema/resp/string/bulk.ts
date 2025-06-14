@@ -2,6 +2,7 @@ import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
+import { Logger } from "$/utils/logger";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
 import {
 	LeftoverError,
@@ -64,7 +65,7 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 						*onNone() {
 							const errorMessage =
 								"Could not locate CRLF in a bulk string - this should never happen";
-							yield* Effect.logError(errorMessage);
+							yield* Logger.logError(errorMessage);
 
 							const expectedCrlf = Color.good(CRLF);
 							const expectedPosition = Color.good(crlfPosition);

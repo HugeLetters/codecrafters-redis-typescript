@@ -1,6 +1,7 @@
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
+import { Logger } from "$/utils/logger";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
 import { getCrlfPosition, parseIntFromString } from "./utils";
 
@@ -67,7 +68,7 @@ const LeftoverVerbatimStringContent = Schema.String.pipe(
 						*onNone() {
 							const errorMessage =
 								"Could not locate CRLF in a verbatim string - this should never happen";
-							yield* Effect.logError(errorMessage);
+							yield* Logger.logError(errorMessage);
 
 							const expectedCrlf = Color.good(CRLF);
 							const expectedPosition = Color.good(crlfPosition);

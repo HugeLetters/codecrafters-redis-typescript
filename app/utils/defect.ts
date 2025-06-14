@@ -1,7 +1,6 @@
 import { Cause, Effect } from "effect";
+import { Logger } from "./logger";
 
 export const logDefect = Effect.tapDefect((e) => {
-	return Effect.logFatal("Defect").pipe(
-		Effect.annotateLogs("cause", Cause.pretty(e)),
-	);
+	return Logger.logFatal("Defect", { cause: Cause.pretty(e) });
 });

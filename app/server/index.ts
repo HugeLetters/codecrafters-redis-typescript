@@ -1,6 +1,7 @@
 import { Config } from "$/config";
 import { logDefect } from "$/utils/defect";
 import type { ReleaseEffect } from "$/utils/effect";
+import { Logger } from "$/utils/logger";
 import { Effect, FiberSet, type Scope, flow } from "effect";
 import { type Server, createServer } from "node:net";
 import { type Socket, createSocketResource } from "./socket";
@@ -22,19 +23,20 @@ const serverResource = Effect.gen(function* () {
 
 		const release = Effect.async<void>((resume) => {
 			server.close(() => resume(Effect.void));
-		}).pipe(Effect.tap(Effect.logInfo("Server closed")));
+		}).pipe(Logger.logInfo.tap("Server closed"));
 
 		return release;
 	}).pipe(
-		Effect.tap(Effect.logInfo("Server is listening")),
-		Effect.annotateLogs("URL", `${config.HOST}:${config.PORT}`),
+		Logger.logInfo.tap("Server is listening", {
+			URL: `${config.HOST}:${config.PORT}`,
+		}),
 	);
 
 	return yield* server.pipe(
 		Effect.acquireRelease((c) => c.release),
 		Effect.map((c) => c.server),
 	);
-});
+}).pipe(Effect.withSpan("server"));
 
 export const runSocketHandler = Effect.fn(function* (
 	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope>,
@@ -46,7 +48,7 @@ export const runSocketHandler = Effect.fn(function* (
 			createSocketResource,
 			Effect.flatMap(handler),
 			logDefect,
-			Effect.withSpan("socket"),
+			Effect.withSpan("socket.connection"),
 			Effect.scoped,
 			run,
 		);

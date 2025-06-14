@@ -3,6 +3,7 @@
  */
 
 import type { EffectGen } from "$/utils/effect";
+import { Logger } from "$/utils/logger";
 import * as BunTest from "bun:test";
 import {
 	Arbitrary,
@@ -12,7 +13,7 @@ import {
 	Exit,
 	FastCheck,
 	Layer,
-	Logger,
+	Logger as LoggerService,
 	Schedule,
 	Schema,
 	Scope,
@@ -159,19 +160,19 @@ function runTestPromise<E, A>(effect: Effect.Effect<A, E>) {
 
 		const [mainError, ...restErrors] = Cause.prettyErrors(exit.cause);
 		for (const err of restErrors) {
-			yield* Effect.logError(err);
+			yield* Logger.logError(err);
 		}
 
 		return () => {
 			throw mainError;
 		};
 	})
-		.pipe(Effect.provide(Logger.pretty), Effect.runPromise)
+		.pipe(Effect.provide(LoggerService.pretty), Effect.runPromise)
 		.then((f) => f());
 }
 
 const TestEnv = TestContext.TestContext.pipe(
-	Layer.provide(Logger.remove(Logger.defaultLogger)),
+	Layer.provide(LoggerService.remove(LoggerService.defaultLogger)),
 );
 
 function makeTester<R>(

@@ -1,4 +1,5 @@
 import type { ReleaseEffect } from "$/utils/effect";
+import { Logger } from "$/utils/logger";
 import { Data, Effect, FiberSet, flow } from "effect";
 import type { Socket } from "node:net";
 
@@ -17,18 +18,22 @@ export function createSocketResource(socket: Socket) {
 		return Effect.sync(() => {
 			socket.off("connect", handleConnection);
 		});
-	}).pipe(Effect.tap(Effect.logInfo("Socket connected")));
+	}).pipe(Logger.logInfo.tap("Socket connected"));
 
 	return openSocketResource.pipe(
 		Effect.acquireRelease((socket) => {
 			return Effect.async<void>((resume) => {
 				if (socket.readyState === "closed") {
-					return Effect.void.pipe(resume);
+					resume(Effect.void);
+					return;
 				}
 
-				socket.end(() => Effect.void.pipe(resume));
-			}).pipe(Effect.tap(Effect.logInfo("Socket closed")));
+				socket.end(() => {
+					resume(Effect.void);
+				});
+			}).pipe(Logger.logInfo.tap("Socket closed"));
 		}),
+		Effect.withSpan("socket.resource"),
 	);
 }
 
@@ -47,29 +52,27 @@ export function writeToSocket(socket: Socket, data: string) {
 class SocketWriteError extends Data.TaggedError("SocketWrite") {}
 
 /** Resolves when socket connection ends */
-export const runSocketDataHandler = Effect.fn(function* (
-	socket: Socket,
-	handler: (data: Buffer) => Effect.Effect<void>,
-) {
-	const run = yield* FiberSet.makeRuntime<never, void, never>();
-	return yield* Effect.async<ReleaseEffect>((resolve) => {
-		const dataHandler = flow(handler, run);
-		const endHandler = () => resolve(Effect.succeed({ release }));
+export const runSocketDataHandler = Effect.fn(
+	function* (socket: Socket, handler: (data: Buffer) => Effect.Effect<void>) {
+		const run = yield* FiberSet.makeRuntime<never, void, never>();
+		return yield* Effect.async<ReleaseEffect>((resolve) => {
+			const dataHandler = flow(handler, run);
+			const endHandler = () => resolve(Effect.succeed({ release }));
 
-		socket.on("data", dataHandler);
-		socket.once("end", endHandler);
+			socket.on("data", dataHandler);
+			socket.once("end", endHandler);
 
-		const release = Effect.sync(() => {
-			socket.off("data", dataHandler);
-			socket.off("end", endHandler);
+			const release = Effect.sync(() => {
+				socket.off("data", dataHandler);
+				socket.off("end", endHandler);
+			});
+
+			return release;
 		});
-
-		return release;
-	}).pipe(
-		Effect.acquireRelease((c) => c.release),
-		Effect.andThen(Effect.void),
-		Effect.withSpan("message"),
-	);
-});
+	},
+	Effect.acquireRelease((c) => c.release),
+	Effect.andThen(Effect.void),
+	Effect.withSpan("socket.data-handler"),
+);
 
 export type { Socket };

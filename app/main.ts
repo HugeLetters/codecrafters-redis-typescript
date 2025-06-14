@@ -1,4 +1,5 @@
 import { ConfigLive } from "$/config";
+import { Integer } from "$/schema/number";
 import { Resp } from "$/schema/resp";
 import { runSocketHandler } from "$/server";
 import {
@@ -7,40 +8,52 @@ import {
 	writeToSocket,
 } from "$/server/socket";
 import { JobQueue } from "$/utils/job-queue";
+import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
 import { Effect, Layer, Match, Schema, flow } from "effect";
-import { Integer } from "./schema/number";
 
 const main = Effect.gen(function* () {
 	yield* runSocketHandler(handleSocket);
 });
 
-const decodeResp = Schema.decode(Resp.RespValue);
 const encodeResp = Schema.encode(Resp.RespValue);
+const encodeRespValue = Effect.fn(function* (input: Resp.RespValue) {
+	yield* Logger.logInfo("Received", { data: Resp.format(input) });
+
+	const encoded = yield* encodeResp(input);
+	yield* Logger.logInfo("Encoded", { data: normalize(encoded) });
+
+	return encoded;
+}, Effect.withSpan("resp.encode"));
+
+const decodeResp = Schema.decode(Resp.RespValue);
 const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
-	yield* Effect.logInfo("Received", normalize(str));
+	yield* Logger.logInfo("Received", { data: normalize(str) });
+
 	const decoded = yield* decodeResp(str);
-	yield* Effect.logInfo("Decoded", Resp.format(decoded));
+	yield* Logger.logInfo("Decoded", { data: Resp.format(decoded) });
+
 	return decoded;
-});
+}, Effect.withSpan("resp.decode"));
 
 const handleSocket = Effect.fn(function* (socket: Socket) {
 	const messageQueue = yield* JobQueue.make(Integer.make(1));
 	const handleCommand = flow(
 		getCommandResponse,
-		encodeResp,
+		encodeRespValue,
 		Effect.flatMap((data) => writeToSocket(socket, data)),
 		Effect.catchTags({
-			ParseError(e) {
-				return Effect.logError("Sent invalid message", e.message);
+			ParseError(error) {
+				return Logger.logError("Sent invalid message", { error });
 			},
-			SocketWrite(e) {
-				return Effect.logError("Could not write to socket", e.message);
+			SocketWrite(error) {
+				return Logger.logError("Could not write to socket", { error });
 			},
 		}),
+		Effect.withSpan("resp.command"),
 	);
 
 	const enqueueMessage = flow(
@@ -48,9 +61,10 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 		Effect.flatMap(
 			flow(handleCommand, (job) => JobQueue.offer(messageQueue, job)),
 		),
-		Effect.catchTag("ParseError", (e) =>
-			Effect.logError("Received invalid message", e.message),
+		Effect.catchTag("ParseError", (error) =>
+			Logger.logError("Received invalid message", { error }),
 		),
+		Effect.withSpan("socket.message"),
 	);
 
 	yield* runSocketDataHandler(socket, enqueueMessage);
