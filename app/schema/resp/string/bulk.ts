@@ -1,7 +1,7 @@
 import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
-import { Log } from "$/schema/utils";
+import { Color } from "$/schema/utils";
 import { Effect, Option, ParseResult, Schema, pipe } from "effect";
 import {
 	LeftoverError,
@@ -16,8 +16,10 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 		decode: Effect.fn(function* (input, _opts, ast) {
 			const result = BulkStringRegex.exec(input);
 			if (result === null) {
-				const expected = Log.good(`{length}${CRLF}{content}${CRLF}{leftover}`);
-				const received = Log.bad(input);
+				const expected = Color.good(
+					`{length}${CRLF}{content}${CRLF}{leftover}`,
+				);
+				const received = Color.bad(input);
 				const message = `Expected string matching: ${expected}. Received ${received}`;
 				const issue = new ParseResult.Type(ast, input, message);
 				return yield* ParseResult.fail(issue);
@@ -29,9 +31,9 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 			const content = contentChunk.slice(0, expectedLength);
 			const actualLength = content.length;
 			if (actualLength !== expectedLength) {
-				const expected = Log.good(expectedLength);
-				const received = Log.bad(content);
-				const receivedLength = Log.bad(actualLength);
+				const expected = Color.good(expectedLength);
+				const received = Color.bad(content);
+				const receivedLength = Color.bad(actualLength);
 				const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 				const issue = new ParseResult.Type(ast, content, message);
 				return yield* ParseResult.fail(issue);
@@ -48,13 +50,13 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 					getCrlfPosition,
 					Option.match({
 						*onSome(actualCrlfPosition) {
-							const expected = Log.good(expectedLength);
+							const expected = Color.good(expectedLength);
 
 							const extraContent = afterContent.slice(0, actualCrlfPosition);
-							const received = Log.bad(content + extraContent);
+							const received = Color.bad(content + extraContent);
 
 							const extraLength = actualLength + actualCrlfPosition;
-							const receivedLength = Log.bad(extraLength);
+							const receivedLength = Color.bad(extraLength);
 							const message = `Expected string of length ${expected}. Received ${received} of length ${receivedLength}`;
 							const issue = new ParseResult.Type(ast, content, message);
 							return yield* ParseResult.fail(issue);
@@ -64,9 +66,9 @@ const LeftoverBulkStringContent = Schema.String.pipe(
 								"Could not locate CRLF in a bulk string - this should never happen";
 							yield* Effect.logError(errorMessage);
 
-							const expectedCrlf = Log.good(CRLF);
-							const expectedPosition = Log.good(crlfPosition);
-							const received = Log.bad(receivedCrlf);
+							const expectedCrlf = Color.good(CRLF);
+							const expectedPosition = Color.good(crlfPosition);
+							const received = Color.bad(receivedCrlf);
 							const message = `Expected to contain ${expectedCrlf} at position ${expectedPosition} - received ${received}`;
 							const issue = new ParseResult.Type(ast, afterContent, message);
 							return yield* ParseResult.fail(issue);

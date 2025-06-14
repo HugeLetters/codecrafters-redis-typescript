@@ -2,7 +2,7 @@ import { Stdout } from "$/utils/stdout";
 import { normalize } from "$/utils/string";
 import { ParseResult, Schema, SchemaAST, pipe } from "effect";
 
-export namespace Log {
+export namespace Color {
 	export function bad(value: unknown) {
 		return pipe(value, normalize, (v) => Stdout.colored("red", v));
 	}

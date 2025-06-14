@@ -6,7 +6,7 @@ import {
 	decodeLeftoverValue,
 	formatRespValue,
 } from "$/schema/resp/main";
-import { Log, decodeString, namedAst } from "$/schema/utils";
+import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import {
@@ -33,8 +33,8 @@ function decodeLeftoverAttributeSize(input: string, ast: SchemaAST.AST) {
 	const decodeResult = Effect.gen(function* () {
 		const result = AttributeRegex.exec(input);
 		if (result === null) {
-			const expected = Log.good(AttributeTemplate);
-			const received = Log.bad(input);
+			const expected = Color.good(AttributeTemplate);
+			const received = Color.bad(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
 			const issue = new ParseResult.Type(ast, input, message);
 			return yield* ParseResult.fail(issue);
@@ -79,13 +79,13 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 		let encoded = entries;
 		while (HashMap.size(map) !== size) {
 			if (encoded === "") {
-				const expectedSize = Log.good(size);
+				const expectedSize = Color.good(size);
 				const expected = `Expected ${expectedSize} ${entryPlural(size)}`;
 
 				const receivedSize = HashMap.size(map);
-				const receivedEntries = Log.bad(formatRespValue(map));
-				const receivedInput = Log.bad(str);
-				const received = `Decoded ${Log.bad(receivedSize)} ${entryPlural(receivedSize)} in ${receivedEntries} from ${receivedInput}`;
+				const receivedEntries = Color.bad(formatRespValue(map));
+				const receivedInput = Color.bad(str);
+				const received = `Decoded ${Color.bad(receivedSize)} ${entryPlural(receivedSize)} in ${receivedEntries} from ${receivedInput}`;
 
 				const message = `${expected}. ${received}`;
 				const issue = new ParseResult.Type(ast, str, message);
@@ -94,17 +94,17 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 
 			const key = yield* decodeLeftoverValue(encoded, ast).pipe(
 				Effect.mapError((issue) => {
-					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(formatRespValue(map));
+					const receivedInput = Color.bad(encoded);
+					const decoded = Color.good(formatRespValue(map));
 					const message = `Decoded ${decoded} but got invalid key at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),
 			);
 			const value = yield* decodeLeftoverValue(key.leftover, ast).pipe(
 				Effect.mapError((issue) => {
-					const receivedInput = Log.bad(key.leftover);
-					const decoded = Log.good(formatRespValue(map));
-					const receivedKey = Log.good(formatRespValue(key.data));
+					const receivedInput = Color.bad(key.leftover);
+					const decoded = Color.good(formatRespValue(map));
+					const receivedKey = Color.good(formatRespValue(key.data));
 					const message = `Decoded ${decoded} but key ${receivedKey} has invalid value at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), entries, issue);
 				}),

@@ -1,4 +1,4 @@
-import { Log } from "$/schema/utils";
+import { Color } from "$/schema/utils";
 import { Schema, type Effect, type ParseResult } from "effect";
 
 export function LeftoverData<TType, TEncoded, TReq>(
@@ -29,7 +29,7 @@ export function noLeftover<TType, TEncoded, TReq>(
 				return;
 			}
 
-			const received = Log.bad(leftover);
+			const received = Color.bad(leftover);
 			return `Leftover data must be empty. Received ${received}`;
 		},
 		{ identifier },

@@ -6,7 +6,7 @@ import {
 	decodeLeftoverValue,
 	formatRespValue,
 } from "$/schema/resp/main";
-import { Log, decodeString, namedAst } from "$/schema/utils";
+import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import {
@@ -33,8 +33,8 @@ function decodeLeftoverSetSize(input: string, ast: SchemaAST.AST) {
 	const decodeResult = Effect.gen(function* () {
 		const result = SetRegex.exec(input);
 		if (result === null) {
-			const expected = Log.good(RespSetTemplate);
-			const received = Log.bad(input);
+			const expected = Color.good(RespSetTemplate);
+			const received = Color.bad(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
 			const issue = new ParseResult.Type(ast, input, message);
 			return yield* ParseResult.fail(issue);
@@ -78,13 +78,13 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 		let encoded = items;
 		while (HashSet.size(set) !== size) {
 			if (encoded === "") {
-				const expectedSize = Log.good(size);
+				const expectedSize = Color.good(size);
 				const expected = `Expected ${expectedSize} ${itemPlural(size)}`;
 
 				const receivedSize = HashSet.size(set);
-				const receivedItems = Log.bad(formatRespValue(set));
-				const receivedInput = Log.bad(str);
-				const received = `Decoded ${Log.good(receivedSize)} ${itemPlural(receivedSize)} in ${receivedItems} from ${receivedInput}`;
+				const receivedItems = Color.bad(formatRespValue(set));
+				const receivedInput = Color.bad(str);
+				const received = `Decoded ${Color.good(receivedSize)} ${itemPlural(receivedSize)} in ${receivedItems} from ${receivedInput}`;
 
 				const message = `${expected}. ${received}`;
 				const issue = new ParseResult.Type(ast, str, message);
@@ -93,8 +93,8 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 
 			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
-					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(formatRespValue(set));
+					const receivedInput = Color.bad(encoded);
+					const decoded = Color.good(formatRespValue(set));
 					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),

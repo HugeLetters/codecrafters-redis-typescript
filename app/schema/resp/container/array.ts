@@ -6,7 +6,7 @@ import {
 	decodeLeftoverValue,
 	formatRespValue,
 } from "$/schema/resp/main";
-import { Log, decodeString, namedAst } from "$/schema/utils";
+import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
 import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
@@ -25,8 +25,8 @@ function decodeLeftoverArrayLength(input: string, ast: SchemaAST.AST) {
 	const decodeResult = Effect.gen(function* () {
 		const result = ArrayRegex.exec(input);
 		if (result === null) {
-			const expected = Log.good(RespArrayTemplate);
-			const received = Log.bad(input);
+			const expected = Color.good(RespArrayTemplate);
+			const received = Color.bad(input);
 			const message = `Expected string matching: ${expected}. Received ${received}`;
 			const issue = new ParseResult.Type(ast, input, message);
 			return yield* ParseResult.fail(issue);
@@ -70,12 +70,12 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		let encoded = items;
 		while (array.length !== length) {
 			if (encoded === "") {
-				const expectedLength = Log.good(length);
+				const expectedLength = Color.good(length);
 				const expected = `Expected ${expectedLength} ${itemPlural(length)}`;
 
-				const receivedLength = Log.bad(array.length);
-				const receivedItems = Log.bad(formatRespValue(array));
-				const receivedInput = Log.bad(str);
+				const receivedLength = Color.bad(array.length);
+				const receivedItems = Color.bad(formatRespValue(array));
+				const receivedInput = Color.bad(str);
 				const received = `Decoded ${receivedLength} ${itemPlural(array.length)} in ${receivedItems} from ${receivedInput}`;
 
 				const message = `${expected}. ${received}`;
@@ -85,8 +85,8 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 
 			const { data, leftover } = yield* decodeLeftoverValue(encoded, ast).pipe(
 				ParseResult.mapError((issue) => {
-					const receivedInput = Log.bad(encoded);
-					const decoded = Log.good(formatRespValue(array));
+					const receivedInput = Color.bad(encoded);
+					const decoded = Color.good(formatRespValue(array));
 					const message = `Decoded ${decoded} but got invalid item at ${receivedInput}`;
 					return new ParseResult.Composite(namedAst(message), items, issue);
 				}),

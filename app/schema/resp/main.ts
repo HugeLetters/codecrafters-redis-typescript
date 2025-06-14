@@ -1,5 +1,5 @@
 import type { Integer } from "$/schema/number";
-import { Log, decodeString, namedAst } from "$/schema/utils";
+import { Color, decodeString, namedAst } from "$/schema/utils";
 import {
 	Array as Arr,
 	Effect,
@@ -94,8 +94,8 @@ export function decodeLeftoverValue(
 		}
 	}
 
-	const expected = Log.good("{resp_prefix}");
-	const received = Log.bad(input);
+	const expected = Color.good("{resp_prefix}");
+	const received = Color.bad(input);
 	const message = `Expected string matching: ${expected}{content}{items}. Received ${received}`;
 	const issue = new ParseResult.Type(ast, input, message);
 	return ParseResult.fail(issue);
