@@ -1,16 +1,23 @@
+import type { ReleaseEffect } from "$/utils/effect";
 import { Data, Effect, FiberSet, flow } from "effect";
 import type { Socket } from "node:net";
 
 export function createSocketResource(socket: Socket) {
 	const openSocketResource = Effect.async<Socket>((resume) => {
 		if (socket.readyState === "open") {
-			return Effect.succeed(socket).pipe(resume);
+			resume(Effect.succeed(socket));
+			return;
 		}
 
-		socket.once("connect", () => {
-			Effect.succeed(socket).pipe(resume);
+		function handleConnection() {
+			resume(Effect.succeed(socket));
+		}
+
+		socket.once("connect", handleConnection);
+		return Effect.sync(() => {
+			socket.off("connect", handleConnection);
 		});
-	}).pipe(Effect.tap(Effect.log("Socket connected")));
+	}).pipe(Effect.tap(Effect.logInfo("Socket connected")));
 
 	return openSocketResource.pipe(
 		Effect.acquireRelease((socket) => {
@@ -20,7 +27,7 @@ export function createSocketResource(socket: Socket) {
 				}
 
 				socket.end(() => Effect.void.pipe(resume));
-			}).pipe(Effect.tap(Effect.log("Socket closed")));
+			}).pipe(Effect.tap(Effect.logInfo("Socket closed")));
 		}),
 	);
 }
@@ -45,17 +52,24 @@ export const runSocketDataHandler = Effect.fn(function* (
 	handler: (data: Buffer) => Effect.Effect<void>,
 ) {
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
-	return yield* Effect.async<void>((resolve) => {
+	return yield* Effect.async<ReleaseEffect>((resolve) => {
 		const dataHandler = flow(handler, run);
-		const endHandler = () => resolve(Effect.void);
+		const endHandler = () => resolve(Effect.succeed({ release }));
 
 		socket.on("data", dataHandler);
 		socket.once("end", endHandler);
-		return Effect.sync(() => {
+
+		const release = Effect.sync(() => {
 			socket.off("data", dataHandler);
 			socket.off("end", endHandler);
 		});
-	});
+
+		return release;
+	}).pipe(
+		Effect.acquireRelease((c) => c.release),
+		Effect.andThen(Effect.void),
+		Effect.withSpan("message"),
+	);
 });
 
 export type { Socket };

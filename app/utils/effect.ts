@@ -29,3 +29,7 @@ export const flatMapError = Fn.dual<
 		Effect.catchAll((err) => map(err).pipe(Effect.flatMap(Effect.fail))),
 	);
 });
+
+export interface ReleaseEffect {
+	release: Effect.Effect<void>;
+}

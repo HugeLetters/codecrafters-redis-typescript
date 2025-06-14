@@ -1,26 +1,38 @@
 import { Config } from "$/config";
+import { logDefect } from "$/utils/defect";
+import type { ReleaseEffect } from "$/utils/effect";
 import { Effect, FiberSet, type Scope, flow } from "effect";
 import { type Server, createServer } from "node:net";
 import { type Socket, createSocketResource } from "./socket";
 
+interface ServerClient extends ReleaseEffect {
+	server: Server;
+}
+
 const serverResource = Effect.gen(function* () {
 	const config = yield* Config;
 
-	const server = Effect.async<Server>(function (resume) {
+	const server = Effect.async<ServerClient>(function (resume) {
 		const server = createServer().listen(
 			{ host: config.HOST, port: config.PORT },
 			() => {
-				const message = `Server is listening on ${config.HOST}:${config.PORT}`;
-				Effect.succeed(server).pipe(Effect.tap(Effect.log(message)), resume);
+				resume(Effect.succeed({ server, release }));
 			},
 		);
-	});
 
-	return yield* Effect.acquireRelease(server, (s) =>
-		Effect.async<void>((resume) => {
-			const closeLog = Effect.log("Server closed");
-			s.close(() => Effect.void.pipe(Effect.tap(closeLog), resume));
-		}),
+		const release = Effect.async<void>((resume) => {
+			server.close(() => resume(Effect.void));
+		}).pipe(Effect.tap(Effect.logInfo("Server closed")));
+
+		return release;
+	}).pipe(
+		Effect.tap(Effect.logInfo("Server is listening")),
+		Effect.annotateLogs("URL", `${config.HOST}:${config.PORT}`),
+	);
+
+	return yield* server.pipe(
+		Effect.acquireRelease((c) => c.release),
+		Effect.map((c) => c.server),
 	);
 });
 
@@ -33,6 +45,8 @@ export const runSocketHandler = Effect.fn(function* (
 		const onConnection = flow(
 			createSocketResource,
 			Effect.flatMap(handler),
+			logDefect,
+			Effect.withSpan("socket"),
 			Effect.scoped,
 			run,
 		);

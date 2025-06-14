@@ -1,5 +1,6 @@
 import { Config, ConfigLive } from "$/config";
 import { Resp } from "$/schema/resp";
+import type { ReleaseEffect } from "$/utils/effect";
 import { BunRuntime } from "@effect/platform-bun";
 import { Effect, FiberSet, Schema, flow } from "effect";
 import { EventEmitter } from "node:events";
@@ -88,7 +89,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	);
 
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
-	const dataConsumer = Effect.async<void>((resolve) => {
+	const dataConsumer = Effect.async<ReleaseEffect>((resolve) => {
 		const onData = flow(
 			decodeResp,
 			Effect.map(opts.onMessage),
@@ -100,16 +101,22 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 		);
 
 		function onClose() {
-			resolve(Effect.void);
+			resolve(Effect.succeed({ release }));
 		}
 
 		socketEmitter.on("data", onData);
 		socketEmitter.on("close", onClose);
-		return Effect.sync(() => {
+
+		const release = Effect.sync(() => {
 			socketEmitter.off("data", onData);
 			socketEmitter.off("close", onClose);
 		});
-	});
+
+		return release;
+	}).pipe(
+		Effect.acquireRelease((c) => c.release),
+		Effect.andThen(Effect.void),
+	);
 
 	opts.onClientReady({
 		close: rawClient.close,
