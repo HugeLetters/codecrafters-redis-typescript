@@ -1,4 +1,4 @@
-import type { Integer } from "$/schema/number";
+import { Integer } from "$/schema/number";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import {
 	Array as Arr,
@@ -6,6 +6,8 @@ import {
 	HashMap,
 	HashSet,
 	Iterable,
+	Match,
+	Option,
 	ParseResult,
 	Schema,
 	type SchemaAST,
@@ -22,7 +24,7 @@ import {
 	SetPrefix,
 } from "./container/prefix";
 import { Set_, decodeLeftoverSet as decodeLeftoverSet_ } from "./container/set";
-import type { Error_ } from "./error";
+import { Error_ } from "./error";
 import {
 	type LeftoverData,
 	type LeftoverParseResult,
@@ -101,32 +103,37 @@ export function decodeLeftoverValue(
 	return ParseResult.fail(issue);
 }
 
-const RespBasicSchema = Schema.Union(
-	String_.String,
-	String_.VerbatimStringFromString,
-
-	Number_.Integer,
-	Number_.Double,
-	Number_.BigNumber,
-
-	Primitive.PlainNull,
-	Primitive.Boolean,
-
-	String_.ErrorFromString,
-);
-
-/** For encoding only */
-const RespSchema = Schema.Union(
-	...RespBasicSchema.members,
-	Schema.suspend(() => Array_),
-	Schema.suspend(() => Map_),
-	Schema.suspend(() => Set_),
-).pipe(Schema.annotations({ identifier: "RespValue" }));
-
 const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespValue"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
+const matchVerbatim = Match.when(
+	Schema.is(String_.VerbatimString),
+	() => String_.VerbatimStringFromString,
+);
+const matchInteger = Match.when(Schema.is(Integer), () => Number_.Integer);
+const matchEncodeFn = flow(
+	Match.type().pipe(
+		Match.when(Match.string, () => String_.String),
+		matchVerbatim,
+
+		matchInteger,
+		Match.when(Match.number, () => Number_.Double),
+		Match.when(Match.bigint, () => Number_.BigNumber),
+
+		Match.when(Match.null, () => Primitive.PlainNull),
+		Match.when(Match.boolean, () => Primitive.Boolean),
+
+		Match.when(Arr.isArray<RespValue>, () => Array_),
+		Match.when(HashMap.isHashMap, () => Map_),
+		Match.when(HashSet.isHashSet, () => Set_),
+
+		Match.when(Schema.is(Error_), () => String_.ErrorFromString),
+
+		Match.option,
+	),
+	Option.map(flow(Schema.asSchema, ParseResult.encodeUnknown)),
+);
 export const RespValue = Schema.declare(
-	[RespSchema],
+	[],
 	{
 		decode() {
 			return Effect.fn(function* (input, _opts, ast) {
@@ -136,27 +143,40 @@ export const RespValue = Schema.declare(
 				return data.data;
 			});
 		},
-		encode(schema) {
-			const encode = ParseResult.encodeUnknown(schema);
-			return function (input, opt) {
-				return encode(input, opt);
+		encode() {
+			return function (input, opt, ast) {
+				const encodeFn = matchEncodeFn(input);
+				if (Option.isNone(encodeFn)) {
+					const expected = Color.good("RespValue");
+					const received = Color.bad(input);
+					const message = `Expected ${expected}. Received ${received}`;
+					const issue = new ParseResult.Type(ast, input, message);
+					return ParseResult.fail(issue);
+				}
+
+				return encodeFn.value(input, opt);
 			};
 		},
 	},
 	{ identifier: "RespValue" },
 );
 
-export type RespPrimitiveValue = typeof RespBasicSchema.Type;
+export type RespHashableValue =
+	| string
+	| String_.VerbatimString
+	| Integer
+	| number
+	| bigint
+	| null
+	| boolean
+	| Error_
+	| RespMapValue
+	| RespSetValue;
 
 export type RespArrayValue = ReadonlyArray<RespValue>;
 
 export type RespMapValue = HashMap.HashMap<RespHashableValue, RespValue>;
 export type RespSetValue = HashSet.HashSet<RespHashableValue>;
-
-export type RespHashableValue =
-	| RespPrimitiveValue
-	| RespMapValue
-	| RespSetValue;
 
 export type RespValue = RespHashableValue | RespArrayValue;
 
@@ -211,8 +231,7 @@ const decodeLeftoverVerbatimString: DecodeVerbatimString = flow(
 	Effect.map(([, data]) => data),
 );
 
-type Int = typeof Integer.Type;
-const decodeLeftoverInteger: LeftoverDecoder<Int> =
+const decodeLeftoverInteger: LeftoverDecoder<Integer> =
 	createDecoder(LeftoverInteger);
 
 const decodeLeftoverDouble: LeftoverDecoder<number> =
