@@ -3,6 +3,7 @@ import { Color, decodeString, namedAst } from "$/schema/utils";
 import {
 	Array as Arr,
 	Effect,
+	Hash,
 	HashMap,
 	HashSet,
 	Iterable,
@@ -302,6 +303,14 @@ const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 		),
 	);
 };
+
+export function hashableRespValue(value: RespValue): RespHashableValue {
+	if (Arr.isArray<RespValue>(value)) {
+		return Hash.array(value.map(hashableRespValue));
+	}
+
+	return value;
+}
 
 export function formatRespValue(value: RespValue): string {
 	if (Arr.isArray<RespValue>(value)) {

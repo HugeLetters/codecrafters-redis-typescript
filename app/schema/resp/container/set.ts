@@ -5,6 +5,7 @@ import {
 	RespValue,
 	decodeLeftoverValue,
 	formatRespValue,
+	hashableRespValue,
 } from "$/schema/resp/main";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -19,7 +20,7 @@ import {
 	identity,
 } from "effect";
 import { SetPrefix } from "./prefix";
-import { decodeIntFromString, hashableRespValue, itemPlural } from "./utils";
+import { decodeIntFromString, itemPlural } from "./utils";
 
 const SetRegex = /^~(\d+)\r\n([\s\S]*)$/;
 const RespSetTemplate = `${SetPrefix}{size}${CRLF}{items}`;

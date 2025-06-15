@@ -5,6 +5,7 @@ import {
 	RespValue,
 	decodeLeftoverValue,
 	formatRespValue,
+	hashableRespValue,
 } from "$/schema/resp/main";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -19,7 +20,7 @@ import {
 	identity,
 } from "effect";
 import { AttributePrefix } from "./prefix";
-import { decodeIntFromString, entryPlural, hashableRespValue } from "./utils";
+import { decodeIntFromString, entryPlural } from "./utils";
 
 const AttributeRegex = /^\|(\d+)\r\n([\s\S]*)$/;
 const AttributeTemplate = `${AttributePrefix}{size}${CRLF}{entries}`;
