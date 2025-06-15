@@ -38,11 +38,11 @@ const serverResource = Effect.gen(function* () {
 	);
 }).pipe(Effect.withSpan("server"));
 
-export const runSocketHandler = Effect.fn(function* (
-	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope>,
+export const runSocketHandler = Effect.fn(function* <R = never>(
+	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope | R>,
 ) {
 	const server = yield* serverResource;
-	const run = yield* FiberSet.makeRuntime<never, void, never>();
+	const run = yield* FiberSet.makeRuntime<R, void, never>();
 	return yield* Effect.async<never>(() => {
 		const onConnection = flow(
 			createSocketResource,
