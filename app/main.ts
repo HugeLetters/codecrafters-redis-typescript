@@ -1,4 +1,6 @@
+import { Command } from "$/command";
 import { ConfigLive } from "$/config";
+import { KV } from "$/kv";
 import { Integer } from "$/schema/number";
 import { Resp } from "$/schema/resp";
 import { runSocketHandler } from "$/server";
@@ -12,7 +14,7 @@ import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
-import { Effect, Layer, Match, Schema, flow } from "effect";
+import { Effect, Layer, Schema, flow } from "effect";
 
 const main = Effect.gen(function* () {
 	yield* runSocketHandler(handleSocket);
@@ -41,9 +43,11 @@ const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 
 const handleSocket = Effect.fn(function* (socket: Socket) {
 	const messageQueue = yield* JobQueue.make(Integer.make(1));
+	const command = yield* Command.CommandProcessor;
 	const handleCommand = flow(
-		getCommandResponse,
-		encodeRespValue,
+		command.process,
+		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
+		Effect.flatMap(encodeRespValue),
 		Effect.flatMap((data) => writeToSocket(socket, data)),
 		Effect.catchTags({
 			ParseError(error) {
@@ -70,18 +74,15 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 	yield* runSocketDataHandler(socket, enqueueMessage);
 });
 
-const getCommandResponse = Match.type<Resp.RespValue>().pipe(
-	Match.when(["PING"], () => "PONG"),
-	Match.when(["ECHO", Match.string], ([, message]) => message),
-	Match.orElse((_value) => new Resp.Error({ message: "Unrecognized command" })),
-);
-
 const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
+const CommandProcessorLive = Command.CommandProcessor.Default.pipe(
+	Layer.provide(KV.Default),
+);
 
 main.pipe(
-	Effect.provide([ConfigLive(), DevToolsLive]),
+	Effect.provide([ConfigLive(), CommandProcessorLive, DevToolsLive]),
 	Effect.scoped,
 	BunRuntime.runMain,
 );
