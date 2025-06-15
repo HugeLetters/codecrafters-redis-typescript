@@ -18,7 +18,7 @@ export function createSocketResource(socket: Socket) {
 		return Effect.sync(() => {
 			socket.off("connect", handleConnection);
 		});
-	}).pipe(Logger.logInfo.tap("Socket connected"));
+	}).pipe(Logger.logInfo.tap("Connected"));
 
 	return openSocketResource.pipe(
 		Effect.acquireRelease((socket) => {
@@ -31,9 +31,9 @@ export function createSocketResource(socket: Socket) {
 				socket.end(() => {
 					resume(Effect.void);
 				});
-			}).pipe(Logger.logInfo.tap("Socket closed"));
+			}).pipe(Logger.logInfo.tap("Closed"));
 		}),
-		Effect.withSpan("socket.resource"),
+		Logger.withSpan("socket.resource"),
 	);
 }
 
@@ -72,7 +72,6 @@ export const runSocketDataHandler = Effect.fn(
 	},
 	Effect.acquireRelease((c) => c.release),
 	Effect.andThen(Effect.void),
-	Effect.withSpan("socket.data-handler"),
 );
 
 export type { Socket };

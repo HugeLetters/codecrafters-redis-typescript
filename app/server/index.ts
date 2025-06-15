@@ -23,20 +23,18 @@ const serverResource = Effect.gen(function* () {
 
 		const release = Effect.async<void>((resume) => {
 			server.close(() => resume(Effect.void));
-		}).pipe(Logger.logInfo.tap("Server closed"));
+		}).pipe(Logger.logInfo.tap("Closed"));
 
 		return release;
 	}).pipe(
-		Logger.logInfo.tap("Server is listening", {
-			URL: `${config.HOST}:${config.PORT}`,
-		}),
+		Logger.logInfo.tap("Listening", { URL: `${config.HOST}:${config.PORT}` }),
 	);
 
 	return yield* server.pipe(
 		Effect.acquireRelease((c) => c.release),
 		Effect.map((c) => c.server),
 	);
-}).pipe(Effect.withSpan("server"));
+}).pipe(Logger.withSpan("server"));
 
 export const runSocketHandler = Effect.fn(function* <R = never>(
 	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope | R>,
