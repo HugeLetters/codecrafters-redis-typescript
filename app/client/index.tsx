@@ -1,7 +1,7 @@
 import { Resp } from "$/schema/resp";
 import type { StrictOmit } from "$/utils/type";
 import { color, randomUUIDv7 } from "bun";
-import { Array as Arr, Number as Num, Option, flow } from "effect";
+import { Array as Arr, flow } from "effect";
 import { Box, Text, render, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { type Client, createSocket } from "./socket";
@@ -45,16 +45,12 @@ function App() {
 	}, [addLog]);
 
 	useInput((input) => {
-		const maybeIndex = Num.parse(input);
-		if (Option.isNone(maybeIndex)) {
+		const command = PRESET_COMMANDS[input];
+		if (!command) {
 			return;
 		}
 
-		const message = PRESET_MESSAGES[maybeIndex.value];
-		if (!message) {
-			return;
-		}
-
+		const message = command.command();
 		addLog({ type: LogType.OUTGOING, content: Resp.format(message) });
 		client?.write(message);
 	});
@@ -106,12 +102,11 @@ function App() {
 				</Box>
 
 				<Box borderColor="green" borderStyle="single" flexGrow={1}>
-					{Object.entries(PRESET_MESSAGES).map(([key, message]) => {
+					{Object.entries(PRESET_COMMANDS).map(([key, command]) => {
 						return (
 							<Box key={key}>
 								<Text>
-									[<Text color="yellowBright">{key}</Text>]{" "}
-									{Resp.format(message)}
+									[<Text color="yellowBright">{key}</Text>] {command.label}
 								</Text>
 
 								<Box width={2} />
@@ -124,9 +119,36 @@ function App() {
 	);
 }
 
-const PRESET_MESSAGES: Record<string, Resp.RespValue> = {
-	1: ["PING"],
-	2: ["ECHO", "Hello"],
+interface PresetCommand {
+	label: string;
+	command: () => Resp.RespValue;
+}
+const PRESET_COMMANDS: Record<string, PresetCommand> = {
+	1: {
+		label: "PING",
+		command() {
+			return ["PING"];
+		},
+	},
+	2: {
+		label: "ECHO",
+		command() {
+			return ["ECHO", Date.now().toString()];
+		},
+	},
+
+	3: {
+		label: "GET",
+		command() {
+			return ["GET", "key"];
+		},
+	},
+	4: {
+		label: "SET",
+		command() {
+			return ["SET", "key", Date.now().toString()];
+		},
+	},
 };
 
 function useWindowSize() {
