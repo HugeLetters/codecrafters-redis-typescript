@@ -51,10 +51,10 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 		Effect.flatMap((data) => writeToSocket(socket, data)),
 		Effect.catchTags({
 			ParseError(error) {
-				return Logger.logError("Sent invalid message", { error });
+				return Logger.logError("Invalid Response", { error: error.message });
 			},
 			SocketWrite(error) {
-				return Logger.logError("Could not write to socket", { error });
+				return Logger.logError("Socket write failed", { error: error.message });
 			},
 		}),
 		Logger.withSpan("command"),
@@ -66,7 +66,7 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 			flow(handleCommand, (job) => JobQueue.offer(messageQueue, job)),
 		),
 		Effect.catchTag("ParseError", (error) =>
-			Logger.logError("Received invalid message", { error }),
+			Logger.logError("Invalid message", { error: error.message }),
 		),
 		Logger.withSpan("socket.message"),
 	);
