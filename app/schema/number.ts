@@ -2,6 +2,7 @@ import { BigDecimal, Schema } from "effect";
 import { DigitString } from "./string";
 
 export const Integer = Schema.Int.pipe(Schema.brand("INT"));
+export type Integer = typeof Integer.Type;
 
 export const IntegerFromString = Schema.NumberFromString.pipe(
 	Schema.compose(Integer),

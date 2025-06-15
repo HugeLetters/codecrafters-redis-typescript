@@ -1,7 +1,7 @@
 import type { Integer } from "$/schema/number";
 import { Data, Effect, Iterable, Queue } from "effect";
 
-export type Capacity = typeof Integer.Type;
+export type Capacity = Integer;
 export type Job<R = never> = Effect.Effect<void, never, R>;
 class JobQueue<R> extends Data.TaggedClass("JobQueue") {
 	readonly capacity;
