@@ -10,7 +10,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@effect/experimental": "^0.48.12",
-		"@effect/language-service": "^0.16.1",
+		"@effect/language-service": "^0.23.0",
 		"@types/bun": "^1.2.13",
 		"@types/react": "18",
 		"ink": "^5.2.1",
