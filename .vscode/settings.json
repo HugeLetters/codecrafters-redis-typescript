@@ -1,5 +1,14 @@
 {
-	"[json][typescript][typescriptreact]": {
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescriptreact]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},
 	"typescript.tsdk": "node_modules/typescript/lib",
@@ -8,8 +17,5 @@
 		"plaintext": false,
 		"markdown": false,
 		"scminput": false
-	},
-	"[jsonc]": {
-		"editor.defaultFormatter": "biomejs.biome"
 	}
 }
