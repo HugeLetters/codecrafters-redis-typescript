@@ -51,9 +51,10 @@ export function writeToSocket(socket: Socket, data: string) {
 }
 class SocketWriteError extends Data.TaggedError("SocketWrite") {}
 
+type SocketHandler = (data: Buffer) => Effect.Effect<void>;
 /** Resolves when socket connection ends */
 export const runSocketDataHandler = Effect.fn(
-	function* (socket: Socket, handler: (data: Buffer) => Effect.Effect<void>) {
+	function* (socket: Socket, handler: SocketHandler) {
 		const run = yield* FiberSet.makeRuntime<never, void, never>();
 		return yield* Effect.async<ReleaseEffect>((resolve) => {
 			const dataHandler = flow(handler, run);
