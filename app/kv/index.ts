@@ -1,10 +1,12 @@
 import {
+	Cron,
 	DateTime,
 	Duration,
 	Effect,
 	Function as Fn,
 	HashMap,
 	Option,
+	Schedule,
 	SynchronizedRef,
 } from "effect";
 
@@ -12,6 +14,43 @@ export class KV extends Effect.Service<KV>()("KV", {
 	effect: Effect.gen(function* () {
 		const storageInit: Storage = HashMap.empty();
 		const storageRef = yield* SynchronizedRef.make(storageInit);
+
+		function checkIsExpired(now: DateTime.Utc, expiry: Value["expiry"]) {
+			return expiry.pipe(
+				Option.map(DateTime.lessThanOrEqualTo(now)),
+				Option.getOrElse(Fn.constFalse),
+			);
+		}
+
+		const cleanupFirstExpired = SynchronizedRef.updateEffect(
+			storageRef,
+			Effect.fn(function* (storage) {
+				const now = yield* DateTime.now;
+				const result = HashMap.findFirst(storage, (v) =>
+					checkIsExpired(now, v.expiry),
+				);
+				if (Option.isNone(result)) {
+					return storage;
+				}
+
+				const [key] = result.value;
+				return HashMap.remove(storage, key);
+			}),
+		);
+		const cleanupCron = Cron.make({
+			seconds: [0],
+			minutes: [],
+			hours: [],
+			weekdays: [],
+			days: [],
+			months: [],
+		});
+		const cleanupSchedula = Schedule.cron(cleanupCron);
+		yield* cleanupFirstExpired.pipe(
+			Effect.schedule(cleanupSchedula),
+			Effect.fork,
+		);
+
 		return {
 			get(key: Key) {
 				return SynchronizedRef.modifyEffect(
@@ -23,10 +62,7 @@ export class KV extends Effect.Service<KV>()("KV", {
 						}
 
 						const now = yield* DateTime.now;
-						const isExpired = value.value.expiry.pipe(
-							Option.map(DateTime.lessThanOrEqualTo(now)),
-							Option.getOrElse(Fn.constFalse),
-						);
+						const isExpired = checkIsExpired(now, value.value.expiry);
 						if (isExpired) {
 							const updated = HashMap.remove(storage, key);
 							return [Option.none<Value>(), updated];
