@@ -120,7 +120,7 @@ const matchEncodeFn = flow(
 		Match.when(Match.number, () => Number_.Double),
 		Match.when(Match.bigint, () => Number_.BigNumber),
 
-		Match.when(Match.null, () => Primitive.PlainNull),
+		Match.when(Match.null, () => Primitive.BulkStringNull),
 		Match.when(Match.boolean, () => Primitive.Boolean),
 
 		Match.when(Arr.isArray<RespValue>, () => Array_),
