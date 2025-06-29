@@ -1,6 +1,13 @@
 import { KV } from "$/kv";
 import { Resp } from "$/schema/resp";
-import { Effect, Match, Option } from "effect";
+import {
+	Duration,
+	Effect,
+	Match,
+	Number as Num,
+	Option,
+	Predicate,
+} from "effect";
 
 export type ProcessInput = Resp.RespValue;
 export type Process = CommandProcessor["process"];
@@ -23,15 +30,26 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 					),
 					Match.when(["GET", Match.string], ([, key]) =>
 						Effect.gen(function* () {
-							const result = yield* kv.get(key);
+							const result = yield* kv
+								.get(key)
+								.pipe(Effect.map(Option.map(({ value }) => value)));
+
 							return Option.getOrNull(result);
 						}),
 					),
-					Match.when(["SET", Match.string, Match.string], ([, key, value]) =>
-						Effect.gen(function* () {
-							yield* kv.set(key, value);
-							return "OK";
-						}),
+					Match.when(
+						["SET", Match.string, Match.string],
+						([, key, value, ...rest]) =>
+							Effect.gen(function* () {
+								const opts = yield* parseSetOptions(rest).pipe(
+									Effect.mapError(
+										(message) => new Resp.Error({ message: `SET: ${message}` }),
+									),
+								);
+
+								yield* kv.set(key, value, { ttl: opts.PX });
+								return "OK";
+							}),
 					),
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected command ${command}`),
@@ -43,6 +61,45 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 	},
 ) {}
 
-function fail(message: string): Effect.Effect<never, ProcessError> {
-	return new Resp.Error({ message });
+function fail(message: string) {
+	return Effect.fail(new Resp.Error({ message }));
 }
+
+interface SetOptions {
+	PX?: Duration.Duration;
+}
+
+const parseSetOptions = Effect.fn(function* (
+	args: ReadonlyArray<Resp.RespValue>,
+) {
+	const iter = args[Symbol.iterator]();
+	const parsed: SetOptions = {};
+
+	for (const chunk of iter) {
+		if (chunk === "PX") {
+			const duration = yield* Effect.succeed(iter.next()).pipe(
+				Effect.flatMap((value) =>
+					!value.done
+						? Effect.succeed(value.value)
+						: Effect.fail("Received PX option without a value"),
+				),
+				Effect.flatMap((value) =>
+					Predicate.isString(value)
+						? Effect.succeed(value)
+						: Effect.fail("Received PX option with a non-string value"),
+				),
+				Effect.flatMap(Num.parse),
+				Effect.catchTag("NoSuchElementException", () =>
+					Effect.fail("Received PX option with a non-numeric string value"),
+				),
+				Effect.map(Duration.millis),
+			);
+
+			parsed[chunk] = duration;
+			// we don't need any other args yet
+			return parsed;
+		}
+	}
+
+	return parsed;
+});
