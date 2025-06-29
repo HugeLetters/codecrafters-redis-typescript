@@ -10,10 +10,10 @@ import {
 
 export class KV extends Effect.Service<KV>()("KV", {
 	effect: Effect.gen(function* () {
-		const storageInit = HashMap.empty<string, KvValue>();
+		const storageInit: Storage = HashMap.empty();
 		const storageRef = yield* SynchronizedRef.make(storageInit);
 		return {
-			get(key: string) {
+			get(key: Key) {
 				return SynchronizedRef.modifyEffect(
 					storageRef,
 					Effect.fn(function* (storage) {
@@ -29,7 +29,7 @@ export class KV extends Effect.Service<KV>()("KV", {
 						);
 						if (isExpired) {
 							const updated = HashMap.remove(storage, key);
-							return [Option.none<KvValue>(), updated];
+							return [Option.none<Value>(), updated];
 						}
 
 						return [value, storage];
@@ -37,9 +37,9 @@ export class KV extends Effect.Service<KV>()("KV", {
 				);
 			},
 			set: Effect.fn(function* (
-				key: string,
-				value: string,
-				options: KVSetOptions = {},
+				key: Key,
+				value: PlainValue,
+				options: SetOptions = {},
 			) {
 				const ttl = options.ttl ?? Duration.infinity;
 				const expiry = yield* getExpiry(ttl);
@@ -51,12 +51,15 @@ export class KV extends Effect.Service<KV>()("KV", {
 	}),
 }) {}
 
-export interface KvValue {
+export type Key = string;
+export type PlainValue = string;
+export interface Value {
 	readonly expiry: Option.Option<DateTime.Utc>;
-	readonly value: string;
+	readonly value: PlainValue;
 }
+export type Storage = HashMap.HashMap<string, Value>;
 
-export interface KVSetOptions {
+export interface SetOptions {
 	readonly ttl?: Duration.Duration | undefined;
 }
 
