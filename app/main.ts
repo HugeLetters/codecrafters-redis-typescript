@@ -17,7 +17,7 @@ import { BunRuntime, BunSocket } from "@effect/platform-bun";
 import { Effect, Layer, Schema, flow } from "effect";
 
 const main = Effect.gen(function* () {
-	yield* runSocketHandler(handleSocket);
+	return yield* runSocketHandler(handleSocket);
 });
 
 const encodeResp = Schema.encode(Resp.RespValue);
