@@ -76,7 +76,7 @@ const parseSetOptions = Effect.fn(function* (
 	const parsed: SetOptions = {};
 
 	for (const chunk of iter) {
-		if (chunk === "PX") {
+		if (chunk === "PX" || chunk === "px") {
 			const duration = yield* Effect.succeed(iter.next()).pipe(
 				Effect.flatMap((value) =>
 					!value.done
@@ -95,7 +95,7 @@ const parseSetOptions = Effect.fn(function* (
 				Effect.map(Duration.millis),
 			);
 
-			parsed[chunk] = duration;
+			parsed.PX = duration;
 			// we don't need any other args yet
 			return parsed;
 		}
