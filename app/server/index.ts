@@ -1,38 +1,34 @@
 import { Config } from "$/config";
 import { logDefect } from "$/utils/defect";
-import type { ReleaseEffect } from "$/utils/effect";
 import { Logger } from "$/utils/logger";
 import { Effect, FiberSet, type Scope, flow } from "effect";
 import { type Server, createServer } from "node:net";
 import { type Socket, createSocketResource } from "./socket";
 
-interface ServerClient extends ReleaseEffect {
-	server: Server;
-}
-
 const serverResource = Effect.gen(function* () {
 	const config = yield* Config;
 
-	const server = Effect.async<ServerClient>(function (resume) {
+	const server = Effect.async<Server>(function (resume) {
 		const server = createServer().listen(
 			{ host: config.HOST, port: config.PORT },
 			() => {
-				resume(Effect.succeed({ server, release }));
+				resume(Effect.succeed(server));
 			},
 		);
 
-		const release = Effect.async<void>((resume) => {
-			server.close(() => resume(Effect.void));
-		}).pipe(Logger.logInfo.tap("Closed"));
-
-		return release;
+		return Effect.async<void>((resume) => {
+			server.close(() => resume(Logger.logInfo("Interrupted")));
+		});
 	}).pipe(
 		Logger.logInfo.tap("Listening", { URL: `${config.HOST}:${config.PORT}` }),
 	);
 
 	return yield* server.pipe(
-		Effect.acquireRelease((c) => c.release),
-		Effect.map((c) => c.server),
+		Effect.acquireRelease((server) => {
+			return Effect.async<void>((resume) => {
+				server.close(() => resume(Logger.logInfo("Closed")));
+			});
+		}),
 	);
 }).pipe(Logger.withSpan("server"));
 

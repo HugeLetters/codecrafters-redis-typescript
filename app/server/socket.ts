@@ -1,4 +1,3 @@
-import type { ReleaseEffect } from "$/utils/effect";
 import { Logger } from "$/utils/logger";
 import { Data, Effect, FiberSet, flow } from "effect";
 import type { Socket } from "node:net";
@@ -53,26 +52,29 @@ class SocketWriteError extends Data.TaggedError("SocketWrite") {}
 
 type SocketHandler = (data: Buffer) => Effect.Effect<void>;
 /** Resolves when socket connection ends */
-export const runSocketDataHandler = Effect.fn(
-	function* (socket: Socket, handler: SocketHandler) {
-		const run = yield* FiberSet.makeRuntime<never, void, never>();
-		return yield* Effect.async<ReleaseEffect>((resolve) => {
-			const dataHandler = flow(handler, run);
-			const endHandler = () => resolve(Effect.succeed({ release }));
+export const runSocketDataHandler = Effect.fn(function* (
+	socket: Socket,
+	handler: SocketHandler,
+) {
+	const run = yield* FiberSet.makeRuntime<never, void, never>();
+	return yield* Effect.async<void>((resolve) => {
+		const dataHandler = flow(handler, run);
 
-			socket.on("data", dataHandler);
-			socket.once("end", endHandler);
+		function endHandler() {
+			cleanup();
+			resolve(Effect.void);
+		}
 
-			const release = Effect.sync(() => {
-				socket.off("data", dataHandler);
-				socket.off("end", endHandler);
-			});
+		socket.on("data", dataHandler);
+		socket.once("end", endHandler);
 
-			return release;
-		});
-	},
-	Effect.acquireRelease((c) => c.release),
-	Effect.andThen(Effect.void),
-);
+		function cleanup() {
+			socket.off("data", dataHandler);
+			socket.off("end", endHandler);
+		}
+
+		return Effect.sync(cleanup);
+	});
+});
 
 export type { Socket };

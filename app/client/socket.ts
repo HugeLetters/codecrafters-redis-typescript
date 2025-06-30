@@ -1,8 +1,7 @@
 import { Config, ConfigLive } from "$/config";
 import { Resp } from "$/schema/resp";
-import type { ReleaseEffect } from "$/utils/effect";
 import { BunRuntime } from "@effect/platform-bun";
-import { Effect, FiberSet, Schema, flow } from "effect";
+import { Data, Effect, FiberSet, Schema, flow } from "effect";
 import { EventEmitter } from "node:events";
 
 interface SocketEventMap {
@@ -29,58 +28,61 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	const config = yield* Config;
 
 	const socketEmitter = new EventEmitter<SocketEventMap>();
-	const rawClient = yield* Effect.async<RawClient>((resolve) => {
-		Bun.connect({
-			hostname: config.HOST,
-			port: config.PORT,
-			socket: {
-				open(socket) {
-					opts.onStatusChange("Open");
+	const rawClient = yield* Effect.async<RawClient, SocketConnectionError>(
+		(resolve) => {
+			Bun.connect({
+				hostname: config.HOST,
+				port: config.PORT,
+				socket: {
+					open(socket) {
+						opts.onStatusChange("Open");
 
-					const client: RawClient = {
-						close() {
-							if (socket.readyState <= 0) {
-								return;
-							}
+						const client: RawClient = {
+							close() {
+								if (socket.readyState <= 0) {
+									return;
+								}
 
-							socket.end();
-							opts.onStatusChange("Closed");
-						},
-						write(data) {
-							if (socket.readyState <= 0) {
-								const error = `Trying to write socket in state: ${socket.readyState}`;
-								opts.onError(error);
-								return;
-							}
+								socket.end();
+								opts.onStatusChange("Closed");
+							},
+							write(data) {
+								if (socket.readyState <= 0) {
+									const error = `Trying to write socket in state: ${socket.readyState}`;
+									opts.onError(error);
+									return;
+								}
 
-							socket.write(data);
-						},
-					};
+								socket.write(data);
+							},
+						};
 
-					resolve(Effect.succeed(client));
-				},
+						resolve(Effect.succeed(client));
+					},
 
-				data(_socket, data) {
-					socketEmitter.emit("data", data.toString("utf-8"));
-				},
+					data(_socket, data) {
+						socketEmitter.emit("data", data.toString("utf-8"));
+					},
 
-				close() {
-					opts.onStatusChange("Closed");
-					socketEmitter.emit("close");
+					close() {
+						opts.onStatusChange("Closed");
+						socketEmitter.emit("close");
+					},
+					connectError(_socket, err) {
+						opts.onStatusChange("Failed to connect");
+						opts.onError(err.message);
+						resolve(new SocketConnectionError());
+					},
+					error(_socket, err) {
+						opts.onError(err.message);
+					},
+					timeout() {
+						opts.onError("Message timeout");
+					},
 				},
-				connectError(_socket, err) {
-					opts.onStatusChange("Failed to connect");
-					opts.onError(err.message);
-				},
-				error(_socket, err) {
-					opts.onError(err.message);
-				},
-				timeout() {
-					opts.onError("Message timeout");
-				},
-			},
-		});
-	}).pipe(
+			});
+		},
+	).pipe(
 		Effect.acquireRelease((client) => {
 			return Effect.sync(() => {
 				client.close();
@@ -89,7 +91,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	);
 
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
-	const dataConsumer = Effect.async<ReleaseEffect>((resolve) => {
+	const dataConsumer = Effect.async<void>((resolve) => {
 		const onData = flow(
 			decodeResp,
 			Effect.map(opts.onMessage),
@@ -101,22 +103,20 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 		);
 
 		function onClose() {
-			resolve(Effect.succeed({ release }));
+			cleanup();
+			resolve(Effect.void);
 		}
 
 		socketEmitter.on("data", onData);
-		socketEmitter.on("close", onClose);
+		socketEmitter.once("close", onClose);
 
-		const release = Effect.sync(() => {
+		function cleanup() {
 			socketEmitter.off("data", onData);
 			socketEmitter.off("close", onClose);
-		});
+		}
 
-		return release;
-	}).pipe(
-		Effect.acquireRelease((c) => c.release),
-		Effect.andThen(Effect.void),
-	);
+		return Effect.sync(cleanup);
+	}).pipe(Effect.andThen(Effect.void));
 
 	opts.onClientReady({
 		close: rawClient.close,
@@ -139,7 +139,10 @@ const encodeResp = Schema.encode(Resp.RespValue);
 
 export const createSocket = flow(
 	initializeSocket,
+	Effect.catchTag("SocketConnectionError", () => Effect.void),
 	Effect.provide(ConfigLive()),
 	Effect.scoped,
 	BunRuntime.runMain,
 );
+
+class SocketConnectionError extends Data.TaggedError("SocketConnectionError") {}
