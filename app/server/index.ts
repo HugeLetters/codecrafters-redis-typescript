@@ -1,4 +1,4 @@
-import { Config } from "$/config";
+import { Config } from "$/server/config";
 import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
 import { Effect, FiberSet, type Scope, flow } from "effect";

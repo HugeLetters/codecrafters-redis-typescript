@@ -1,5 +1,5 @@
-import { Config, ConfigLive } from "$/config";
 import { Resp } from "$/schema/resp";
+import { Config } from "$/server/config";
 import { BunRuntime } from "@effect/platform-bun";
 import { Data, Effect, FiberSet, Schema, flow } from "effect";
 import { EventEmitter } from "node:events";
@@ -140,7 +140,6 @@ const encodeResp = Schema.encode(Resp.RespValue);
 export const createSocket = flow(
 	initializeSocket,
 	Effect.catchTag("SocketConnectionError", () => Effect.void),
-	Effect.provide(ConfigLive()),
 	Effect.scoped,
 	BunRuntime.runMain,
 );

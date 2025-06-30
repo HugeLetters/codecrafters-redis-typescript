@@ -1,5 +1,4 @@
 import { Command } from "$/command";
-import { ConfigLive } from "$/config";
 import { KV } from "$/kv";
 import { Integer } from "$/schema/number";
 import { Resp } from "$/schema/resp";
@@ -82,7 +81,7 @@ const CommandProcessorLive = Command.CommandProcessor.Default.pipe(
 );
 
 main.pipe(
-	Effect.provide([ConfigLive(), CommandProcessorLive, DevToolsLive]),
+	Effect.provide([CommandProcessorLive, DevToolsLive]),
 	Effect.scoped,
 	BunRuntime.runMain,
 );
