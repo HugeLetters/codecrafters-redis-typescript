@@ -28,7 +28,7 @@ function App() {
 				setClient(newClient);
 			},
 			onMessage(message) {
-				addLog({ type: LogType.INCOMING, content: String(message) });
+				addLog({ type: LogType.INCOMING, content: Resp.format(message) });
 			},
 			onStatusChange(status) {
 				setStatus(status);
