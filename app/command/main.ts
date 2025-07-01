@@ -4,7 +4,6 @@ import { Resp } from "$/schema/resp";
 import {
 	Duration,
 	Effect,
-	Function as Fn,
 	Match,
 	Number as Num,
 	Option,
@@ -54,13 +53,14 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 								return "OK";
 							}),
 					),
-					Match.when(["CONFIG", "GET", Match.string], ([, , key]) => {
-						return runtimeConfig.get(key).pipe(
-							Option.map((value) => [key, value] as const),
-							Option.getOrElse(Fn.constNull),
-							Effect.succeed,
-						);
-					}),
+					Match.when(["CONFIG", "GET", Match.string], ([, , key]) =>
+						runtimeConfig.get(key).pipe(
+							Effect.map((value) => [key, value] as const),
+							Effect.catchTag("NoSuchElementException", () =>
+								fail(`Key ${key} is not set`),
+							),
+						),
+					),
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected command ${command}`),
 					),
