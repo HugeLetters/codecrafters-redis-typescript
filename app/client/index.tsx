@@ -149,6 +149,12 @@ const PRESET_COMMANDS: Record<string, PresetCommand> = {
 			return ["SET", "key", Date.now().toString(), "PX", "5000"];
 		},
 	},
+	5: {
+		label: "CONFIG GET",
+		command() {
+			return ["CONFIG", "GET", "dir"];
+		},
+	},
 };
 
 function useWindowSize() {
