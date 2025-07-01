@@ -1,3 +1,4 @@
+import { Logger } from "$/utils/logger";
 import {
 	Cron,
 	DateTime,
@@ -34,6 +35,7 @@ export class KV extends Effect.Service<KV>()("KV", {
 				}
 
 				const [key] = result.value;
+				yield* Logger.logInfo("Cleanup", { key });
 				return HashMap.remove(storage, key);
 			}),
 		);
@@ -84,7 +86,7 @@ export class KV extends Effect.Service<KV>()("KV", {
 				});
 			}),
 		};
-	}),
+	}).pipe(Logger.withSpan("KV")),
 }) {}
 
 export type Key = string;
