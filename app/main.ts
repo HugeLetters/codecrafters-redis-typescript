@@ -14,6 +14,7 @@ import { normalize } from "$/utils/string";
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
 import { Effect, Layer, Schema, flow } from "effect";
+import { RuntimeConfig } from "./config";
 
 const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
@@ -77,7 +78,7 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
 const CommandProcessorLive = Command.CommandProcessor.Default.pipe(
-	Layer.provide(KV.Default),
+	Layer.provide([KV.Default, RuntimeConfig.Default]),
 );
 
 main.pipe(

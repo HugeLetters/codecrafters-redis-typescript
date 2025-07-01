@@ -1,8 +1,10 @@
+import { RuntimeConfig } from "$/config";
 import { KV } from "$/kv";
 import { Resp } from "$/schema/resp";
 import {
 	Duration,
 	Effect,
+	Function as Fn,
 	Match,
 	Number as Num,
 	Option,
@@ -21,6 +23,7 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 	{
 		effect: Effect.gen(function* () {
 			const kv = yield* KV;
+			const runtimeConfig = yield* RuntimeConfig;
 			return {
 				process: Match.type<ProcessInput>().pipe(
 					Match.withReturnType<Effect.Effect<ProcessSuccess, ProcessError>>(),
@@ -51,6 +54,13 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 								return "OK";
 							}),
 					),
+					Match.when(["CONFIG", "GET", Match.string], ([, , key]) => {
+						return runtimeConfig.get(key).pipe(
+							Option.map((value) => [key, value] as const),
+							Option.getOrElse(Fn.constNull),
+							Effect.succeed,
+						);
+					}),
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected command ${command}`),
 					),
