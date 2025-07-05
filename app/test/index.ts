@@ -1,8 +1,8 @@
 import { Stdout } from "$/utils/stdout";
-import { inspect } from "bun";
 import { expect } from "bun:test";
-import { Effect, Equal, flow } from "effect";
 import { fail } from "node:assert/strict";
+import { inspect } from "bun";
+import { Effect, Equal, flow } from "effect";
 
 export { test } from "./effect-buntest";
 

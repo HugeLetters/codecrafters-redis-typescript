@@ -4,8 +4,8 @@ import { Integer } from "$/schema/number";
 import { Resp } from "$/schema/resp";
 import { runSocketHandler } from "$/server";
 import {
-	type Socket,
 	runSocketDataHandler,
+	type Socket,
 	writeToSocket,
 } from "$/server/socket";
 import { JobQueue } from "$/utils/job-queue";
@@ -13,7 +13,7 @@ import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
-import { Effect, Layer, Schema, flow } from "effect";
+import { Effect, flow, Layer, Schema } from "effect";
 import { RuntimeConfig } from "./config";
 
 const main = Effect.gen(function* () {

@@ -1,5 +1,5 @@
 import { Color } from "$/schema/utils";
-import { Schema, type Effect, type ParseResult } from "effect";
+import { type Effect, type ParseResult, Schema } from "effect";
 
 export function LeftoverData<TType, TEncoded, TReq>(
 	schema: Schema.Schema<TType, TEncoded, TReq>,

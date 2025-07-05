@@ -113,7 +113,7 @@ function parseArgv() {
 		{ args, currentKey },
 		(acc, chunk) => {
 			if (chunk.startsWith("-")) {
-				const currentKey = chunk.replace(/^\-{1,2}/, "");
+				const currentKey = chunk.replace(/^-{1,2}/, "");
 				const value = HashMap.get(acc.args, currentKey);
 				const args = Option.isSome(value)
 					? acc.args

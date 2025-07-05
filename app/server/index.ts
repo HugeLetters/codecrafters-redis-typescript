@@ -1,9 +1,9 @@
 import { Config } from "$/server/config";
 import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
-import { Effect, FiberSet, type Scope, flow } from "effect";
-import { type Server, createServer } from "node:net";
-import { type Socket, createSocketResource } from "./socket";
+import { createServer, type Server } from "node:net";
+import { Effect, FiberSet, flow, type Scope } from "effect";
+import { createSocketResource, type Socket } from "./socket";
 
 const serverResource = Effect.gen(function* () {
 	const config = yield* Config;

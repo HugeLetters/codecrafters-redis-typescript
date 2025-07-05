@@ -1,6 +1,6 @@
 import { Logger } from "$/utils/logger";
-import { Data, Effect, FiberSet, flow } from "effect";
 import type { Socket } from "node:net";
+import { Data, Effect, FiberSet, flow } from "effect";
 
 export function createSocketResource(socket: Socket) {
 	const openSocketResource = Effect.async<Socket>((resume) => {

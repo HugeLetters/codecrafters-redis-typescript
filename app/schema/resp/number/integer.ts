@@ -1,4 +1,4 @@
-import { IntegerFromString, Integer as Integer_ } from "$/schema/number";
+import { Integer as Integer_, IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";

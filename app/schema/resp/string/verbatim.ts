@@ -2,7 +2,7 @@ import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
 import { Logger } from "$/utils/logger";
-import { Effect, Option, ParseResult, Schema, pipe } from "effect";
+import { Effect, Option, ParseResult, pipe, Schema } from "effect";
 import { getCrlfPosition, parseIntFromString } from "./utils";
 
 export class VerbatimString extends Schema.Class<VerbatimString>(

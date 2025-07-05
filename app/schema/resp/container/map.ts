@@ -1,11 +1,11 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
-	type RespMapValue,
-	RespValue,
 	decodeLeftoverValue,
 	formatRespValue,
 	hashableRespValue,
+	type RespMapValue,
+	RespValue,
 } from "$/schema/resp/main";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -14,10 +14,10 @@ import {
 	Effect,
 	HashMap,
 	Iterable,
+	identity,
 	ParseResult,
 	Schema,
 	SchemaAST,
-	identity,
 } from "effect";
 import { MapPrefix } from "./prefix";
 import { decodeIntFromString, entryPlural } from "./utils";

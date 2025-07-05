@@ -1,6 +1,6 @@
+import { argvConfigProvider } from "$/utils/config";
 import { Effect, HashMap, Record } from "effect";
 import { Config } from "./config";
-import { argvConfigProvider } from "$/utils/config";
 
 export class RuntimeConfig extends Effect.Service<RuntimeConfig>()(
 	"RuntimeConfig",

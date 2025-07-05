@@ -2,7 +2,7 @@ import { Resp } from "$/schema/resp";
 import type { StrictOmit } from "$/utils/type";
 import { color, randomUUIDv7 } from "bun";
 import { Array as Arr, flow } from "effect";
-import { Box, Text, render, useInput, useStdout } from "ink";
+import { Box, render, Text, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { type Client, createSocket } from "./socket";
 

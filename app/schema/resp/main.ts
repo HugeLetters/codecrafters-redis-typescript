@@ -3,28 +3,28 @@ import { Color, decodeString, namedAst } from "$/schema/utils";
 import {
 	Array as Arr,
 	Effect,
+	flow,
 	Hash,
 	HashMap,
 	HashSet,
 	Iterable,
+	identity,
 	Match,
 	Option,
 	ParseResult,
 	Schema,
 	type SchemaAST,
-	flow,
-	identity,
 } from "effect";
 import { Array_, decodeLeftoverArray } from "./container/array";
 import { decodeLeftoverAttribute } from "./container/attribute";
-import { Map_, decodeLeftoverMap as decodeLeftoverMap_ } from "./container/map";
+import { decodeLeftoverMap as decodeLeftoverMap_, Map_ } from "./container/map";
 import {
 	ArrayPrefix,
 	AttributePrefix,
 	MapPrefix,
 	SetPrefix,
 } from "./container/prefix";
-import { Set_, decodeLeftoverSet as decodeLeftoverSet_ } from "./container/set";
+import { decodeLeftoverSet as decodeLeftoverSet_, Set_ } from "./container/set";
 import { Error_ } from "./error";
 import {
 	type LeftoverData,

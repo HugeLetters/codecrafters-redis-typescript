@@ -1,8 +1,8 @@
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { describe, expect } from "bun:test";
-import { BulkString, BulkError } from "./bulk";
 import { Error_ } from "../error";
+import { BulkError, BulkString } from "./bulk";
 
 describe("BulkString", () => {
 	const $string = createSchemaHelpers(BulkString);

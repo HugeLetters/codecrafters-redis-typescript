@@ -1,15 +1,15 @@
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
-	type RespArrayValue,
-	RespValue,
 	decodeLeftoverValue,
 	formatRespValue,
+	type RespArrayValue,
+	RespValue,
 } from "$/schema/resp/main";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
 import { normalize } from "$/utils/string";
-import { Effect, ParseResult, Schema, SchemaAST, identity } from "effect";
+import { Effect, identity, ParseResult, Schema, SchemaAST } from "effect";
 import { ArrayPrefix } from "./prefix";
 import { decodeIntFromString, itemPlural } from "./utils";
 
