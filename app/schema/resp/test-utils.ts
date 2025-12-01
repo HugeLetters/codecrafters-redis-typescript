@@ -5,7 +5,6 @@ import {
 	SetPrefix,
 } from "$/schema/resp/container/prefix";
 import { IntegerPrefix } from "$/schema/resp/number/integer";
-import { NullPrefix } from "$/schema/resp/primitive/null";
 import { BulkStringPrefix } from "$/schema/resp/string/bulk";
 import {
 	SimpleErrorPrefix,
@@ -44,4 +43,4 @@ export function err(s: string) {
 	return `${SimpleErrorPrefix}${s}${CRLF}`;
 }
 
-export const null_ = `${NullPrefix}${CRLF}`;
+export const null_ = `${BulkStringPrefix}-1${CRLF}`;
