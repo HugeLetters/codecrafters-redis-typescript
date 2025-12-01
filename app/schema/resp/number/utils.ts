@@ -9,7 +9,7 @@ export const toOptimalExponential = flow(
 		}
 
 		const [int, fraction = ""] = base.split(".");
-		const newExponent = Number.parseInt(exponent) - fraction.length;
+		const newExponent = Number.parseInt(exponent, 10) - fraction.length;
 		return `${int}${fraction}e${newExponent}`;
 	},
 );

@@ -1,3 +1,5 @@
+import { describe, expect } from "bun:test";
+import { HashMap } from "effect";
 import type { RespHashableValue, RespValue } from "$/schema/resp/main";
 import {
 	arr,
@@ -11,8 +13,6 @@ import {
 } from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
-import { HashMap } from "effect";
 import { Error_ } from "../error";
 import { Map_ } from "./map";
 

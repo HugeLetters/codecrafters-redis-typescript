@@ -1,4 +1,3 @@
-import { Logger } from "$/utils/logger";
 import {
 	Cron,
 	DateTime,
@@ -10,6 +9,7 @@ import {
 	Schedule,
 	SynchronizedRef,
 } from "effect";
+import { Logger } from "$/utils/logger";
 
 export class KV extends Effect.Service<KV>()("KV", {
 	effect: Effect.gen(function* () {

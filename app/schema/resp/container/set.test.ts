@@ -1,3 +1,4 @@
+import { describe, expect } from "bun:test";
 import { Error_ } from "$/schema/resp/error";
 import {
 	bulk,
@@ -10,7 +11,6 @@ import {
 } from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { expectEquivalence, test } from "$/test";
-import { describe, expect } from "bun:test";
 import { Set_ } from "./set";
 
 describe("Set", () => {

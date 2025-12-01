@@ -1,7 +1,7 @@
+import { describe, expect } from "bun:test";
 import { Integer as IntSchema } from "$/schema/number";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
 import { Integer } from "./integer";
 
 describe("Integer", () => {

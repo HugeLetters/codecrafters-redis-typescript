@@ -1,5 +1,5 @@
-import { Color } from "$/schema/utils";
 import { type Effect, type ParseResult, Schema } from "effect";
+import { Color } from "$/schema/utils";
 
 export function LeftoverData<TType, TEncoded, TReq>(
 	schema: Schema.Schema<TType, TEncoded, TReq>,
@@ -26,7 +26,7 @@ export function noLeftover<TType, TEncoded, TReq>(
 		(data) => {
 			const leftover = getLeftover(data);
 			if (leftover === "") {
-				return;
+				return true;
 			}
 
 			const received = Color.bad(leftover);

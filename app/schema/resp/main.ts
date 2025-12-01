@@ -1,5 +1,3 @@
-import { Integer } from "$/schema/number";
-import { Color, decodeString, namedAst } from "$/schema/utils";
 import {
 	Array as Arr,
 	Effect,
@@ -15,6 +13,8 @@ import {
 	Schema,
 	type SchemaAST,
 } from "effect";
+import { Integer } from "$/schema/number";
+import { Color, decodeString, namedAst } from "$/schema/utils";
 import { Array_, decodeLeftoverArray } from "./container/array";
 import { decodeLeftoverAttribute } from "./container/attribute";
 import { decodeLeftoverMap as decodeLeftoverMap_, Map_ } from "./container/map";

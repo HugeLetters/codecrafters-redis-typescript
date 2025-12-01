@@ -1,9 +1,9 @@
+import { Effect, Option, ParseResult, pipe, Schema } from "effect";
 import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
 import { Logger } from "$/utils/logger";
-import { Effect, Option, ParseResult, pipe, Schema } from "effect";
 import {
 	getCrlfPosition,
 	LeftoverError,

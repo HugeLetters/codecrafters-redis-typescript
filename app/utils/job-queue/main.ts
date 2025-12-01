@@ -1,5 +1,5 @@
-import type { Integer } from "$/schema/number";
 import { Data, Effect, Iterable, Queue } from "effect";
+import type { Integer } from "$/schema/number";
 
 export type Capacity = Integer;
 export type Job<R = never> = Effect.Effect<void, never, R>;

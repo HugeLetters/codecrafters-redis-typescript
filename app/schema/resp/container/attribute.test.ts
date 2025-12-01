@@ -1,3 +1,5 @@
+import { describe, expect } from "bun:test";
+import { HashMap } from "effect";
 import { CRLF } from "$/schema/resp/constants";
 import {
 	arr,
@@ -10,8 +12,6 @@ import {
 } from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
-import { HashMap } from "effect";
 import { Attribute } from "./attribute";
 import { AttributePrefix } from "./prefix";
 

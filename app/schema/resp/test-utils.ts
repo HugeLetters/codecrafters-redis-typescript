@@ -1,3 +1,4 @@
+import { HashMap, HashSet } from "effect";
 import { CRLF } from "$/schema/resp/constants";
 import {
 	ArrayPrefix,
@@ -10,7 +11,6 @@ import {
 	SimpleErrorPrefix,
 	SimpleStringPrefix,
 } from "$/schema/resp/string/simple";
-import { HashMap, HashSet } from "effect";
 
 export function arr(arr: ReadonlyArray<string>) {
 	return `${ArrayPrefix}${arr.length}${CRLF}${arr.join("")}`;

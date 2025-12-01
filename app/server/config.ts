@@ -1,5 +1,5 @@
-import { Integer, IntegerFromString } from "$/schema/number";
 import { Config as C, Schema } from "effect";
+import { Integer, IntegerFromString } from "$/schema/number";
 
 const HOST = C.string("HOST").pipe(C.withDefault("0.0.0.0"));
 

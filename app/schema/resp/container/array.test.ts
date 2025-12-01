@@ -1,8 +1,8 @@
+import { describe, expect } from "bun:test";
 import { Error_ } from "$/schema/resp/error";
 import { arr, bulk, err, int, null_, simple } from "$/schema/resp/test-utils";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
 import { Array_ } from "./array";
 
 describe("Array", () => {

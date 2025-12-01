@@ -31,7 +31,19 @@
 		"plugins": [
 			{
 				"name": "@effect/language-service",
-				"barrelImportPackages": ["effect"]
+				"barrelImportPackages": [
+					"effect",
+					"@effect/platform",
+					"@effect/platform-bun",
+					"@effect/experimental"
+				],
+				"importAliases": {
+					"Array": "Arr",
+					"String": "Str",
+					"Function": "Fn",
+					"Number": "Num",
+					"BigInt": "BigInteger"
+				}
 			}
 		]
 	}

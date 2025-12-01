@@ -1,6 +1,6 @@
+import { describe, expect } from "bun:test";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
 import { LeftoverNull, Null } from "./null";
 
 describe("null", () => {

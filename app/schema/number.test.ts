@@ -1,6 +1,6 @@
-import { expectEquivalence, test } from "$/test";
 import { describe, expect } from "bun:test";
 import { BigDecimal, flow } from "effect";
+import { expectEquivalence, test } from "$/test";
 import { Fraction, FractionFromDigitString } from "./number";
 import { createSchemaHelpers, expectParseError } from "./test";
 

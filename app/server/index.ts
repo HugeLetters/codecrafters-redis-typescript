@@ -1,8 +1,8 @@
+import { createServer, type Server } from "node:net";
+import { Effect, FiberSet, flow, type Scope } from "effect";
 import { Config } from "$/server/config";
 import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
-import { createServer, type Server } from "node:net";
-import { Effect, FiberSet, flow, type Scope } from "effect";
 import { createSocketResource, type Socket } from "./socket";
 
 const serverResource = Effect.gen(function* () {

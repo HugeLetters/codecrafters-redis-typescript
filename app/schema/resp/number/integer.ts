@@ -1,9 +1,9 @@
+import { Effect, ParseResult, Schema } from "effect";
 import { Integer as Integer_, IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";
 import { Color } from "$/schema/utils";
-import { Effect, ParseResult, Schema } from "effect";
 
 export const IntegerPrefix = ":";
 const LeftoverInteger_ = Schema.TemplateLiteralParser(

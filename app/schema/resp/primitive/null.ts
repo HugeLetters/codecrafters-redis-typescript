@@ -1,5 +1,5 @@
-import { CRLF } from "$/schema/resp/constants";
 import { Schema } from "effect";
+import { CRLF } from "$/schema/resp/constants";
 
 export const NullPrefix = "_";
 export const PlainNull = Schema.transformLiteral(

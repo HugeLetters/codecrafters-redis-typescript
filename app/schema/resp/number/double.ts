@@ -1,8 +1,8 @@
+import { Effect, ParseResult, Schema } from "effect";
 import { NaN_ } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
-import { Effect, ParseResult, Schema } from "effect";
 import { toOptimalExponential } from "./utils";
 
 const NanLiteral = "nan";

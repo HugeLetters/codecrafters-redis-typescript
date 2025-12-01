@@ -5,12 +5,19 @@
 	"scripts": {
 		"dev": "bun run --watch app/main.ts",
 		"dev:client": "bun run --watch app/client/index.tsx",
-		"format": "biome format --write ."
+		"check": "biome check .",
+		"fix": "biome check --write .",
+		"typecheck": "tsc"
+	},
+	"dependencies": {
+		"@effect/platform-bun": "^0.85.0",
+		"effect": "^3.19.8"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.0.6",
-		"@effect/experimental": "^0.48.12",
-		"@effect/language-service": "^0.23.0",
+		"@biomejs/biome": "^2.3.8",
+		"@effect/experimental": "^0.57.8",
+		"@effect/language-service": "^0.57.1",
+		"@effect/platform": "^0.93.6",
 		"@types/bun": "^1.2.13",
 		"@types/react": "18",
 		"ink": "^5.2.1",
@@ -20,11 +27,7 @@
 	"trustedDependencies": [
 		"@biomejs/biome"
 	],
-	"dependencies": {
-		"@effect/platform-bun": "^0.60.22",
-		"effect": "^3.15.2"
-	},
 	"patchedDependencies": {
-		"effect@3.15.2": "patches/effect@3.15.2.patch"
+		"effect@3.19.8": "patches/effect@3.19.8.patch"
 	}
 }

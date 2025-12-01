@@ -1,6 +1,6 @@
+import { ParseResult, pipe, Schema, SchemaAST } from "effect";
 import { Stdout } from "$/utils/stdout";
 import { normalize } from "$/utils/string";
-import { ParseResult, pipe, Schema, SchemaAST } from "effect";
 
 export namespace Color {
 	export function bad(value: unknown) {

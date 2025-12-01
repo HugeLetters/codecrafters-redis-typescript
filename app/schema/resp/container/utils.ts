@@ -1,6 +1,6 @@
+import { ParseResult } from "effect";
 import { IntegerFromString } from "$/schema/number";
 import { createPluralizer } from "$/utils/locale";
-import { ParseResult } from "effect";
 
 export const decodeIntFromString = ParseResult.decodeUnknown(IntegerFromString);
 

@@ -1,8 +1,8 @@
+import { Effect, ParseResult, Schema } from "effect";
 import { CR, CRLF, LF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";
 import { noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
-import { Effect, ParseResult, Schema } from "effect";
 import { LeftoverError, LeftoverString } from "./utils";
 
 const SimpleStringRegex = /^([\s\S]*?)\r\n([\s\S]*)$/;
@@ -31,6 +31,8 @@ const LeftoverSimpleStringContent = Schema.String.pipe(
 		if (ClRfRegex.test(input.data)) {
 			return `${ClRfFilterMessage}. Received ${Color.bad(input.data)}`;
 		}
+
+		return true;
 	}),
 	Schema.annotations({ identifier: "LeftoverSimpleStringContent" }),
 );

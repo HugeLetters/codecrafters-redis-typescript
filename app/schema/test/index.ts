@@ -1,6 +1,6 @@
-import { expectFail } from "$/test";
 import { expect } from "bun:test";
 import { flow, ParseResult, Schema } from "effect";
+import { expectFail } from "$/test";
 
 export function expectParseError(value: unknown) {
 	return expect(value).toBeInstanceOf(ParseResult.ParseError);

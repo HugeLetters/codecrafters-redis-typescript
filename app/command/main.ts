@@ -1,6 +1,3 @@
-import { RuntimeConfig } from "$/config";
-import { KV } from "$/kv";
-import { Resp } from "$/schema/resp";
 import {
 	Duration,
 	Effect,
@@ -9,6 +6,9 @@ import {
 	Option,
 	Predicate,
 } from "effect";
+import { RuntimeConfig } from "$/config";
+import { KV } from "$/kv";
+import { Resp } from "$/schema/resp";
 
 export type ProcessInput = Resp.RespValue;
 export type Process = CommandProcessor["process"];

@@ -1,8 +1,8 @@
+import { BigInt as BigInt_, Effect, ParseResult, Schema } from "effect";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";
 import { Color } from "$/schema/utils";
-import { BigInt as BigInt_, Effect, ParseResult, Schema } from "effect";
 
 export const BigNumberPrefix = "(";
 const LeftoverBigNumber_ = Schema.TemplateLiteralParser(

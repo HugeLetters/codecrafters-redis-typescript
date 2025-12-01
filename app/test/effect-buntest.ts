@@ -2,8 +2,6 @@
  * Port of `@effect/vitest` library
  */
 
-import type { EffectGen } from "$/utils/effect";
-import { Logger } from "$/utils/logger";
 import * as BunTest from "bun:test";
 import {
 	Arbitrary,
@@ -23,6 +21,8 @@ import {
 import type { NonEmptyArray } from "effect/Array";
 import { flow, identity } from "effect/Function";
 import { isObject } from "effect/Predicate";
+import type { EffectGen } from "$/utils/effect";
+import { Logger } from "$/utils/logger";
 
 export namespace EffectBunTest {
 	type API = BunTest.Test;
@@ -38,11 +38,8 @@ export namespace EffectBunTest {
 	) => void;
 
 	type Arbitrary = Schema.Schema.Any | FastCheck.Arbitrary<unknown>;
-	type ArbitraryType<TArb extends Arbitrary> = TArb extends FastCheck.Arbitrary<
-		infer T
-	>
-		? T
-		: Schema.Schema.Type<TArb>;
+	type ArbitraryType<TArb extends Arbitrary> =
+		TArb extends FastCheck.Arbitrary<infer T> ? T : Schema.Schema.Type<TArb>;
 
 	type Arbitraries = Record<string, Arbitrary>;
 	type ArbitrariesType<TArbs extends Arbitraries> = {

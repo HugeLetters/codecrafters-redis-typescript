@@ -1,7 +1,7 @@
+import { describe, expect } from "bun:test";
 import { RawCR, RawLF } from "$/schema/resp/constants";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { describe, expect } from "bun:test";
 import { Error_ } from "../error";
 import { SimpleError, SimpleString } from "./simple";
 

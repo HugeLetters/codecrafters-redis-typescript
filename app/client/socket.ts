@@ -1,8 +1,8 @@
-import { Resp } from "$/schema/resp";
-import { Config } from "$/server/config";
 import { EventEmitter } from "node:events";
 import { BunRuntime } from "@effect/platform-bun";
 import { Data, Effect, FiberSet, flow, Schema } from "effect";
+import { Resp } from "$/schema/resp";
+import { Config } from "$/server/config";
 
 interface SocketEventMap {
 	data: [string];

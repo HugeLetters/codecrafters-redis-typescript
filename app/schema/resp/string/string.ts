@@ -1,5 +1,5 @@
-import { Error_ } from "$/schema/resp/error";
 import { ParseResult, Schema } from "effect";
+import { Error_ } from "$/schema/resp/error";
 import { BulkError, BulkString } from "./bulk";
 import { SimpleError, SimpleString } from "./simple";
 
