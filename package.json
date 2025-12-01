@@ -10,14 +10,14 @@
 		"typecheck": "tsc"
 	},
 	"dependencies": {
-		"@effect/platform-bun": "^0.85.0",
+		"@effect/experimental": "^0.57.9",
+		"@effect/platform": "^0.93.6",
+		"@effect/platform-bun": "^0.86.0",
 		"effect": "^3.19.8"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.8",
-		"@effect/experimental": "^0.57.8",
 		"@effect/language-service": "^0.57.1",
-		"@effect/platform": "^0.93.6",
 		"@types/bun": "^1.2.13",
 		"@types/react": "18",
 		"ink": "^5.2.1",

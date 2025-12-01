@@ -1,3 +1,2 @@
-- rewrite client with OpenTUI and Solidjs\
 - is there a way to make resp schemas code less ugly?
 - go over whole project for touchups
