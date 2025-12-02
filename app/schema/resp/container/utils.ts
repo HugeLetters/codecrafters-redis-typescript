@@ -1,4 +1,4 @@
-import { ParseResult } from "effect";
+import * as ParseResult from "effect/ParseResult";
 import { IntegerFromString } from "$/schema/number";
 import { createPluralizer } from "$/utils/locale";
 

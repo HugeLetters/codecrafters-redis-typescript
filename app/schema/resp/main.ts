@@ -1,18 +1,15 @@
-import {
-	Array as Arr,
-	Effect,
-	flow,
-	Hash,
-	HashMap,
-	HashSet,
-	Iterable,
-	identity,
-	Match,
-	Option,
-	ParseResult,
-	Schema,
-	type SchemaAST,
-} from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
+import * as Hash from "effect/Hash";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Iterable from "effect/Iterable";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+import type * as SchemaAST from "effect/SchemaAST";
 import { Integer } from "$/schema/number";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import { Array_, decodeLeftoverArray } from "./container/array";
@@ -104,14 +101,14 @@ export function decodeLeftoverValue(
 	return ParseResult.fail(issue);
 }
 
-const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespValue"));
+const NoLeftover = Schema.String.pipe(noLeftover(Fn.identity, "RespValue"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
 const matchVerbatim = Match.when(
 	Schema.is(String_.VerbatimString),
 	() => String_.VerbatimStringFromString,
 );
 const matchInteger = Match.when(Schema.is(Integer), () => Number_.Integer);
-const matchEncodeFn = flow(
+const matchEncodeFn = Fn.flow(
 	Match.type().pipe(
 		Match.when(Match.string, () => String_.String),
 		matchVerbatim,
@@ -131,7 +128,7 @@ const matchEncodeFn = flow(
 
 		Match.option,
 	),
-	Option.map(flow(Schema.asSchema, ParseResult.encodeUnknown)),
+	Option.map(Fn.flow(Schema.asSchema, ParseResult.encodeUnknown)),
 );
 export const RespValue = Schema.declare(
 	[],
@@ -196,16 +193,16 @@ function createDecoder<TType, TEncoded extends string>(
 	};
 }
 
-const decodeLeftoverSimpleString: LeftoverDecoder<string> = flow(
+const decodeLeftoverSimpleString: LeftoverDecoder<string> = Fn.flow(
 	createDecoder(LeftoverSimpleString),
 	Effect.map(([, data]) => data),
 );
 
-const decodeLeftoverBulkStringNull: LeftoverDecoder<null> = flow(
+const decodeLeftoverBulkStringNull: LeftoverDecoder<null> = Fn.flow(
 	createDecoder(LeftoverBulkStringNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
-const decodeLeftoverBulkString: LeftoverDecoder<string> = flow(
+const decodeLeftoverBulkString: LeftoverDecoder<string> = Fn.flow(
 	createDecoder(LeftoverBulkString),
 	Effect.map(([, data]) => data),
 );
@@ -227,7 +224,7 @@ const decodeLeftoverBulkValue: DecodeBulkValue = function (value, ast) {
 };
 
 type DecodeVerbatimString = LeftoverDecoder<String_.VerbatimString>;
-const decodeLeftoverVerbatimString: DecodeVerbatimString = flow(
+const decodeLeftoverVerbatimString: DecodeVerbatimString = Fn.flow(
 	createDecoder(LeftoverVerbatimString),
 	Effect.map(([, data]) => data),
 );
@@ -240,12 +237,12 @@ const decodeLeftoverDouble: LeftoverDecoder<number> =
 const decodeLeftoverBigNumber: LeftoverDecoder<bigint> =
 	createDecoder(LeftoverBigNumber);
 
-const decodeLeftoverBoolean: LeftoverDecoder<boolean> = flow(
+const decodeLeftoverBoolean: LeftoverDecoder<boolean> = Fn.flow(
 	createDecoder(LeftoverBoolean),
 	Effect.map(([, data, , leftover]) => ({ data, leftover })),
 );
 
-const decodeLeftoverPlainNull: LeftoverDecoder<null> = flow(
+const decodeLeftoverPlainNull: LeftoverDecoder<null> = Fn.flow(
 	createDecoder(LeftoverPlainNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );
@@ -256,7 +253,7 @@ const decodeLeftoverSimpleError: LeftoverDecoder<Error_> =
 const decodeLeftoverBulkError: LeftoverDecoder<Error_> =
 	createDecoder(LeftoverBulkError);
 
-const decodeLeftoverArrayNull: LeftoverDecoder<null> = flow(
+const decodeLeftoverArrayNull: LeftoverDecoder<null> = Fn.flow(
 	createDecoder(LeftoverArrayNull),
 	Effect.map(([data, leftover]) => ({ data, leftover })),
 );

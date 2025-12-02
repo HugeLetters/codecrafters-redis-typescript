@@ -1,11 +1,14 @@
-import { Config as C, Schema } from "effect";
+import * as Config from "effect/Config";
+import * as Schema from "effect/Schema";
 import { Integer, IntegerFromString } from "$/schema/number";
 
-const HOST = C.string("HOST").pipe(C.withDefault("0.0.0.0"));
+const HOST = Config.string("HOST").pipe(Config.withDefault("0.0.0.0"));
 
 const defaultPort = Integer.make(6379);
 const PORT = Schema.Config("PORT", IntegerFromString).pipe(
-	C.withDefault(defaultPort),
+	Config.withDefault(defaultPort),
 );
 
-export const Config = C.all({ HOST, PORT });
+const AppConfig = Config.all({ HOST, PORT });
+
+export { AppConfig as Config };

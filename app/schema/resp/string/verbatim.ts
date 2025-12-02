@@ -1,8 +1,13 @@
-import { Effect, Option, ParseResult, pipe, Schema } from "effect";
+import * as Effect from "effect/Effect";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { Color } from "$/schema/utils";
 import { Logger } from "$/utils/logger";
+import "effect/Function";
+import * as Fn from "effect/Function";
+import * as Option from "effect/Option";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
 import { getCrlfPosition, parseIntFromString } from "./utils";
 
 export class VerbatimString extends Schema.Class<VerbatimString>(
@@ -49,7 +54,7 @@ const LeftoverVerbatimStringContent = Schema.String.pipe(
 			const receivedCrlf = afterContent.slice(0, leftoverPosition);
 
 			if (receivedCrlf !== CRLF) {
-				return yield* pipe(
+				return yield* Fn.pipe(
 					afterContent,
 					getCrlfPosition,
 					Option.match({

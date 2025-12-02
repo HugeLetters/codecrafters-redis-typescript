@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { CRLF } from "$/schema/resp/constants";
 
 export const NullPrefix = "_";

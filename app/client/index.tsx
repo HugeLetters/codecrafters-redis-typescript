@@ -1,5 +1,6 @@
 import { color, randomUUIDv7 } from "bun";
-import { Array as Arr, flow } from "effect";
+import * as Arr from "effect/Array";
+import * as Fn from "effect/Function";
 import { Box, render, Text, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { Resp } from "$/schema/resp";
@@ -195,7 +196,7 @@ type Log = {
 function rbgColor(value: string) {
 	return color(value, "rgb") ?? undefined;
 }
-const logTypeColor = flow(
+const logTypeColor = Fn.flow(
 	function (logType: LogType) {
 		switch (logType) {
 			case LogType.INFO: {

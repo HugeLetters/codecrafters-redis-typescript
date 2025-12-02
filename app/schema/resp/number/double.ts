@@ -1,4 +1,6 @@
-import { Effect, ParseResult, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
 import { NaN_ } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";

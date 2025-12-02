@@ -1,11 +1,9 @@
-import {
-	Duration,
-	Effect,
-	Match,
-	Number as Num,
-	Option,
-	Predicate,
-} from "effect";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Num from "effect/Number";
+import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import { RuntimeConfig } from "$/config";
 import { KV } from "$/kv";
 import { Resp } from "$/schema/resp";
@@ -27,10 +25,10 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 				process: Match.type<ProcessInput>().pipe(
 					Match.withReturnType<Effect.Effect<ProcessSuccess, ProcessError>>(),
 					Match.when(["PING"], () => Effect.succeed("PONG")),
-					Match.when(["ECHO", Match.string], ([, message]) =>
+					Match.when(["ECHO", Match.string], ([_, message]) =>
 						Effect.succeed(message),
 					),
-					Match.when(["GET", Match.string], ([, key]) =>
+					Match.when(["GET", Match.string], ([_, key]) =>
 						Effect.gen(function* () {
 							const result = yield* kv
 								.get(key)
@@ -41,7 +39,7 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 					),
 					Match.when(
 						["SET", Match.string, Match.string],
-						([, key, value, ...rest]) =>
+						([_, key, value, ...rest]) =>
 							Effect.gen(function* () {
 								const opts = yield* parseSetOptions(rest).pipe(
 									Effect.mapError(
@@ -53,7 +51,7 @@ export class CommandProcessor extends Effect.Service<CommandProcessor>()(
 								return "OK";
 							}),
 					),
-					Match.when(["CONFIG", "GET", Match.string], ([, , key]) =>
+					Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
 						runtimeConfig.get(key).pipe(
 							Effect.map((value) => [key, value] as const),
 							Effect.catchTag("NoSuchElementException", () =>

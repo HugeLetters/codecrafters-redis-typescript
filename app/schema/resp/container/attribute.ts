@@ -1,12 +1,10 @@
-import {
-	Effect,
-	HashMap,
-	Iterable,
-	identity,
-	ParseResult,
-	Schema,
-	SchemaAST,
-} from "effect";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
+import * as HashMap from "effect/HashMap";
+import * as Iterable from "effect/Iterable";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+import * as SchemaAST from "effect/SchemaAST";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
@@ -127,7 +125,7 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 }
 
 type Attribute = Schema.Schema<RespMapValue, string>;
-const NoLeftover = Schema.String.pipe(noLeftover(identity, "Attribute"));
+const NoLeftover = Schema.String.pipe(noLeftover(Fn.identity, "Attribute"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => {
 	return Schema.HashMapFromSelf({ key: RespValue, value: RespValue });

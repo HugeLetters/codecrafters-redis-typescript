@@ -1,4 +1,8 @@
-import { Effect, identity, ParseResult, Schema, SchemaAST } from "effect";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+import * as SchemaAST from "effect/SchemaAST";
 import { CRLF } from "$/schema/resp/constants";
 import { type LeftoverParseResult, noLeftover } from "$/schema/resp/leftover";
 import {
@@ -107,7 +111,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 }
 
 type Array_ = Schema.Schema<RespArrayValue, string>;
-const NoLeftover = Schema.String.pipe(noLeftover(identity, "RespArray"));
+const NoLeftover = Schema.String.pipe(noLeftover(Fn.identity, "RespArray"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => Schema.Array(RespValue));
 export const Array_: Array_ = Schema.declare(

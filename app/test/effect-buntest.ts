@@ -1,31 +1,30 @@
+import * as Cause from "effect/Cause";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
+import * as Scope from "effect/Scope";
+
 /**
  * Port of `@effect/vitest` library
  */
 
 import * as BunTest from "bun:test";
-import {
-	Arbitrary,
-	Cause,
-	Duration,
-	Effect,
-	Exit,
-	FastCheck,
-	Layer,
-	Logger as LoggerService,
-	Schedule,
-	Schema,
-	Scope,
-	TestContext,
-	type TestServices,
-} from "effect";
+import * as Arbitrary from "effect/Arbitrary";
 import type { NonEmptyArray } from "effect/Array";
+import * as Exit from "effect/Exit";
+import * as FastCheck from "effect/FastCheck";
 import { flow, identity } from "effect/Function";
+import * as Layer from "effect/Layer";
+import * as LoggerService from "effect/Logger";
 import { isObject } from "effect/Predicate";
+import * as TestContext from "effect/TestContext";
+import type * as TestServices from "effect/TestServices";
 import type { EffectGen } from "$/utils/effect";
 import { Logger } from "$/utils/logger";
 
 export namespace EffectBunTest {
-	type API = BunTest.Test;
+	type API = BunTest.Test<[]>;
 
 	export type TestFunction<A, E, R, TestArgs extends Array<unknown>> = (
 		...args: TestArgs
@@ -300,7 +299,7 @@ function layer<R, E>(
 			Effect.runSync,
 		);
 
-		function makeTest(test: BunTest.Test): EffectBunTest.MethodsNonLive<R> {
+		function makeTest(test: BunTest.Test<[]>): EffectBunTest.MethodsNonLive<R> {
 			return Object.assign(test, {
 				effect: makeTester<TestServices.TestServices | R>(
 					(effect) =>
@@ -358,7 +357,7 @@ function flakyTest<A, E, R>(
 	);
 }
 
-function makeMethods(test: BunTest.Test): EffectBunTest.Methods {
+function makeMethods(test: BunTest.Test<[]>): EffectBunTest.Methods {
 	return Object.assign(test, {
 		effect: makeTester<TestServices.TestServices>(
 			Effect.provide(TestEnv),

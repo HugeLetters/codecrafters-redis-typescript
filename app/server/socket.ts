@@ -1,5 +1,9 @@
 import type { Socket } from "node:net";
-import { Data, Effect, FiberSet, flow } from "effect";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as FiberSet from "effect/FiberSet";
+import * as Fn from "effect/Function";
+
 import { Logger } from "$/utils/logger";
 
 export function createSocketResource(socket: Socket) {
@@ -58,7 +62,7 @@ export const runSocketDataHandler = Effect.fn(function* (
 ) {
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
 	return yield* Effect.async<void>((resolve) => {
-		const dataHandler = flow(handler, run);
+		const dataHandler = Fn.flow(handler, run);
 
 		function endHandler() {
 			cleanup();

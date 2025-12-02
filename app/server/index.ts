@@ -1,5 +1,8 @@
 import { createServer, type Server } from "node:net";
-import { Effect, FiberSet, flow, type Scope } from "effect";
+import * as Effect from "effect/Effect";
+import * as FiberSet from "effect/FiberSet";
+import * as Fn from "effect/Function";
+import type * as Scope from "effect/Scope";
 import { Config } from "$/server/config";
 import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
@@ -38,7 +41,7 @@ export const runSocketHandler = Effect.fn(function* <R = never>(
 	const server = yield* serverResource;
 	const run = yield* FiberSet.makeRuntime<R, void, never>();
 	return yield* Effect.async<never>(() => {
-		const onConnection = flow(
+		const onConnection = Fn.flow(
 			createSocketResource,
 			Effect.flatMap(handler),
 			logDefect,

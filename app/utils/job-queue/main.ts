@@ -1,4 +1,7 @@
-import { Data, Effect, Iterable, Queue } from "effect";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as Iterable from "effect/Iterable";
+import * as Queue from "effect/Queue";
 import type { Integer } from "$/schema/number";
 
 export type Capacity = Integer;

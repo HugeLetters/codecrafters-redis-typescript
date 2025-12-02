@@ -1,17 +1,12 @@
-import { Effect, Function as Fn, type Utils } from "effect";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
 
 export type EffectGen<
 	TEffect extends Effect.Effect<unknown, unknown, unknown>,
-> = Generator<
-	Utils.YieldWrap<
-		Effect.Effect<
-			unknown,
-			Effect.Effect.Error<TEffect>,
-			Effect.Effect.Context<TEffect>
-		>
-	>,
+> = Effect.fn.Return<
 	Effect.Effect.Success<TEffect>,
-	never
+	Effect.Effect.Error<TEffect>,
+	Effect.Effect.Context<TEffect>
 >;
 
 export const flatMapError = Fn.dual<

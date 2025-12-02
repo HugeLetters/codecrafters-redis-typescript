@@ -1,4 +1,6 @@
-import { ParseResult, Schema, String as Str } from "effect";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 import { IntegerFromString } from "$/schema/number";
 import { CRLF } from "$/schema/resp/constants";
 import { Error_ } from "$/schema/resp/error";

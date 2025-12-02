@@ -1,5 +1,8 @@
 import { expect } from "bun:test";
-import { flow, ParseResult, Schema } from "effect";
+import * as Fn from "effect/Function";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+
 import { expectFail } from "$/test";
 
 export function expectParseError(value: unknown) {
@@ -9,8 +12,8 @@ export function expectParseError(value: unknown) {
 export function createSchemaHelpers<A, I, R>(self: Schema.Schema<A, I, R>) {
 	return {
 		decode: Schema.decode(self),
-		decodeFail: flow(Schema.decodeUnknown(self), expectFail),
+		decodeFail: Fn.flow(Schema.decodeUnknown(self), expectFail),
 		encode: Schema.encode(self),
-		encodeFail: flow(Schema.encodeUnknown(self), expectFail),
+		encodeFail: Fn.flow(Schema.encodeUnknown(self), expectFail),
 	};
 }

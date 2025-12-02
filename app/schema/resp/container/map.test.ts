@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test";
-import { HashMap } from "effect";
+import * as HashMap from "effect/HashMap";
+
 import type { RespHashableValue, RespValue } from "$/schema/resp/main";
 import {
 	arr,

@@ -1,4 +1,5 @@
-import { Effect, flow, identity } from "effect";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
 
 type Annotations = Record<string, unknown>;
 
@@ -16,7 +17,7 @@ function createLogFn(logger: (data: unknown) => Effect.Effect<void>) {
 		return Effect.annotateLogs(log, annotations);
 	};
 
-	fn.tap = flow(fn, Effect.tap<Effect.Effect<void>>);
+	fn.tap = Fn.flow(fn, Effect.tap<Effect.Effect<void>>);
 
 	return fn;
 }
@@ -25,9 +26,9 @@ function createLogFn(logger: (data: unknown) => Effect.Effect<void>) {
  * Adds a span both for logging and tracing
  */
 export function withSpan(name: string, annotations?: Annotations) {
-	return flow(
+	return Fn.flow(
 		Effect.withSpan(name, { attributes: annotations }),
 		Effect.withLogSpan(name),
-		annotations ? Effect.annotateLogs(annotations) : identity,
+		annotations ? Effect.annotateLogs(annotations) : Fn.identity,
 	);
 }

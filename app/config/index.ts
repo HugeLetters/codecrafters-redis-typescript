@@ -1,4 +1,7 @@
-import { Effect, HashMap, Record } from "effect";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Record from "effect/Record";
+
 import { argvConfigProvider } from "$/utils/config";
 import { Config } from "./config";
 

@@ -1,4 +1,5 @@
-import { BigDecimal, Schema } from "effect";
+import * as BigDecimal from "effect/BigDecimal";
+import * as Schema from "effect/Schema";
 import { DigitString } from "./string";
 
 export const Integer = Schema.Int.pipe(Schema.brand("INT"));

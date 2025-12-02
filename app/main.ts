@@ -1,6 +1,9 @@
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
-import { Effect, flow, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import { flow } from "effect/Function";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { Command } from "$/command";
 import { KV } from "$/kv";
 import { Integer } from "$/schema/number";

@@ -1,19 +1,17 @@
 import { argv } from "bun";
-import {
-	Array as Arr,
-	type Config as C,
-	ConfigError,
-	ConfigProvider,
-	ConfigProviderPathPatch,
-	Effect,
-	Either,
-	HashMap,
-	HashSet,
-	Iterable,
-	Match,
-	Option,
-	pipe,
-} from "effect";
+import * as Arr from "effect/Array";
+import type * as Config from "effect/Config";
+import * as ConfigError from "effect/ConfigError";
+import * as ConfigProvider from "effect/ConfigProvider";
+import * as ConfigProviderPathPatch from "effect/ConfigProviderPathPatch";
+import * as Effect from "effect/Effect";
+import * as Either from "effect/Either";
+import * as Fn from "effect/Function";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Iterable from "effect/Iterable";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 
 interface ArgvConfigProviderOptions {
 	/** @default "." */
@@ -51,7 +49,7 @@ export function argvConfigProvider(
 		},
 		enumerateChildren(path) {
 			return Effect.sync(() => {
-				return pipe(
+				return Fn.pipe(
 					args,
 					HashMap.keys,
 					Iterable.map((value) => value.split(pathDelim)),
@@ -82,7 +80,7 @@ export function argvConfigProvider(
 function parsePrimitive<A>(
 	text: ReadonlyArray<string>,
 	path: Array<string>,
-	primitive: C.Config.Primitive<A>,
+	primitive: Config.Config.Primitive<A>,
 ) {
 	return primitive.parse(text.join(" ")).pipe(
 		Either.mapBoth({
@@ -95,9 +93,9 @@ function parsePrimitive<A>(
 function parseSplitPrimitive<A>(
 	text: ReadonlyArray<string>,
 	path: Array<string>,
-	primitive: C.Config.Primitive<A>,
+	primitive: Config.Config.Primitive<A>,
 ) {
-	return pipe(
+	return Fn.pipe(
 		text,
 		Arr.map((char) => primitive.parse(char.trim())),
 		Effect.all,

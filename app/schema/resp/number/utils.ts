@@ -1,6 +1,6 @@
-import { flow } from "effect";
+import * as Fn from "effect/Function";
 
-export const toOptimalExponential = flow(
+export const toOptimalExponential = Fn.flow(
 	(x: number) => x.toExponential(),
 	(x) => {
 		const [base, exponent] = x.split("e");

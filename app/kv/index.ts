@@ -1,14 +1,12 @@
-import {
-	Cron,
-	DateTime,
-	Duration,
-	Effect,
-	Function as Fn,
-	HashMap,
-	Option,
-	Schedule,
-	SynchronizedRef,
-} from "effect";
+import * as Cron from "effect/Cron";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Schedule from "effect/Schedule";
+import * as SynchronizedRef from "effect/SynchronizedRef";
 import { Logger } from "$/utils/logger";
 
 export class KV extends Effect.Service<KV>()("KV", {

@@ -1,4 +1,5 @@
-import { HashMap, HashSet } from "effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
 import { CRLF } from "$/schema/resp/constants";
 import {
 	ArrayPrefix,

@@ -1,12 +1,14 @@
 import { describe, expect } from "bun:test";
-import { BigDecimal, flow } from "effect";
+import * as BigDecimal from "effect/BigDecimal";
+import * as Fn from "effect/Function";
+
 import { expectEquivalence, test } from "$/test";
 import { Fraction, FractionFromDigitString } from "./number";
 import { createSchemaHelpers, expectParseError } from "./test";
 
 describe("FractionFromDigitString", () => {
 	const $fraction = createSchemaHelpers(FractionFromDigitString);
-	const f = flow(BigDecimal.unsafeFromNumber, Fraction.make);
+	const f = Fn.flow(BigDecimal.unsafeFromNumber, Fraction.make);
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {

@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import { BunRuntime } from "@effect/platform-bun";
-import { Data, Effect, FiberSet, flow, Schema } from "effect";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as FiberSet from "effect/FiberSet";
+import * as Fn from "effect/Function";
+import * as Schema from "effect/Schema";
 import { Resp } from "$/schema/resp";
 import { Config } from "$/server/config";
 
@@ -92,12 +96,12 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
 	const dataConsumer = Effect.async<void>((resolve) => {
-		const onData = flow(
+		const onData = Fn.flow(
 			decodeResp,
 			Effect.map(opts.onMessage),
 			Effect.catchTag(
 				"ParseError",
-				flow((e) => opts.onError(e.message), Effect.succeed),
+				Fn.flow((e) => opts.onError(e.message), Effect.succeed),
 			),
 			run,
 		);
@@ -120,12 +124,12 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 
 	opts.onClientReady({
 		close: rawClient.close,
-		write: flow(
+		write: Fn.flow(
 			encodeResp,
 			Effect.map(rawClient.write),
 			Effect.catchTag(
 				"ParseError",
-				flow((e) => opts.onError(e.message), Effect.succeed),
+				Fn.flow((e) => opts.onError(e.message), Effect.succeed),
 			),
 			run,
 		),
@@ -137,7 +141,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 const decodeResp = Schema.decode(Resp.RespValue);
 const encodeResp = Schema.encode(Resp.RespValue);
 
-export const createSocket = flow(
+export const createSocket = Fn.flow(
 	initializeSocket,
 	Effect.catchTag("SocketConnectionError", () => Effect.void),
 	Effect.scoped,

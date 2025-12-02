@@ -25,13 +25,14 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"exactOptionalPropertyTypes": true,
+		"noImplicitOverride": true,
 		"paths": {
 			"$*": ["./app*"]
 		},
 		"plugins": [
 			{
 				"name": "@effect/language-service",
-				"barrelImportPackages": [
+				"namespaceImportPackages": [
 					"effect",
 					"@effect/platform",
 					"@effect/platform-bun",
@@ -43,7 +44,8 @@
 					"Function": "Fn",
 					"Number": "Num",
 					"BigInt": "BigInteger"
-				}
+				},
+				"topLevelNamedReexports": "follow"
 			}
 		]
 	}

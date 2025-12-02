@@ -1,4 +1,7 @@
-import { type Effect, type ParseResult, Schema } from "effect";
+import type * as Effect from "effect/Effect";
+import type * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
+
 import { Color } from "$/schema/utils";
 
 export function LeftoverData<TType, TEncoded, TReq>(

@@ -1,4 +1,7 @@
-import { BigInt as BigInt_, Effect, ParseResult, Schema } from "effect";
+import * as BigInteger from "effect/BigInt";
+import * as Effect from "effect/Effect";
+import * as ParseResult from "effect/ParseResult";
+import * as Schema from "effect/Schema";
 import { CRLF } from "$/schema/resp/constants";
 import { LeftoverData, noLeftover } from "$/schema/resp/leftover";
 import { ImplicitNumberSign } from "$/schema/string";
@@ -38,7 +41,7 @@ export const LeftoverBigNumber = LeftoverBigNumber_.pipe(
 			const output: Output = [
 				BigNumberPrefix,
 				integer < 0 ? "-" : "+",
-				`${BigInt_.abs(integer)}${CRLF}${input.leftover}`,
+				`${BigInteger.abs(integer)}${CRLF}${input.leftover}`,
 			];
 			return ParseResult.succeed(output);
 		},

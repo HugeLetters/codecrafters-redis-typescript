@@ -1,10 +1,14 @@
-import { Config as C } from "effect";
+import * as Config from "effect/Config";
 
-const dir = C.string("dir").pipe(C.withDefault("./tmp"));
+const dir = Config.string("dir").pipe(Config.withDefault("./tmp"));
 
-const dbFilename = C.string("dbfilename").pipe(C.withDefault("dump.rdb"));
+const dbFilename = Config.string("dbfilename").pipe(
+	Config.withDefault("dump.rdb"),
+);
 
-export const Config = C.all({
+const AppConfig = Config.all({
 	dir,
 	dbFilename,
 });
+
+export { AppConfig as Config };

@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test";
-import { HashMap } from "effect";
+import * as HashMap from "effect/HashMap";
+
 import { CRLF } from "$/schema/resp/constants";
 import {
 	arr,
