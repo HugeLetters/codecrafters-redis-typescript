@@ -46,7 +46,7 @@ const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 
 const handleSocket = Effect.fn(function* (socket: Socket) {
 	const messageQueue = yield* JobQueue.make(Integer.make(1));
-	const command = yield* Command.CommandProcessor;
+	const command = yield* Command.Processor;
 	const handleCommand = flow(
 		command.process,
 		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
@@ -80,7 +80,7 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
-const CommandProcessorLive = Command.CommandProcessor.Default.pipe(
+const CommandProcessorLive = Command.Processor.Default.pipe(
 	Layer.provide([KV.Default, RuntimeConfig.Default]),
 );
 

@@ -147,7 +147,7 @@ const PRESET_COMMANDS: Record<string, PresetCommand> = {
 	4: {
 		label: "SET",
 		command() {
-			return ["SET", "key", Date.now().toString(), "PX", "5000"];
+			return ["SET", "key", Date.now().toString(), "PX", 5000];
 		},
 	},
 	5: {
