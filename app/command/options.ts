@@ -41,19 +41,20 @@ export namespace CommandOption {
 		});
 	}
 
-	export function string() {
-		return Fn.pipe(
-			make({
-				run([value, ...left]) {
-					if (!value) {
-						return new Cause.NoSuchElementException("Value is missing");
-					}
+	export function single() {
+		return make({
+			run([value, ...left]) {
+				if (value === undefined) {
+					return new Cause.NoSuchElementException("Value is missing");
+				}
 
-					return Effect.succeed({ value, left });
-				},
-			}),
-			(_) => filter(_, Predicate.isString),
-		);
+				return Effect.succeed({ value, left });
+			},
+		});
+	}
+
+	export function string() {
+		return filter(single(), Predicate.isString);
 	}
 
 	export function mapEffect<A, B, E, R, E2, R2>(
