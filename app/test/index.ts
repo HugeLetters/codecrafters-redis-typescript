@@ -14,7 +14,7 @@ export function expectFail<E, R>(self: Effect.Effect<unknown, E, R>) {
 
 const unexpectedSuccess = Fn.flow(
 	(v) => Bun.inspect(v, { colors: true, depth: 10 }),
-	(v) => `Expected effect to fail. Received: ${v}`,
+	(v) => `Expected effect to fail. Received\n${v}`,
 	(m) => fail(m),
 );
 

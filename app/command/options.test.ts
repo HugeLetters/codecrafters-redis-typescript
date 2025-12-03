@@ -6,7 +6,7 @@ import * as Option from "effect/Option";
 import { ParseError } from "effect/ParseResult";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
-import { test } from "$/test";
+import { expectFail, test } from "$/test";
 import { CommandOption } from "./options";
 
 describe("CommandOptions", () => {
@@ -34,7 +34,7 @@ describe("CommandOptions", () => {
 			const result = yield* CommandOption.parse(
 				["surname", "Johnson", "unknown", "name", "John"],
 				config,
-			).pipe(Effect.flip);
+			).pipe(expectFail);
 
 			expect(result).toBeInstanceOf(CommandOption.Error.UnrecognizedOptions);
 			expect(result.message).toContain("unknown");
@@ -47,7 +47,7 @@ describe("CommandOptions", () => {
 			const result = yield* CommandOption.parse(
 				["name", "John", "unknown1", "unknown2"],
 				config,
-			).pipe(Effect.flip);
+			).pipe(expectFail);
 
 			expect(result).toBeInstanceOf(CommandOption.Error.UnrecognizedOptions);
 			expect(result.message).toContain("unknown1");
@@ -62,7 +62,8 @@ describe("CommandOptions", () => {
 			const result = yield* CommandOption.parse(
 				["surname", "Johnson"],
 				config,
-			).pipe(Effect.flip);
+			).pipe(expectFail);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.MissingOptions);
 			expect(result.message).toContain("name");
 		});
@@ -108,8 +109,9 @@ describe("CommandOptions", () => {
 				),
 			};
 			const result = yield* CommandOption.parse(["name", "hello"], config).pipe(
-				Effect.flip,
+				expectFail,
 			);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 			expect(result.cause).toBe("test error");
 		});
@@ -147,8 +149,9 @@ describe("CommandOptions", () => {
 				name: CommandOption.string(),
 			};
 			const result = yield* CommandOption.parse(["name"], config).pipe(
-				Effect.flip,
+				expectFail,
 			);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 		});
 
@@ -160,7 +163,8 @@ describe("CommandOptions", () => {
 			const result = yield* CommandOption.parse(
 				["other", "value"],
 				config,
-			).pipe(Effect.flip);
+			).pipe(expectFail);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.MissingOptions);
 			expect(result.message).toContain("name");
 		});
@@ -186,7 +190,8 @@ describe("CommandOptions", () => {
 			const result = yield* CommandOption.parse(
 				["age", "notnumber"],
 				config,
-			).pipe(Effect.flip);
+			).pipe(expectFail);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 			expect(result.cause).toBeInstanceOf(ParseError);
 		});
@@ -214,8 +219,9 @@ describe("CommandOptions", () => {
 				surname: pipe(CommandOption.string(), CommandOption.optional),
 			};
 			const result = yield* CommandOption.parse(["surname"], config).pipe(
-				Effect.flip,
+				expectFail,
 			);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 		});
 	});
@@ -248,8 +254,9 @@ describe("CommandOptions", () => {
 				),
 			};
 			const result = yield* CommandOption.parse(["score"], config).pipe(
-				Effect.flip,
+				expectFail,
 			);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 		});
 	});
@@ -276,8 +283,9 @@ describe("CommandOptions", () => {
 			);
 			const config = { name: string };
 			const result = yield* CommandOption.parse(["name"], config).pipe(
-				Effect.flip,
+				expectFail,
 			);
+
 			expect(result).toBeInstanceOf(CommandOption.Error.InvalidOptionValue);
 			expect(result.cause).toBeInstanceOf(Cause.NoSuchElementException);
 		});
