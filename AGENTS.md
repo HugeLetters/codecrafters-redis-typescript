@@ -44,6 +44,13 @@
 - `Match` for pattern matching
 - Prefer functional over imperative
 
+### Networking/Socket Handling
+- Socket resources: Use `Effect.acquireRelease` for managing socket lifecycles, with async opening and synchronous closing
+- Connection states: For "opening" readyState, listen to 'connect' (success), 'error' (failure), and 'close' (failure/cleanup) events
+- Event cleanup: Always remove all event listeners in cleanup functions to prevent memory leaks
+- Timeout handling: 'timeout' event only emitted if `socket.setTimeout()` is called; connection failures are covered by 'error' event
+- Write operations: Check `socket.writable` before writing, handle errors in async callbacks
+
 ### Testing
 - `test.effect` for Effect tests
 - `expect` assertions
@@ -57,6 +64,7 @@
 - Effect patterns: `Effect.Service` DI, Schema validation, Layer composition
 - Functional patterns preferred
 - RESP parsing with schemas, job queues, KV with TTL/cleanup
+- Socket handling: Separate concerns with dedicated functions for resource creation, writing, and data handling
 
 ### Reference Libraries
 In `.agents/reference/`, LLMs may find used libraries for reference.

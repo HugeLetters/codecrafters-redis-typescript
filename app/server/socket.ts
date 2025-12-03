@@ -3,24 +3,52 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
-
 import { Logger } from "$/utils/logger";
 
+class SocketConnectionError extends Data.TaggedError("SocketConnection")<{
+	message: string;
+}> {}
+
 export function createSocketResource(socket: Socket) {
-	const openSocket = Effect.async<Socket>((resume) => {
-		if (socket.readyState === "open") {
-			resume(Effect.succeed(socket));
-			return;
-		}
+	const openSocket = Effect.async<Socket, SocketConnectionError>((resume) => {
+		switch (socket.readyState) {
+			case "opening": {
+				function handleConnection() {
+					resume(Effect.succeed(socket));
+				}
+				function handleError() {
+					resume(new SocketConnectionError({ message: "Connection failed" }));
+				}
+				function handleClose() {
+					resume(
+						new SocketConnectionError({
+							message: "Connection closed before establishing",
+						}),
+					);
+				}
 
-		function handleConnection() {
-			resume(Effect.succeed(socket));
+				socket.once("connect", handleConnection);
+				socket.once("error", handleError);
+				socket.once("close", handleClose);
+				return Effect.sync(() => {
+					socket.off("connect", handleConnection);
+					socket.off("error", handleError);
+					socket.off("close", handleClose);
+				});
+			}
+			case "open":
+			case "readOnly":
+			case "writeOnly":
+				resume(Effect.succeed(socket));
+				return;
+			case "closed":
+				resume(
+					new SocketConnectionError({ message: "Socket is already closed" }),
+				);
+				return;
+			default:
+				return socket.readyState satisfies never;
 		}
-
-		socket.once("connect", handleConnection);
-		return Effect.sync(() => {
-			socket.off("connect", handleConnection);
-		});
 	}).pipe(Logger.logInfo.tap("Connected"));
 
 	return openSocket.pipe(
@@ -42,12 +70,12 @@ export function createSocketResource(socket: Socket) {
 
 export function writeToSocket(socket: Socket, data: string) {
 	if (!socket.writable) {
-		return Effect.fail(new SocketWriteError());
+		return new SocketWriteError();
 	}
 
 	return Effect.async<void, SocketWriteError>((resume) => {
 		socket.write(data, (err) => {
-			const result = err ? Effect.fail(new SocketWriteError()) : Effect.void;
+			const result = err ? new SocketWriteError() : Effect.void;
 			resume(result);
 		});
 	});

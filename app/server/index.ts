@@ -44,6 +44,9 @@ export const runSocketHandler = Effect.fn(function* <R>(
 		const onConnection = Fn.flow(
 			createSocketResource,
 			Effect.flatMap(handler),
+			Effect.catchTag("SocketConnection", (e) =>
+				Effect.logError("Provided socket is not able to connect", e),
+			),
 			logDefect,
 			Effect.withSpan("socket.connection"),
 			Effect.scoped,
