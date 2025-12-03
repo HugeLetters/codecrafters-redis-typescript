@@ -4,6 +4,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as Iterable from "effect/Iterable";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
@@ -240,6 +241,7 @@ export namespace CommandArg {
 		}> {
 			override message =
 				`Received ${Resp.format(this.argument)} key with a non-string value`;
+			override cause = null;
 		}
 
 		export class InvalidArgument<E> extends Data.TaggedError(
@@ -257,12 +259,34 @@ export namespace CommandArg {
 			arguments: ReadonlyArray<string>;
 		}> {
 			override message = `Unexpected argument(s): ${this.arguments.join(", ")}`;
+			override cause = null;
 		}
 
 		export class MissingArguments extends Data.TaggedError("MissingArguments")<{
 			arguments: ReadonlyArray<string>;
 		}> {
 			override message = `Argument(s) not found: ${this.arguments.join(", ")}`;
+			override cause = null;
+		}
+
+		export function format<E>(error: t<E>, format: (cause: E) => string) {
+			return Match.value(error).pipe(
+				Match.withReturnType<string>(),
+				Match.tagsExhaustive({
+					InvalidArgument(e) {
+						return `${e.message}\ncaused by ${format(e.cause)}`;
+					},
+					InvalidArgumentKey(e) {
+						return e.message;
+					},
+					MissingArguments(e) {
+						return e.message;
+					},
+					UnrecognizedArguments(e) {
+						return e.message;
+					},
+				}),
+			);
 		}
 	}
 }
