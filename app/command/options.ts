@@ -102,6 +102,10 @@ export namespace CommandOption {
 		return out;
 	}
 
+	export function optionalOrUndefined<A, E, R>(option: t<A, E, R>) {
+		return map(optional(option), Option.getOrUndefined);
+	}
+
 	export function withDefault<A, E, R>(option: t<A, E, R>, fallback: A) {
 		return map(
 			optional(option),
