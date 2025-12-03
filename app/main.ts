@@ -81,7 +81,7 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
 const CommandProcessorLive = Command.Processor.Default.pipe(
-	Layer.provide([KV.Default, AppConfig.Default]),
+	Layer.provide([KV.KvStorage.Default, AppConfig.Default]),
 );
 
 main.pipe(

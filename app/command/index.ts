@@ -22,7 +22,7 @@ export namespace Command {
 		"@command/Processor",
 		{
 			effect: Effect.gen(function* () {
-				const kv = yield* KV;
+				const kv = yield* KV.KvStorage;
 				const runtimeConfig = yield* AppConfig;
 				return {
 					process: Match.type<Input>().pipe(
