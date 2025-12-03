@@ -9,6 +9,6 @@ const PORT = Schema.Config("PORT", IntegerFromString).pipe(
 	Config.withDefault(defaultPort),
 );
 
-const AppConfig = Config.all({ HOST, PORT });
+const ServerConfig = Config.all({ HOST, PORT });
 
-export { AppConfig as Config };
+export { ServerConfig as Config };

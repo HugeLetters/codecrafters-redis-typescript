@@ -8,7 +8,7 @@ import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
 import { createSocketResource, type Socket } from "./socket";
 
-const serverResource = Effect.gen(function* () {
+const ServerResource = Effect.gen(function* () {
 	const config = yield* Config;
 
 	const server = Effect.async<Server>(function (resume) {
@@ -35,10 +35,10 @@ const serverResource = Effect.gen(function* () {
 	);
 }).pipe(Logger.withSpan("server"));
 
-export const runSocketHandler = Effect.fn(function* <R = never>(
+export const runSocketHandler = Effect.fn(function* <R>(
 	handler: (socket: Socket) => Effect.Effect<void, never, Scope.Scope | R>,
 ) {
-	const server = yield* serverResource;
+	const server = yield* ServerResource;
 	const run = yield* FiberSet.makeRuntime<R, void, never>();
 	return yield* Effect.async<never>(() => {
 		const onConnection = Fn.flow(

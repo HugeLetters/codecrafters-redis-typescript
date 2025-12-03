@@ -7,7 +7,7 @@ import * as Fn from "effect/Function";
 import { Logger } from "$/utils/logger";
 
 export function createSocketResource(socket: Socket) {
-	const openSocketResource = Effect.async<Socket>((resume) => {
+	const openSocket = Effect.async<Socket>((resume) => {
 		if (socket.readyState === "open") {
 			resume(Effect.succeed(socket));
 			return;
@@ -23,7 +23,7 @@ export function createSocketResource(socket: Socket) {
 		});
 	}).pipe(Logger.logInfo.tap("Connected"));
 
-	return openSocketResource.pipe(
+	return openSocket.pipe(
 		Effect.acquireRelease((socket) => {
 			return Effect.async<void>((resume) => {
 				if (socket.readyState === "closed") {
