@@ -45,9 +45,11 @@ export namespace CommandArg {
 		return Fn.pipe(
 			make({
 				run([value, ...left]) {
-					return Option.fromNullable(value).pipe(
-						Option.map((value) => ({ value, left })),
-					);
+					if (!value) {
+						return new Cause.NoSuchElementException("Value is missing");
+					}
+
+					return Effect.succeed({ value, left });
 				},
 			}),
 			(_) => filter(_, Predicate.isString),
