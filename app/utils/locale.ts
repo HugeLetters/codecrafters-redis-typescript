@@ -10,9 +10,9 @@ const PluralRule = new Intl.PluralRules("en");
 
 export function createPluralizer(mapper: PluralMapper) {
 	return function (count: number): string {
-		const s = PluralRule.select(count);
+		const rule = PluralRule.select(count);
 
-		switch (s) {
+		switch (rule) {
 			case "zero":
 				return mapper.zero ?? mapper.few ?? mapper.two ?? mapper.many;
 			case "one":

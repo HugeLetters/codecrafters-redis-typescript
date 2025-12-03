@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Record from "effect/Record";
 
-import { argvConfigProvider } from "$/utils/config";
+import { argvConfigProvider } from "$/utils/config/argv";
 import { Config } from "./config";
 
 export class AppConfig extends Effect.Service<AppConfig>()(
