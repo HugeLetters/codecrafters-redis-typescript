@@ -5,7 +5,7 @@ import * as Match from "effect/Match";
 import * as Num from "effect/Number";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
-import { RuntimeConfig } from "$/config";
+import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Resp } from "$/schema/resp";
 import { CommandOption } from "./options";
@@ -23,7 +23,7 @@ export namespace Command {
 		{
 			effect: Effect.gen(function* () {
 				const kv = yield* KV;
-				const runtimeConfig = yield* RuntimeConfig;
+				const runtimeConfig = yield* AppConfig;
 				return {
 					process: Match.type<Input>().pipe(
 						Match.withReturnType<Effect.Effect<Success, Error>>(),

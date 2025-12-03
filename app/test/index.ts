@@ -1,6 +1,5 @@
 import { expect } from "bun:test";
 import { fail } from "node:assert/strict";
-import { inspect } from "bun";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Fn from "effect/Function";
@@ -14,7 +13,7 @@ export function expectFail<E, R>(self: Effect.Effect<unknown, E, R>) {
 }
 
 const unexpectedSuccess = Fn.flow(
-	(v) => inspect(v, { colors: true, depth: 10 }),
+	(v) => Bun.inspect(v, { colors: true, depth: 10 }),
 	(v) => `Expected effect to fail. Received: ${v}`,
 	(m) => fail(m),
 );

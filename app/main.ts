@@ -17,7 +17,7 @@ import {
 import { JobQueue } from "$/utils/job-queue";
 import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
-import { RuntimeConfig } from "./config";
+import { AppConfig } from "./config";
 
 const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
@@ -81,7 +81,7 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
 const CommandProcessorLive = Command.Processor.Default.pipe(
-	Layer.provide([KV.Default, RuntimeConfig.Default]),
+	Layer.provide([KV.Default, AppConfig.Default]),
 );
 
 main.pipe(

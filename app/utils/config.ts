@@ -1,4 +1,3 @@
-import { argv } from "bun";
 import * as Arr from "effect/Array";
 import type * as Config from "effect/Config";
 import * as ConfigError from "effect/ConfigError";
@@ -107,7 +106,7 @@ function parseArgv() {
 	const args = HashMap.empty<string, ReadonlyArray<string>>();
 	const currentKey = Option.none<string>();
 	const result = Iterable.reduce(
-		argv.slice(2),
+		Bun.argv.slice(2),
 		{ args, currentKey },
 		(acc, chunk) => {
 			if (chunk.startsWith("-")) {

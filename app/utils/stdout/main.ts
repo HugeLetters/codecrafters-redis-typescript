@@ -1,7 +1,5 @@
-import { color } from "bun";
-
 function ansiColor(colorName: string) {
-	return color(colorName, "ansi");
+	return Bun.color(colorName, "ansi");
 }
 
 export function colored(color: string, message: unknown) {

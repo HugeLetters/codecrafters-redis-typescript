@@ -1,4 +1,3 @@
-import { color, randomUUIDv7 } from "bun";
 import * as Arr from "effect/Array";
 import * as Fn from "effect/Function";
 import { Box, render, Text, useInput, useStdout } from "ink";
@@ -16,7 +15,7 @@ function App() {
 
 	const addLog = useCallback((log: StrictOmit<Log, "id">) => {
 		setLogs((logs) =>
-			Arr.takeRight([...logs, { id: randomUUIDv7(), ...log }], 500),
+			Arr.takeRight([...logs, { id: Bun.randomUUIDv7(), ...log }], 500),
 		);
 	}, []);
 
@@ -194,7 +193,7 @@ type Log = {
 	type: LogType;
 };
 function rbgColor(value: string) {
-	return color(value, "rgb") ?? undefined;
+	return Bun.color(value, "rgb") ?? undefined;
 }
 const logTypeColor = Fn.flow(
 	function (logType: LogType) {
