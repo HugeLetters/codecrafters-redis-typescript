@@ -9,6 +9,7 @@ import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
+import type * as SchemaAST from "effect/SchemaAST";
 import type * as Types from "effect/Types";
 import { Resp } from "$/schema/resp";
 
@@ -51,6 +52,12 @@ export namespace CommandOption {
 				return Effect.succeed({ value, left });
 			},
 		});
+	}
+
+	export function literal<
+		T extends ReadonlyArray<Resp.RespValue & SchemaAST.LiteralValue>,
+	>(...values: T) {
+		return withSchema(single(), Schema.Literal(...values));
 	}
 
 	export function string() {
