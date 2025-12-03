@@ -57,3 +57,6 @@
 - Effect patterns: `Effect.Service` DI, Schema validation, Layer composition
 - Functional patterns preferred
 - RESP parsing with schemas, job queues, KV with TTL/cleanup
+
+### Reference Libraries
+In `.agents/reference/`, LLMs may find used libraries for reference.
