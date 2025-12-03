@@ -1,28 +1,31 @@
 import * as Arr from "effect/Array";
+import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as Iterable from "effect/Iterable";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 import type * as Types from "effect/Types";
+import { Resp } from "$/schema/resp";
 
 export namespace CommandArg {
 	export interface ArgumentResult<T> {
 		readonly value: T;
-		readonly left: ReadonlyArray<string> | null;
+		readonly left: ReadonlyArray<Resp.RespValue> | null;
 	}
-	type RunArgument<T, E, R> = (
-		args: ReadonlyArray<string>,
+	type ArgumentRunner<T, E, R> = (
+		args: ReadonlyArray<Resp.RespValue>,
 	) => Effect.Effect<ArgumentResult<T>, E, R>;
 
 	export interface t<T, E = never, R = never> {
-		run: RunArgument<T, E, R>;
+		run: ArgumentRunner<T, E, R>;
 		default?: Effect.Effect<T, E, R> | undefined;
 	}
 
-	export function make<T = never, E = never, R = never>(
+	export function make<T, E = never, R = never>(
 		config: t<T, E, R>,
 	): t<T, E, R> {
 		return config;
@@ -38,13 +41,16 @@ export namespace CommandArg {
 	}
 
 	export function string() {
-		return make({
-			run([value, ...left]) {
-				return Option.fromNullable(value).pipe(
-					Option.map((value) => ({ value, left })),
-				);
-			},
-		});
+		return Fn.pipe(
+			make({
+				run([value, ...left]) {
+					return Option.fromNullable(value).pipe(
+						Option.map((value) => ({ value, left })),
+					);
+				},
+			}),
+			(_) => filter(_, Predicate.isString),
+		);
 	}
 
 	export function mapEffect<A, B, E, R, E2, R2>(
@@ -66,32 +72,48 @@ export namespace CommandArg {
 		return mapEffect(arg, (value) => Effect.succeed(map(value)));
 	}
 
-	export function withSchema<A, B, E, R, R2>(
+	export function withSchema<A, E, R, TSchema extends Schema.Schema.Any>(
 		arg: t<A, E, R>,
-		schema: Schema.Schema<B, A, R2>,
+		schema: TSchema,
 	) {
-		const decode = Schema.decode(schema);
+		const decode = Schema.decodeUnknown(Schema.asSchema(schema));
 		return mapEffect(arg, (value) => decode(value));
 	}
 
-	export function optional<I, E, R>(arg: t<I, E, R>) {
+	export function filter<A, E, R, B extends A>(
+		arg: t<A, E, R>,
+		predicate: Predicate.Refinement<A, B>,
+	) {
+		return mapEffect(arg, (value) =>
+			predicate(value)
+				? Effect.succeed(value)
+				: new Cause.NoSuchElementException(
+						`Does not match argument filter: ${Bun.inspect(value)}`,
+					),
+		);
+	}
+
+	export function optional<A, E, R>(arg: t<A, E, R>) {
 		const out = map(arg, (v) => Option.some(v));
 		out.default ??= Effect.succeed(Option.none());
 		return out;
 	}
 
-	export function withDefault<I, E, R>(arg: t<I, E, R>, fallback: I) {
+	export function withDefault<A, E, R>(arg: t<A, E, R>, fallback: A) {
 		return map(
 			optional(arg),
 			Option.getOrElse(() => fallback),
 		);
 	}
 
-	type ArgumentSchema<T, E, R> = Record.ReadonlyRecord<string, t<T, E, R>>;
+	export type ArgumentSchema<T, E, R> = Record.ReadonlyRecord<
+		string,
+		t<T, E, R>
+	>;
 	type ResolveArgumentConfig<
 		TConfig extends ArgumentSchema<unknown, unknown, unknown>,
 	> = {
-		readonly [K in keyof TConfig]: TConfig[K]["run"] extends RunArgument<
+		readonly [K in keyof TConfig]: TConfig[K]["run"] extends ArgumentRunner<
 			infer R,
 			unknown,
 			unknown
@@ -108,7 +130,7 @@ export namespace CommandArg {
 		TEffect extends ArgumentSchemaEffect<TSchema>,
 		E extends Effect.Effect.Error<TEffect>,
 		R extends Effect.Effect.Context<TEffect>,
-	>(args: ReadonlyArray<string>, schema: TSchema) {
+	>(args: ReadonlyArray<Resp.RespValue>, schema: TSchema) {
 		type Result = Types.Simplify<ResolveArgumentConfig<TSchema>>;
 
 		return Effect.gen(function* (): Effect.fn.Return<Result, Error.t<E>, R> {
@@ -130,6 +152,9 @@ export namespace CommandArg {
 				Arr.isNonEmptyReadonlyArray(remaining)
 			) {
 				const [argKey, ...rest] = remaining;
+				if (!Predicate.isString(argKey)) {
+					return yield* new Error.InvalidArgumentKey({ argument: argKey });
+				}
 
 				const normalizedArgKey = argKey.toUpperCase();
 				const meta = unvisitedArgs.get(normalizedArgKey);
@@ -181,18 +206,41 @@ export namespace CommandArg {
 			}
 
 			if (Arr.isNonEmptyReadonlyArray(remaining)) {
-				return yield* new Error.UnrecognizedArguments({ arguments: remaining });
+				return yield* new Error.UnrecognizedArguments({
+					arguments: remaining.map((v) => Bun.inspect(v)),
+				});
 			}
 
 			return parsed as Result;
 		});
 	}
 
+	export function parser<
+		TSchema extends ArgumentSchema<unknown, E, R>,
+		TEffect extends ArgumentSchemaEffect<TSchema>,
+		E extends Effect.Effect.Error<TEffect>,
+		R extends Effect.Effect.Context<TEffect>,
+	>(schema: TSchema) {
+		return function (args: ReadonlyArray<Resp.RespValue>) {
+			return parse<TSchema, TEffect, E, R>(args, schema);
+		};
+	}
+
 	export namespace Error {
 		export type t<E> =
+			| InvalidArgumentKey
 			| InvalidArgument<E>
 			| UnrecognizedArguments
 			| MissingArguments;
+
+		export class InvalidArgumentKey extends Data.TaggedError(
+			"InvalidArgumentKey",
+		)<{
+			argument: Resp.RespValue;
+		}> {
+			override message =
+				`Received ${Resp.format(this.argument)} key with a non-string value`;
+		}
 
 		export class InvalidArgument<E> extends Data.TaggedError(
 			"InvalidArgument",

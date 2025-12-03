@@ -1,8 +1,10 @@
 import { describe, expect } from "bun:test";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as Option from "effect/Option";
 import { ParseError } from "effect/ParseResult";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { test } from "$/test";
 import { CommandArg } from "./args";
@@ -247,6 +249,35 @@ describe("CommandArg", () => {
 				Effect.flip,
 			);
 			expect(result).toBeInstanceOf(CommandArg.Error.InvalidArgument);
+		});
+	});
+
+	describe("filter", () => {
+		test.effect("passes when predicate matches", function* () {
+			const string = pipe(
+				CommandArg.make({
+					run: () => Effect.succeed({ value: "string", left: [] }),
+				}),
+				(_) => CommandArg.filter(_, Predicate.isString),
+			);
+			const config = { name: string };
+			const result = yield* CommandArg.parse(["name"], config);
+			expect(result.name).toBe("string");
+		});
+
+		test.effect("fails when predicate does not match", function* () {
+			const string = pipe(
+				CommandArg.make({
+					run: () => Effect.succeed({ value: 10, left: [] }),
+				}),
+				(_) => CommandArg.filter(_, Predicate.isString),
+			);
+			const config = { name: string };
+			const result = yield* CommandArg.parse(["name"], config).pipe(
+				Effect.flip,
+			);
+			expect(result).toBeInstanceOf(CommandArg.Error.InvalidArgument);
+			expect(result.cause).toBeInstanceOf(Cause.NoSuchElementException);
 		});
 	});
 });
