@@ -20,5 +20,8 @@
 	},
 	"editor.codeActionsOnSave": {
 		"source.organizeImports.biome": "always"
+	},
+	"search.exclude": {
+		".agents/reference": true
 	}
 }
