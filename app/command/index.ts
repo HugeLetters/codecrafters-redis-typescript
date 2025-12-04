@@ -7,15 +7,15 @@ import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
-import { Resp } from "$/schema/resp";
+import { Protocol } from "$/protocol";
 import { CommandOption } from "./options";
 
 export namespace Command {
-	export type Input = Resp.RespValue;
+	export type Input = Protocol.Decoded;
 	export type RunProcessor = Processor["process"];
 	export type Result = ReturnType<RunProcessor>;
-	export type Success = Resp.RespValue;
-	export type Error = Resp.Error;
+	export type Success = Protocol.Decoded;
+	export type Error = Protocol.Error;
 	export type Context = Effect.Effect.Context<Result>;
 
 	export class Processor extends Effect.Service<Processor>()(
@@ -47,7 +47,7 @@ export namespace Command {
 									const opts = yield* parseSetOptions(rest).pipe(
 										Effect.mapError(
 											(message) =>
-												new Resp.Error({
+												new Protocol.Error({
 													message: `SET: ${formatCommandOptionError(message)}`,
 												}),
 										),
@@ -69,7 +69,7 @@ export namespace Command {
 							fail(`Unexpected command: ${command}`),
 						),
 						Match.orElse((value) =>
-							fail(`Unexpected input: ${Resp.format(value)}`),
+							fail(`Unexpected input: ${Protocol.format(value)}`),
 						),
 					),
 				};
@@ -78,7 +78,7 @@ export namespace Command {
 	) {}
 
 	function fail(message: string) {
-		return Effect.fail(new Resp.Error({ message }));
+		return Effect.fail(new Protocol.Error({ message }));
 	}
 
 	const parseSetOptions = CommandOption.parser({

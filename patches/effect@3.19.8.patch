@@ -1,3 +1,6 @@
+diff --git a/node_modules/effect/.bun-tag-d37b1da431ee30b5 b/.bun-tag-d37b1da431ee30b5
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/dts/Match.d.ts b/dist/dts/Match.d.ts
 index 3f7e9d2ef7076ec7c6e5acbe7853b0e3b4ce543f..fed0282da3f9c9af98768583043a5eafda8541b8 100644
 --- a/dist/dts/Match.d.ts
@@ -21,3 +24,20 @@ index 3f7e9d2ef7076ec7c6e5acbe7853b0e3b4ce543f..fed0282da3f9c9af98768583043a5eaf
  }
  //# sourceMappingURL=Match.d.ts.map
 \ No newline at end of file
+diff --git a/dist/esm/SchemaAST.js b/dist/esm/SchemaAST.js
+index cc41d9c000571686b9db88d679f0995c83f67a85..372e7561e55f29a1dddb83c94b43b6303bd40d4d 100644
+--- a/dist/esm/SchemaAST.js
++++ b/dist/esm/SchemaAST.js
+@@ -960,7 +960,11 @@ export class TemplateLiteral {
+     };
+   }
+ }
+-const formatTemplateLiteral = ast => "`" + ast.head + ast.spans.map(String).join("") + "`";
++function rawString(string) {
++  const formatted = Inspectable.formatUnknown(string);
++  return formatted.slice(1, formatted.length - 1);
++}
++const formatTemplateLiteral = ast => "`" + rawString(ast.head) + ast.spans.map(String).join("") + "`";
+ /**
+  * @category guards
+  * @since 3.10.0

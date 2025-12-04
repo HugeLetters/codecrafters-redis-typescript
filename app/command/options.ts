@@ -11,15 +11,15 @@ import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
 import type * as Types from "effect/Types";
-import { Resp } from "$/schema/resp";
+import { Protocol } from "$/protocol";
 
 export namespace CommandOption {
 	interface OptionResult<T> {
 		readonly value: T;
-		readonly left: ReadonlyArray<Resp.RespValue> | null;
+		readonly left: ReadonlyArray<Protocol.Decoded> | null;
 	}
 	type OptionRunner<T, E, R> = (
-		options: ReadonlyArray<Resp.RespValue>,
+		options: ReadonlyArray<Protocol.Decoded>,
 	) => Effect.Effect<OptionResult<T>, E, R>;
 
 	export interface t<T, E = never, R = never> {
@@ -55,7 +55,7 @@ export namespace CommandOption {
 	}
 
 	export function literal<
-		T extends ReadonlyArray<Resp.RespValue & SchemaAST.LiteralValue>,
+		T extends ReadonlyArray<Protocol.Decoded & SchemaAST.LiteralValue>,
 	>(...values: T) {
 		return withSchema(single(), Schema.Literal(...values));
 	}
@@ -142,7 +142,7 @@ export namespace CommandOption {
 		TEffect extends OptionSchemaEffect<TSchema>,
 		E extends Effect.Effect.Error<TEffect>,
 		R extends Effect.Effect.Context<TEffect>,
-	>(options: ReadonlyArray<Resp.RespValue>, schema: TSchema) {
+	>(options: ReadonlyArray<Protocol.Decoded>, schema: TSchema) {
 		type Result = Types.Simplify<ResolveoptionConfig<TSchema>>;
 
 		return Effect.gen(function* (): Effect.fn.Return<Result, Error.t<E>, R> {
@@ -233,7 +233,7 @@ export namespace CommandOption {
 		E extends Effect.Effect.Error<TEffect>,
 		R extends Effect.Effect.Context<TEffect>,
 	>(schema: TSchema) {
-		return function (options: ReadonlyArray<Resp.RespValue>) {
+		return function (options: ReadonlyArray<Protocol.Decoded>) {
 			return parse<TSchema, TEffect, E, R>(options, schema);
 		};
 	}
@@ -246,10 +246,10 @@ export namespace CommandOption {
 			| MissingOptions;
 
 		export class InvalidOption extends Data.TaggedError("InvalidOptionKey")<{
-			option: Resp.RespValue;
+			option: Protocol.Decoded;
 		}> {
 			override message =
-				`Received ${Resp.format(this.option)} key with a non-string value`;
+				`Received ${Protocol.format(this.option)} key with a non-string value`;
 			override cause = null;
 		}
 

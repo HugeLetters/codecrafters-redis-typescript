@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
 import * as Schema from "effect/Schema";
-import { Resp } from "$/schema/resp";
+import { Protocol } from "$/protocol";
 import { Config } from "$/server/config";
 
 interface SocketEventMap {
@@ -18,11 +18,11 @@ interface RawClient {
 }
 
 export interface Client {
-	write: (data: Resp.RespValue) => void;
+	write: (data: Protocol.Decoded) => void;
 	close: () => void;
 }
 interface SocketOptions {
-	onMessage: (message: Resp.RespValue) => void;
+	onMessage: (message: Protocol.Decoded) => void;
 	onError: (error: string) => void;
 	onStatusChange: (status: string) => void;
 	onClientReady: (client: Client) => void;
@@ -138,8 +138,8 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	yield* dataConsumer;
 });
 
-const decodeResp = Schema.decode(Resp.RespValue);
-const encodeResp = Schema.encode(Resp.RespValue);
+const decodeResp = Schema.decode(Protocol.Schema);
+const encodeResp = Schema.encode(Protocol.Schema);
 
 export const createSocket = Fn.flow(
 	initializeSocket,

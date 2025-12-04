@@ -2,7 +2,7 @@ import * as Arr from "effect/Array";
 import * as Fn from "effect/Function";
 import { Box, render, Text, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
-import { Resp } from "$/schema/resp";
+import { Protocol } from "$/protocol";
 import type { StrictOmit } from "$/utils/type";
 import { type Client, createSocket } from "./socket";
 
@@ -28,7 +28,7 @@ function App() {
 				setClient(newClient);
 			},
 			onMessage(message) {
-				addLog({ type: LogType.INCOMING, content: Resp.format(message) });
+				addLog({ type: LogType.INCOMING, content: Protocol.format(message) });
 			},
 			onStatusChange(status) {
 				setStatus(status);
@@ -51,7 +51,7 @@ function App() {
 		}
 
 		const message = command.command();
-		addLog({ type: LogType.OUTGOING, content: Resp.format(message) });
+		addLog({ type: LogType.OUTGOING, content: Protocol.format(message) });
 		client?.write(message);
 	});
 
@@ -121,7 +121,7 @@ function App() {
 
 interface PresetCommand {
 	label: string;
-	command: () => Resp.RespValue;
+	command: () => Protocol.Decoded;
 }
 const PRESET_COMMANDS: Record<string, PresetCommand> = {
 	1: {

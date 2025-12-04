@@ -5,9 +5,10 @@ import { flow } from "effect/Function";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import { Command } from "$/command";
+import { AppConfig } from "$/config";
 import { KV } from "$/kv";
+import { Protocol } from "$/protocol";
 import { Integer } from "$/schema/number";
-import { Resp } from "$/schema/resp";
 import { runSocketHandler } from "$/server";
 import {
 	runSocketDataHandler,
@@ -17,15 +18,14 @@ import {
 import { JobQueue } from "$/utils/job-queue";
 import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
-import { AppConfig } from "./config";
 
 const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
 });
 
-const encodeResp = Schema.encode(Resp.RespValue);
-const encodeRespValue = Effect.fn(function* (input: Resp.RespValue) {
-	yield* Logger.logInfo("Received", { data: Resp.format(input) });
+const encodeResp = Schema.encode(Protocol.Schema);
+const encodeRespValue = Effect.fn(function* (input: Protocol.Decoded) {
+	yield* Logger.logInfo("Received", { data: Protocol.format(input) });
 
 	const encoded = yield* encodeResp(input);
 	yield* Logger.logInfo("Encoded", { data: normalize(encoded) });
@@ -33,13 +33,13 @@ const encodeRespValue = Effect.fn(function* (input: Resp.RespValue) {
 	return encoded;
 }, Logger.withSpan("resp.encode"));
 
-const decodeResp = Schema.decode(Resp.RespValue);
+const decodeResp = Schema.decode(Protocol.Schema);
 const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
 	yield* Logger.logInfo("Received", { data: normalize(str) });
 
 	const decoded = yield* decodeResp(str);
-	yield* Logger.logInfo("Decoded", { data: Resp.format(decoded) });
+	yield* Logger.logInfo("Decoded", { data: Protocol.format(decoded) });
 
 	return decoded;
 }, Logger.withSpan("resp.decode"));
