@@ -39,24 +39,24 @@ describe("boolean", () => {
 		describe("is not decoded", () => {
 			test.effect("with malformed data", function* () {
 				const result = yield* $boolean.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $boolean.decodeFail("#t\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("from string", function* () {
 				const result = yield* $boolean.encodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect("from null", function* () {
 				const result = yield* $boolean.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "null");
 			});
 		});
 	});

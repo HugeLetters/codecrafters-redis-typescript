@@ -68,49 +68,49 @@ describe("Integer", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $int.decodeFail("123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 
 			test.effect("when doesnt end with crlf", function* () {
 				const result = yield* $int.decodeFail(":123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 
 			test.effect("when has invalid characters", function* () {
 				const result = yield* $int.decodeFail(":123a\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123a");
 			});
 
 			test.effect("when is decimal", function* () {
 				const result = yield* $int.decodeFail(":123.45\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123.45");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $int.decodeFail(":123\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("when input is string", function* () {
 				const result = yield* $int.encodeFail("abc");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "abc");
 			});
 
 			test.effect("when input is null", function* () {
 				const result = yield* $int.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "null");
 			});
 
 			test.effect("when input is undefined", function* () {
 				const result = yield* $int.encodeFail(undefined);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "undefined");
 			});
 
 			test.effect("when input is decimal", function* () {
 				const result = yield* $int.encodeFail(123.45);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123.45");
 			});
 		});
 	});

@@ -57,54 +57,57 @@ describe("BigNumber", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $bigNumber.decodeFail("123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("when doesnt end with crlf", function* () {
 				const result = yield* $bigNumber.decodeFail("(123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("when has invalid characters", function* () {
 				const result = yield* $bigNumber.decodeFail("(123a\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("when is decimal", function* () {
 				const result = yield* $bigNumber.decodeFail("(123.45\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("when missing parenthesis", function* () {
 				const result = yield* $bigNumber.decodeFail("123\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $bigNumber.decodeFail("(123\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(
+					result,
+					"Leftover data must be empty",
+				);
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("when input is string", function* () {
 				const result = yield* $bigNumber.encodeFail("abc");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected bigint");
 			});
 
 			test.effect("when input is null", function* () {
 				const result = yield* $bigNumber.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected bigint");
 			});
 
 			test.effect("when input is undefined", function* () {
 				const result = yield* $bigNumber.encodeFail(undefined);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected bigint");
 			});
 
 			test.effect("when input is decimal", function* () {
 				const result = yield* $bigNumber.encodeFail(123.45);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected bigint");
 			});
 		});
 	});

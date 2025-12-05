@@ -159,49 +159,49 @@ describe("Double", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $double.decodeFail("123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 
 			test.effect("when doesnt end with crlf", function* () {
 				const result = yield* $double.decodeFail(",123");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 
 			test.effect("when has invalid characters", function* () {
 				const result = yield* $double.decodeFail(",123a\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123a");
 			});
 
 			test.effect("when missing integral part", function* () {
 				const result = yield* $double.decodeFail(",.23\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, ".23");
 			});
 
 			test.effect("when missing comma prefix", function* () {
 				const result = yield* $double.decodeFail("1.23\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "1.23");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $double.decodeFail(",1.23e1\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("when input is string", function* () {
 				const result = yield* $double.encodeFail("abc");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "abc");
 			});
 
 			test.effect("when input is null", function* () {
 				const result = yield* $double.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "null");
 			});
 
 			test.effect("when input is undefined", function* () {
 				const result = yield* $double.encodeFail(undefined);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "undefined");
 			});
 		});
 	});

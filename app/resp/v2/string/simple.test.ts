@@ -27,22 +27,22 @@ describe("SimpleString", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $string.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect(`when contains ${RawCR}`, function* () {
 				const result = yield* $string.decodeFail("+O\nK\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "O\\nK");
 			});
 
 			test.effect(`when contains ${RawLF}`, function* () {
 				const result = yield* $string.decodeFail("+O\rK\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "O\\rK");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $string.decodeFail("+OK\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 	});
@@ -70,22 +70,22 @@ describe("ErrorFromSimpleString", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $error.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect(`when contains ${RawCR}`, function* () {
 				const result = yield* $error.decodeFail("-err\nor\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "err\\nor");
 			});
 
 			test.effect(`when contains ${RawLF}`, function* () {
 				const result = yield* $error.decodeFail("-err\ror\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "err\\ror");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $error.decodeFail("-err\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 	});

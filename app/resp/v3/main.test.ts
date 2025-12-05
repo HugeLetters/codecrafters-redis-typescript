@@ -74,7 +74,7 @@ describe("RespValue", () => {
 					]),
 				);
 				const result = yield* $resp.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 		});
 	});

@@ -82,66 +82,66 @@ describe("VerbatimString", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $string.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect("when length is too short", function* () {
 				const result = yield* $string.decodeFail("=10\r\ntxt:hello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "10");
 			});
 
 			test.effect("when length is too long", function* () {
 				const result = yield* $string.decodeFail("=8\r\ntxt:hello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "8");
 			});
 
 			test.effect("when missing data", function* () {
 				const result = yield* $string.decodeFail("=15\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "15");
 			});
 
 			test.effect("when missing initial =", function* () {
 				const result = yield* $string.decodeFail("9\r\ntxt:hello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "9");
 			});
 
 			test.effect("when missing trailing CRLF", function* () {
 				const result = yield* $string.decodeFail("=9\r\ntxt:hello");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "9");
 			});
 
 			test.effect("when encoding is not 3 chars", function* () {
 				const result = yield* $string.decodeFail("=10\r\ntext:hello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "text");
 			});
 
 			test.effect("when missing colon", function* () {
 				const result = yield* $string.decodeFail("=8\r\ntxthello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "txthello");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $string.decodeFail(
 					"=9\r\ntxt:hello\r\nleft\r\nover",
 				);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("when input is null", function* () {
 				const result = yield* $string.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "null");
 			});
 
 			test.effect("when input is undefined", function* () {
 				const result = yield* $string.encodeFail(undefined);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "undefined");
 			});
 
 			test.effect("when input is number", function* () {
 				const result = yield* $string.encodeFail(123);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 		});
 	});

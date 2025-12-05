@@ -50,14 +50,14 @@ describe("null", () => {
 		describe("is not decoded", () => {
 			test.effect("with malformed data", function* () {
 				const result = yield* $null.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("with string", function* () {
 				const result = yield* $null.encodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 		});
 	});

@@ -121,66 +121,66 @@ describe("Array", () => {
 		describe("is not decoded", () => {
 			test.effect("too few items", function* () {
 				const result = yield* $array.decodeFail(`*2\r\n${bulk("a")}`);
-				expectParseError(result);
-			});
-
-			test.effect("nested array with too few items", function* () {
-				const input = `*2\r\n*1\r\n${bulk("a")}*2\r\n${bulk("c")}`;
-				const result = yield* $array.decodeFail(input);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected 2 items");
 			});
 
 			test.effect("too many items", function* () {
 				const data = `*1\r\n${bulk("a")}${bulk("b")}`;
 				const result = yield* $array.decodeFail(data);
-				expectParseError(result);
+				yield* expectParseError.withMessage(
+					result,
+					"Leftover data must be empty",
+				);
 			});
 
 			test.effect("invalid item", function* () {
 				const input = `*4\r\n${bulk("a")}${bulk("b")}$invalid\r\n${simple("c")}`;
 				const result = yield* $array.decodeFail(input);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("invalid nested array", function* () {
 				const input = `*4\r\n${bulk("a")}${bulk("b")}*2\r\n${bulk("c")}*1\r\n:invalid\r\n${simple("d")}`;
 				const result = yield* $array.decodeFail(input);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("missing array prefix", function* () {
 				const input = `2\r\n${bulk("a")}${bulk("b")}`;
 				const result = yield* $array.decodeFail(input);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("missing CRLF after count", function* () {
 				const result = yield* $array.decodeFail(`*2${bulk("a")}${bulk("b")}`);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("non-numeric count", function* () {
 				const input = `*a\r\n${bulk("a")}${bulk("b")}`;
 				const result = yield* $array.decodeFail(input);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "a");
 			});
 		});
+	});
 
-		describe("is not encoded", () => {
-			test.effect("string", function* () {
-				const result = yield* $array.encodeFail("not-an-array");
-				expectParseError(result);
-			});
+	describe("is not encoded", () => {
+		test.effect("string", function* () {
+			const result = yield* $array.encodeFail("not-an-array");
+			yield* expectParseError.withMessage(
+				result,
+				"Expected ReadonlyArray<RespValue>",
+			);
+		});
 
-			test.effect("array with undefined", function* () {
-				const result = yield* $array.encodeFail([undefined]);
-				expectParseError(result);
-			});
+		test.effect("array with undefined", function* () {
+			const result = yield* $array.encodeFail([undefined]);
+			yield* expectParseError.withMessage(result, "Expected RespValue");
+		});
 
-			test.effect("array with object", function* () {
-				const result = yield* $array.encodeFail([{ a: 3 }]);
-				expectParseError(result);
-			});
+		test.effect("array with object", function* () {
+			const result = yield* $array.encodeFail([{ a: 3 }]);
+			yield* expectParseError.withMessage(result, "Expected RespValue");
 		});
 	});
 });

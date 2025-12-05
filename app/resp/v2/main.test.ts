@@ -35,7 +35,7 @@ describe("RespValue", () => {
 			test.effect("invalid value", function* () {
 				const encoded = arr([arr([arr([int(1), "invalid", int(2), int(3)])])]);
 				const result = yield* $resp.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 		});
 
@@ -43,7 +43,7 @@ describe("RespValue", () => {
 			test.effect("invalid value", function* () {
 				const encoded = [[[1, undefined, 2, 3]]];
 				const result = yield* $resp.encodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "undefined");
 			});
 		});
 	});

@@ -215,54 +215,57 @@ describe("Attribue", () => {
 			test.effect("too few items", function* () {
 				const encoded = `|2\r\n${simple("foo")}${int(1)}`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected");
 			});
 
 			test.effect("too many items", function* () {
 				const encoded = `|1\r\n${simple("foo")}${int(1)}${simple("bar")}${int(2)}`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(
+					result,
+					"Leftover data must be empty",
+				);
 			});
 
 			test.effect("invalid value type", function* () {
 				const encoded = `|1\r\n${simple("foo")}$invalid\r\n`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "has invalid value");
 			});
 
 			test.effect("missing map prefix", function* () {
 				const encoded = `1\r\n${simple("foo")}${int(1)}`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("missing CRLF after count", function* () {
 				const encoded = `|1${simple("foo")}${int(1)}`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 
 			test.effect("non-numeric count", function* () {
 				const encoded = `|a\r\n${simple("foo")}${int(1)}`;
 				const result = yield* $attr.decodeFail(encoded);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected string matching");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("string", function* () {
 				const result = yield* $attr.encodeFail("not-a-map");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected HashMap");
 			});
 
 			test.effect("map with undefined value", function* () {
 				const result = yield* $attr.encodeFail(hashmap([["foo", undefined]]));
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected RespValue");
 			});
 
 			test.effect("map with object value", function* () {
 				const result = yield* $attr.encodeFail(hashmap([["foo", { a: 3 }]]));
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "Expected RespValue");
 			});
 		});
 	});

@@ -66,69 +66,69 @@ describe("BulkString", () => {
 		describe("is not decoded", () => {
 			test.effect("when doesnt conform to schema", function* () {
 				const result = yield* $string.decodeFail("invalid");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "invalid");
 			});
 
 			test.effect("when missing data", function* () {
 				const result = yield* $string.decodeFail("$5\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "5\\r\\n");
 			});
 
 			test.effect("when missing initial $", function* () {
 				const result = yield* $string.decodeFail("5\r\nhello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "5\\r\\nhello\\r\\n");
 			});
 
 			test.effect("when missing trailing CRLF", function* () {
 				const result = yield* $string.decodeFail("$5\r\nhello");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "5\\r\\nhello");
 			});
 
 			test.effect("when length is too short", function* () {
 				const result = yield* $string.decodeFail("$10\r\nhello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "10");
 			});
 
 			test.effect("when length is too long", function* () {
 				const result = yield* $string.decodeFail("$2\r\nhello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "2");
 			});
 
 			test.effect("when length is incorrect with leftover", function* () {
 				const result = yield* $string.decodeFail("$5\r\nhel\r\nleftover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "5");
 			});
 
 			test.effect("when length is negative", function* () {
 				const result = yield* $string.decodeFail("$-1\r\nhello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "-1");
 			});
 
 			test.effect("when length is not a number", function* () {
 				const result = yield* $string.decodeFail("$abc\r\nhello\r\n");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "abc");
 			});
 
 			test.effect("with leftover", function* () {
 				const result = yield* $string.decodeFail("$5\r\nhello\r\nleft\r\nover");
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "left");
 			});
 		});
 
 		describe("is not encoded", () => {
 			test.effect("when input is null", function* () {
 				const result = yield* $string.encodeFail(null);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "null");
 			});
 
 			test.effect("when input is undefined", function* () {
 				const result = yield* $string.encodeFail(undefined);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "undefined");
 			});
 
 			test.effect("when input is number", function* () {
 				const result = yield* $string.encodeFail(123);
-				expectParseError(result);
+				yield* expectParseError.withMessage(result, "123");
 			});
 		});
 	});
