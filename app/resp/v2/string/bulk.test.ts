@@ -71,32 +71,43 @@ describe("BulkString", () => {
 
 			test.effect("when missing data", function* () {
 				const result = yield* $string.decodeFail("$5\r\n");
-				yield* expectParseError.withMessage(result, "5\\r\\n");
+				yield* expectParseError.withMessage(result, "5");
 			});
 
 			test.effect("when missing initial $", function* () {
 				const result = yield* $string.decodeFail("5\r\nhello\r\n");
-				yield* expectParseError.withMessage(result, "5\\r\\nhello\\r\\n");
+				yield* expectParseError.withMessage(result, "hello");
 			});
 
 			test.effect("when missing trailing CRLF", function* () {
 				const result = yield* $string.decodeFail("$5\r\nhello");
-				yield* expectParseError.withMessage(result, "5\\r\\nhello");
+				yield* expectParseError.withMessage(result, "hello");
 			});
+
+			test.effect(
+				"when missing trailing CRLF but with CRLF present in the string",
+				function* () {
+					const result = yield* $string.decodeFail("$7\r\nhello\r\n");
+					yield* expectParseError.withMessage(result, "7");
+				},
+			);
 
 			test.effect("when length is too short", function* () {
 				const result = yield* $string.decodeFail("$10\r\nhello\r\n");
 				yield* expectParseError.withMessage(result, "10");
+				yield* expectParseError.withMessage(result, "7");
 			});
 
 			test.effect("when length is too long", function* () {
 				const result = yield* $string.decodeFail("$2\r\nhello\r\n");
 				yield* expectParseError.withMessage(result, "2");
+				yield* expectParseError.withMessage(result, "ll");
 			});
 
 			test.effect("when length is incorrect with leftover", function* () {
-				const result = yield* $string.decodeFail("$5\r\nhel\r\nleftover");
+				const result = yield* $string.decodeFail("$5\r\nhel\r\nextra");
 				yield* expectParseError.withMessage(result, "5");
+				yield* expectParseError.withMessage(result, "ex");
 			});
 
 			test.effect("when length is negative", function* () {
@@ -112,6 +123,7 @@ describe("BulkString", () => {
 			test.effect("with leftover", function* () {
 				const result = yield* $string.decodeFail("$5\r\nhello\r\nleft\r\nover");
 				yield* expectParseError.withMessage(result, "left");
+				yield* expectParseError.withMessage(result, "over");
 			});
 		});
 
