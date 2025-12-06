@@ -1,7 +1,6 @@
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
-import * as Hash from "effect/Hash";
 import * as HashMap from "effect/HashMap";
 import * as HashSet from "effect/HashSet";
 import * as Iterable from "effect/Iterable";
@@ -161,7 +160,7 @@ export const RespValue = Schema.declare(
 	{ identifier: "RespValue" },
 );
 
-export type RespHashableValue =
+export type RespValue =
 	| string
 	| Str.VerbatimString
 	| Integer
@@ -171,14 +170,12 @@ export type RespHashableValue =
 	| boolean
 	| RespError
 	| RespMapValue
-	| RespSetValue;
+	| RespSetValue
+	| RespArrayValue;
 
 export type RespArrayValue = ReadonlyArray<RespValue>;
-
-export type RespMapValue = HashMap.HashMap<RespHashableValue, RespValue>;
-export type RespSetValue = HashSet.HashSet<RespHashableValue>;
-
-export type RespValue = RespHashableValue | RespArrayValue;
+export type RespMapValue = HashMap.HashMap<RespValue, RespValue>;
+export type RespSetValue = HashSet.HashSet<RespValue>;
 
 type Decoder<T> = (
 	value: string,
@@ -302,14 +299,6 @@ const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 		),
 	);
 };
-
-export function hashableRespValue(value: RespValue): RespHashableValue {
-	if (Arr.isArray<RespValue>(value)) {
-		return Hash.array(value.map(hashableRespValue));
-	}
-
-	return value;
-}
 
 export function formatRespValue(value: RespValue): string {
 	if (Arr.isArray<RespValue>(value)) {

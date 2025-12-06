@@ -1,11 +1,16 @@
 import { describe, expect } from "bun:test";
+import * as Data from "effect/Data";
+import * as HashSet from "effect/HashSet";
 import { RespError } from "$/resp/error";
 import {
+	arr,
 	bulk,
 	err,
+	hashmap,
 	hashset,
 	int,
 	null_,
+	respmap,
 	respset,
 	simple,
 } from "$/resp/test.utils";
@@ -15,6 +20,39 @@ import { RespSet } from "./set";
 
 describe("Set", () => {
 	const $set = createSchemaHelpers(RespSet);
+
+	test.effect("can check values by hash", function* () {
+		const encoded = respset([
+			arr([int(1), int(2)]),
+			respmap([[simple("key"), simple("value")]]),
+			bulk("string"),
+		]);
+		const result = yield* $set.decode(encoded);
+
+		expect(HashSet.has(result, Data.array([1, 2])), "Contains [1, 2]").toBe(
+			true,
+		);
+		expect(
+			HashSet.has(result, hashmap([["key", "value"]])),
+			"Contains HashMap<key ~> value>",
+		).toBe(true);
+		expect(HashSet.has(result, "string"), "Contains string").toBe(true);
+
+		expect(
+			HashSet.has(result, Data.array([1, 2, 3])),
+			"Does not contain [1, 2, 3]",
+		).toBe(false);
+		expect(
+			HashSet.has(
+				result,
+				hashmap([
+					["key", "value"],
+					["key2", "value"],
+				]),
+			),
+			"Does not contain HashMap<key ~> value, key2 ~> value>",
+		).toBe(false);
+	});
 
 	describe("with valid data", () => {
 		describe("is decoded", () => {

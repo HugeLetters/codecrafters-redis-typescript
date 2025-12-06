@@ -1,4 +1,5 @@
 import { regex } from "arkregex";
+import type * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as HashSet from "effect/HashSet";
@@ -20,7 +21,6 @@ import { normalize } from "$/utils/string";
 import {
 	decodeLeftoverValue,
 	formatRespValue,
-	hashableRespValue,
 	type RespSetValue,
 	RespValue,
 } from "../main";
@@ -108,7 +108,7 @@ export function decodeLeftoverSet(input: unknown, toAst: SchemaAST.AST) {
 				}),
 			);
 
-			set = HashSet.add(set, hashableRespValue(data));
+			set = HashSet.add(set, data);
 			encoded = leftover;
 		}
 
@@ -127,6 +127,15 @@ type RespSet = Schema.Schema<RespSetValue, string>;
 const NoLeftover = Schema.String.pipe(noLeftover(Fn.identity, "RespSet"));
 const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => Schema.HashSetFromSelf(RespValue));
+/**
+ * If stored value is an array - to perform operations with it, you need to pass an array created with {@link Data.array}
+ * @example
+ * const data = [1, 2, 3];
+ * const set = HashSet.make([data,'value'])
+ * const encoded = yield* Schema.encode(RespSet)(set);
+ * const decoded = yield* Schema.decode(RespSet)(encoded);
+ * console.log(HashSet.has(decoded, Data.array([1, 2, 3]))) // true
+ */
 export const RespSet: RespSet = Schema.declare(
 	[EncodingSchema],
 	{

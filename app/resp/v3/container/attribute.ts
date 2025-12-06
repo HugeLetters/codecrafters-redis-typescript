@@ -20,7 +20,6 @@ import { normalize } from "$/utils/string";
 import {
 	decodeLeftoverValue,
 	formatRespValue,
-	hashableRespValue,
 	type RespMapValue,
 	RespValue,
 } from "../main";
@@ -118,7 +117,7 @@ export function decodeLeftoverAttribute(input: unknown, toAst: SchemaAST.AST) {
 				}),
 			);
 
-			map = HashMap.set(map, hashableRespValue(key.data), value.data);
+			map = HashMap.set(map, key.data, value.data);
 			encoded = value.leftover;
 		}
 

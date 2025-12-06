@@ -1,4 +1,6 @@
 import { regex } from "arkregex";
+import * as Arr from "effect/Array";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as ParseResult from "effect/ParseResult";
@@ -78,7 +80,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
 
-		const array: Array<RespValue> = [];
+		const array = Arr.empty<RespValue>();
 		let encoded = items;
 		while (array.length !== length) {
 			if (encoded === "") {
@@ -108,7 +110,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 			encoded = leftover;
 		}
 
-		return { data: array, leftover: encoded };
+		return { data: Data.array(array), leftover: encoded };
 	});
 
 	return decodeResult.pipe(

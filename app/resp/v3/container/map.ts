@@ -1,4 +1,5 @@
 import { regex } from "arkregex";
+import type * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as HashMap from "effect/HashMap";
@@ -20,7 +21,6 @@ import { normalize } from "$/utils/string";
 import {
 	decodeLeftoverValue,
 	formatRespValue,
-	hashableRespValue,
 	type RespMapValue,
 	RespValue,
 } from "../main";
@@ -118,7 +118,7 @@ export function decodeLeftoverMap(input: unknown, toAst: SchemaAST.AST) {
 				}),
 			);
 
-			map = HashMap.set(map, hashableRespValue(key.data), value.data);
+			map = HashMap.set(map, key.data, value.data);
 			encoded = value.leftover;
 		}
 
@@ -139,6 +139,16 @@ const validateNoLeftover = ParseResult.validate(NoLeftover);
 const EncodingSchema = Schema.suspend(() => {
 	return Schema.HashMapFromSelf({ key: RespValue, value: RespValue });
 });
+
+/**
+ * If stored key is an array - to perform operations with it, you need to pass an array created with {@link Data.array}
+ * @example
+ * const data = [1, 2, 3];
+ * const map = HashMap.make([data,'value'])
+ * const encoded = yield* Schema.encode(RespMap)(map);
+ * const decoded = yield* Schema.decode(RespMap)(encoded);
+ * console.log(HashMap.has(decoded, Data.array([1, 2, 3]))) // true
+ */
 export const RespMap: RespMap = Schema.declare(
 	[EncodingSchema],
 	{
