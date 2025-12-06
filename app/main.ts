@@ -23,22 +23,22 @@ const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
 });
 
-const encodeResp = Schema.encode(Protocol.Schema);
-const encodeRespValue = Effect.fn(function* (input: Protocol.Decoded) {
+const encodeProtocolValue = Schema.encode(Protocol.Schema);
+const encodeResponse = Effect.fn(function* (input: Protocol.Decoded) {
 	yield* Logger.logInfo("Received", { data: Protocol.format(input) });
 
-	const encoded = yield* encodeResp(input);
+	const encoded = yield* encodeProtocolValue(input);
 	yield* Logger.logInfo("Encoded", { data: normalize(encoded) });
 
 	return encoded;
 }, Logger.withSpan("resp.encode"));
 
-const decodeResp = Schema.decode(Protocol.Schema);
-const decodeRespBuffer = Effect.fn(function* (buffer: Buffer) {
+const decodeProtocolValue = Schema.decode(Protocol.Schema);
+const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
 	yield* Logger.logInfo("Received", { data: normalize(str) });
 
-	const decoded = yield* decodeResp(str);
+	const decoded = yield* decodeProtocolValue(str);
 	yield* Logger.logInfo("Decoded", { data: Protocol.format(decoded) });
 
 	return decoded;
@@ -50,11 +50,22 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 	const handleCommand = flow(
 		command.process,
 		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
-		Effect.flatMap(encodeRespValue),
+		Effect.flatMap(encodeResponse),
+		Effect.catchTag("ParseError", (error) => {
+			return Logger.logError("Invalid Response", { error: error.message }).pipe(
+				Effect.andThen(
+					encodeProtocolValue(
+						new Protocol.Error({ message: "Internal Error" }),
+					),
+				),
+			);
+		}),
 		Effect.flatMap((data) => writeToSocket(socket, data)),
 		Effect.catchTags({
 			ParseError(error) {
-				return Logger.logError("Invalid Response", { error: error.message });
+				return Logger.logFatal("Failed to send a default error", {
+					error: error.message,
+				});
 			},
 			SocketWrite(error) {
 				return Logger.logError("Socket write failed", { error: error.message });
@@ -64,7 +75,7 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 	);
 
 	const enqueueMessage = flow(
-		decodeRespBuffer,
+		decodeBuffer,
 		Effect.flatMap(
 			flow(handleCommand, (job) => JobQueue.offer(messageQueue, job)),
 		),
