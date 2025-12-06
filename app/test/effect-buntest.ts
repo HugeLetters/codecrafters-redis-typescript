@@ -166,9 +166,7 @@ function runTestPromise<E, A>(effect: Effect.Effect<A, E>) {
 		.then((f) => f());
 }
 
-const TestEnv = TestContext.TestContext.pipe(
-	Layer.provide(LoggerService.remove(LoggerService.defaultLogger)),
-);
+const TestEnv = TestContext.TestContext;
 
 function makeTester<R>(
 	mapEffect: <A, E>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, never>,
@@ -205,7 +203,7 @@ function makeTester<R>(
 	};
 
 	test.only = function (name, self) {
-		return BunTest.test.only(name, () => run([], self));
+		return base.only(name, () => run([], self));
 	};
 
 	test.each = function (cases) {
@@ -215,7 +213,7 @@ function makeTester<R>(
 	};
 
 	test.fails = function (name, self) {
-		return BunTest.test.failing(name, () => run([], self));
+		return base.failing(name, () => run([], self));
 	};
 
 	test.prop = function (name, arbitraries, self, timeout) {
@@ -359,7 +357,7 @@ function flakyTest<A, E, R>(
 function makeMethods(test: BunTest.Test<[]>): EffectBunTest.Methods {
 	return Object.assign(test, {
 		effect: makeTester<TestServices.TestServices>(
-			Effect.provide(TestEnv),
+			flow(Effect.provide(TestEnv)),
 			test,
 		),
 		scoped: makeTester<TestServices.TestServices | Scope.Scope>(
