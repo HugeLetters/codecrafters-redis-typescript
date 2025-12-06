@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import { CRLF } from "$/resp/constants";
-import { LeftoverData, noLeftover } from "$/resp/utils";
+import { LeftoverData, noLeftover, RegexUtils } from "$/resp/utils";
 import { Integer as Integer_, IntegerFromString } from "$/schema/number";
 import { ImplicitNumberSign } from "$/schema/string";
 import { Color } from "$/schema/utils";
@@ -15,7 +15,10 @@ const LeftoverInteger_ = Schema.TemplateLiteralParser(
 	Schema.String,
 ).pipe(Schema.annotations({ identifier: "LeftoverInteger" }));
 
-const IntegerRegex = regex(`^(?<digits>\\d+)${CRLF}(?<leftover>[\\s\\S]*)$`);
+const IntegerRegex = regex(
+	`^(?<digits>${RegexUtils.Digit}+)${CRLF}(?<leftover>.*)$`,
+	"s",
+);
 const parseIntFromString = ParseResult.decode(IntegerFromString);
 export const LeftoverInteger = LeftoverInteger_.pipe(
 	Schema.transformOrFail(LeftoverData(Integer_), {

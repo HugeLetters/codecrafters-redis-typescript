@@ -44,3 +44,9 @@ export function noLeftover<TType, TEncoded, TReq>(
 
 export const itemPlural = createPluralizer({ one: "item", many: "items" });
 export const entryPlural = createPluralizer({ one: "entry", many: "entries" });
+
+export namespace RegexUtils {
+	/** Using `.` doesn't handle newline - or just use `s` flag */
+	export const Any = "[\\s\\S]";
+	export const Digit = "\\d";
+}

@@ -10,6 +10,7 @@ import {
 	type LeftoverParseResult,
 	noLeftover,
 	parseIntFromString,
+	RegexUtils,
 } from "$/resp/utils";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -22,7 +23,8 @@ import {
 } from "../main";
 
 const ArrayRegex = regex(
-	`^\\${ArrayPrefix}(?<length>\\d+)${CRLF}(?<items>[\\s\\S]*)$`,
+	`^\\${ArrayPrefix}(?<length>${RegexUtils.Digit}+)${CRLF}(?<items>.*)$`,
+	"s",
 );
 const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
 const lengthTransform = new SchemaAST.Transformation(

@@ -12,6 +12,7 @@ import {
 	type LeftoverParseResult,
 	noLeftover,
 	parseIntFromString,
+	RegexUtils,
 } from "$/resp/utils";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -26,7 +27,8 @@ import {
 import { AttributePrefix } from "./prefix";
 
 const AttributeRegex = regex(
-	`^\\${AttributePrefix}(?<size>\\d+)${CRLF}(?<entries>[\\s\\S]*)$`,
+	`^\\${AttributePrefix}(?<size>${RegexUtils.Digit}+)${CRLF}(?<entries>.*)$`,
+	"s",
 );
 const AttributeTemplate = `${AttributePrefix}{size}${CRLF}{entries}`;
 const sizeTransform = new SchemaAST.Transformation(

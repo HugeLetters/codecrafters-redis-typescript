@@ -12,6 +12,7 @@ import {
 	type LeftoverParseResult,
 	noLeftover,
 	parseIntFromString,
+	RegexUtils,
 } from "$/resp/utils";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -25,7 +26,10 @@ import {
 } from "../main";
 import { SetPrefix } from "./prefix";
 
-const SetRegex = regex(`^${SetPrefix}(?<size>\\d+)${CRLF}(?<items>[\\s\\S]*)$`);
+const SetRegex = regex(
+	`^${SetPrefix}(?<size>${RegexUtils.Digit}+)${CRLF}(?<items>.*)$`,
+	"s",
+);
 const RespSetTemplate = `${SetPrefix}{size}${CRLF}{items}`;
 const sizeTransform = new SchemaAST.Transformation(
 	namedAst(`\`${normalize(RespSetTemplate)}\``),

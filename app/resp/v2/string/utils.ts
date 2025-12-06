@@ -5,7 +5,7 @@ import * as Schema from "effect/Schema";
 import * as Str from "effect/String";
 import { CRLF } from "$/resp/constants";
 import { RespError } from "$/resp/error";
-import { LeftoverData, parseIntFromString } from "$/resp/utils";
+import { LeftoverData, parseIntFromString, RegexUtils } from "$/resp/utils";
 import { Color } from "$/schema/utils";
 
 export const LeftoverString = LeftoverData(Schema.String);
@@ -14,7 +14,8 @@ export const LeftoverError = LeftoverData(RespError);
 export const getCrlfPosition = Str.indexOf(CRLF);
 
 const BulkStringRegex = regex(
-	`^(?<length>\\d+)${CRLF}(?<data>[\\s\\S]*${CRLF}[\\s\\S]*)$`,
+	`^(?<length>${RegexUtils.Digit}+)${CRLF}(?<data>.*${CRLF}.*)$`,
+	"s",
 );
 export const LeftoverBulkStringContent = Schema.String.pipe(
 	Schema.transformOrFail(LeftoverString, {

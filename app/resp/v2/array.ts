@@ -1,4 +1,5 @@
 import { regex } from "arkregex";
+import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as ParseResult from "effect/ParseResult";
@@ -10,6 +11,7 @@ import {
 	type LeftoverParseResult,
 	noLeftover,
 	parseIntFromString,
+	RegexUtils,
 } from "$/resp/utils";
 import { Color, decodeString, namedAst } from "$/schema/utils";
 import type { EffectGen } from "$/utils/effect";
@@ -22,7 +24,8 @@ import {
 } from "./main";
 
 const ArrayRegex = regex(
-	`^\\${ArrayPrefix}(?<length>\\d+)${CRLF}(?<items>[\\s\\S]*)$`,
+	`^\\${ArrayPrefix}(?<length>${RegexUtils.Digit}+)${CRLF}(?<items>.*)$`,
+	"s",
 );
 const RespArrayTemplate = `${ArrayPrefix}{length}${CRLF}{items}`;
 const lengthTransform = new SchemaAST.Transformation(
@@ -76,7 +79,7 @@ export function decodeLeftoverArray(input: unknown, toAst: SchemaAST.AST) {
 		const str = yield* decodeString(input);
 		const { length, items } = yield* decodeLeftoverArrayLength(str, ast);
 
-		const array: Array<RespValue> = [];
+		const array = Arr.empty<RespValue>();
 		let encoded = items;
 		while (array.length !== length) {
 			if (encoded === "") {

@@ -53,9 +53,7 @@ const DoubleValue = Schema.Union(
 	),
 );
 
-const LeftoverDoubleRegex = regex(
-	`^(?<data>[\\s\\S]+?)${CRLF}(?<leftover>[\\s\\S]*)$`,
-);
+const LeftoverDoubleRegex = regex(`^(?<data>.+?)${CRLF}(?<leftover>.*)$`, "s");
 export const LeftoverDouble = LeftoverDouble_.pipe(
 	Schema.transformOrFail(LeftoverData(DoubleValue), {
 		decode: Effect.fn(function* (template, _opts, ast) {

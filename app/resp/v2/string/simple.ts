@@ -8,9 +8,7 @@ import { noLeftover } from "$/resp/utils";
 import { Color } from "$/schema/utils";
 import { LeftoverError, LeftoverString } from "./utils";
 
-const SimpleStringRegex = regex(
-	`^(?<data>[\\s\\S]*?)${CRLF}(?<leftover>[\\s\\S]*)$`,
-);
+const SimpleStringRegex = regex(`^(?<data>.*?)${CRLF}(?<leftover>.*)$`, "s");
 const ClRfRegex = regex(`[${CR}${LF}]`);
 const ClRfFilterMessage = `Leftover string data cannot contain ${Color.bad(CR)} or ${Color.bad(LF)}`;
 const LeftoverSimpleStringContent = Schema.String.pipe(
