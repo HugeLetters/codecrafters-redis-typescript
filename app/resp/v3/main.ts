@@ -117,7 +117,7 @@ const getEncodeFn = Fn.flow(
 		Match.when(Match.null, () => Primitive.Null),
 		Match.when(Match.boolean, () => Primitive.Boolean),
 
-		Match.when(Arr.isArray<RespValue>, () => RespArray),
+		Match.when(Arr.isArray, () => RespArray),
 		Match.when(HashMap.isHashMap, () => RespMap),
 		Match.when(HashSet.isHashSet, () => RespSet),
 
@@ -161,17 +161,14 @@ export const RespValue = Schema.declare(
 );
 
 export type RespValue =
-	| string
-	| Str.VerbatimString
-	| Integer
+	| Exclude<V2.RespValue, V2.RespArrayValue>
+	| boolean
 	| number
 	| bigint
-	| null
-	| boolean
-	| RespError
-	| RespMapValue
+	| Str.VerbatimString
+	| RespArrayValue
 	| RespSetValue
-	| RespArrayValue;
+	| RespMapValue;
 
 export type RespArrayValue = ReadonlyArray<RespValue>;
 export type RespMapValue = HashMap.HashMap<RespValue, RespValue>;

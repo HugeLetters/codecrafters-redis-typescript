@@ -9,6 +9,9 @@ export {
 export { RespSet as Set } from "./container/set";
 export {
 	formatRespValue as format,
+	type RespArrayValue,
+	type RespMapValue,
+	type RespSetValue,
 	RespValue,
 } from "./main";
 export { Num as Number } from "./number";
