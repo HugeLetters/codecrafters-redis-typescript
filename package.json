@@ -8,6 +8,7 @@
 	"scripts": {
 		"dev": "bun run --watch app/main.ts",
 		"dev:client": "bun run --watch app/client/index.tsx",
+		"build": "bun build --outdir dist --target bun app/main.ts",
 		"check": "biome check .",
 		"fix": "biome check --write .",
 		"typecheck": "tsc"
