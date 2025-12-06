@@ -2,14 +2,10 @@ import { describe, expect } from "bun:test";
 import { AttributePrefix } from "$/resp/v3/container/prefix";
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
-import { arr, bulk, hashmap, int, respmap, simple } from "../test.utils";
+import { arr, attr, bulk, hashmap, int, respmap, simple } from "../test.utils";
 import { RespValue } from "./main";
 
-function respattribute(entries: Array<[string, string]>) {
-	return `${AttributePrefix}${entries.length}\r\n${entries.map(([k, v]) => k + v).join("")}`;
-}
-
-const Attribute = respattribute([[simple("meta"), arr([bulk("str")])]]);
+const Attribute = attr([[simple("meta"), arr([bulk("str")])]]);
 function withAttribute(data: string) {
 	return `${Attribute}${data}`;
 }

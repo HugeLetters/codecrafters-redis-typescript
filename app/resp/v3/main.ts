@@ -285,7 +285,7 @@ const skipLeftoverAttribute: DecodeAttribute = function (input, ast) {
 	return decodeLeftoverAttribute(input, ast).pipe(
 		ParseResult.flatMap((value) =>
 			decodeLeftoverValue(value.leftover, ast).pipe(
-				Effect.mapError((issue) => {
+				ParseResult.mapError((issue) => {
 					return new ParseResult.Composite(RespValueWithAttributeAST, input, [
 						new ParseResult.Type(
 							RespValueWithAttributeAST,

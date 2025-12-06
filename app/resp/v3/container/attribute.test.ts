@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test";
 import * as HashMap from "effect/HashMap";
 
-import { CRLF } from "$/resp/constants";
 import {
 	arr,
+	attr,
 	bulk,
 	hashmap,
 	int,
@@ -14,11 +14,6 @@ import {
 import { createSchemaHelpers, expectParseError } from "$/schema/test";
 import { test } from "$/test";
 import { Attribute } from "./attribute";
-import { AttributePrefix } from "./prefix";
-
-function attr(entries: Array<[string, string]>) {
-	return `${AttributePrefix}${entries.length}${CRLF}${entries.map(([k, v]) => k + v).join("")}`;
-}
 
 describe("Attribue", () => {
 	const $attr = createSchemaHelpers(Attribute);
