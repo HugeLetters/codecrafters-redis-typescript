@@ -45,11 +45,10 @@ export namespace Command {
 							([_, key, value, ...rest]) =>
 								Effect.gen(function* () {
 									const opts = yield* parseSetOptions(rest).pipe(
-										Effect.mapError(
-											(message) =>
-												new Protocol.Error({
-													message: `SET: ${formatCommandOptionError(message)}`,
-												}),
+										Effect.mapError((message) =>
+											Protocol.fail(
+												`SET: ${formatCommandOptionError(message)}`,
+											),
 										),
 									);
 
@@ -78,7 +77,7 @@ export namespace Command {
 	) {}
 
 	function fail(message: string) {
-		return Effect.fail(new Protocol.Error({ message }));
+		return Protocol.fail(message);
 	}
 
 	const parseSetOptions = CommandOption.parser({

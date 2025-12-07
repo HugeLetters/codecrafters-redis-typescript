@@ -3,7 +3,6 @@ import { BunRuntime, BunSocket } from "@effect/platform-bun";
 import * as Effect from "effect/Effect";
 import { flow } from "effect/Function";
 import * as Layer from "effect/Layer";
-import * as Schema from "effect/Schema";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
@@ -23,22 +22,20 @@ const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
 });
 
-const encodeProtocolValue = Schema.encode(Protocol.Schema);
 const encodeResponse = Effect.fn(function* (input: Protocol.Decoded) {
 	yield* Logger.logInfo("Received", { data: Protocol.format(input) });
 
-	const encoded = yield* encodeProtocolValue(input);
+	const encoded = yield* Protocol.encode(input);
 	yield* Logger.logInfo("Encoded", { data: normalize(encoded) });
 
 	return encoded;
 }, Logger.withSpan("resp.encode"));
 
-const decodeProtocolValue = Schema.decode(Protocol.Schema);
 const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 	const str = buffer.toString("utf8");
 	yield* Logger.logInfo("Received", { data: normalize(str) });
 
-	const decoded = yield* decodeProtocolValue(str);
+	const decoded = yield* Protocol.decode(str);
 	yield* Logger.logInfo("Decoded", { data: Protocol.format(decoded) });
 
 	return decoded;
@@ -53,11 +50,7 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 		Effect.flatMap(encodeResponse),
 		Effect.catchTag("ParseError", (error) => {
 			return Logger.logError("Invalid Response", { error: error.message }).pipe(
-				Effect.andThen(
-					encodeProtocolValue(
-						new Protocol.Error({ message: "Internal Error" }),
-					),
-				),
+				Effect.andThen(Protocol.encode(Protocol.fail("Internal Error"))),
 			);
 		}),
 		Effect.flatMap((data) => writeToSocket(socket, data)),

@@ -1,2 +1,0 @@
-- is there a way to make resp schemas code less ugly?
-- go over whole project for touchups

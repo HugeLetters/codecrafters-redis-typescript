@@ -4,7 +4,6 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
-import * as Schema from "effect/Schema";
 import { Protocol } from "$/protocol";
 import { Config } from "$/server/config";
 
@@ -97,7 +96,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
 	const dataConsumer = Effect.async<void>((resolve) => {
 		const onData = Fn.flow(
-			decodeResp,
+			Protocol.decode,
 			Effect.map(opts.onMessage),
 			Effect.catchTag(
 				"ParseError",
@@ -125,7 +124,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	opts.onClientReady({
 		close: rawClient.close,
 		write: Fn.flow(
-			encodeResp,
+			Protocol.encode,
 			Effect.map(rawClient.write),
 			Effect.catchTag(
 				"ParseError",
@@ -137,9 +136,6 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 
 	yield* dataConsumer;
 });
-
-const decodeResp = Schema.decode(Protocol.Schema);
-const encodeResp = Schema.encode(Protocol.Schema);
 
 export const createSocket = Fn.flow(
 	initializeSocket,

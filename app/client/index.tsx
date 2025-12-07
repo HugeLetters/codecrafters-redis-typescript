@@ -3,6 +3,7 @@ import * as Fn from "effect/Function";
 import { Box, render, Text, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { Protocol } from "$/protocol";
+import { Integer } from "$/schema/number";
 import type { StrictOmit } from "$/utils/type";
 import { type Client, createSocket } from "./socket";
 
@@ -146,7 +147,7 @@ const PRESET_COMMANDS: Record<string, PresetCommand> = {
 	4: {
 		label: "SET",
 		command() {
-			return ["SET", "key", Date.now().toString(), "PX", 5000];
+			return ["SET", "key", Date.now().toString(), "PX", Integer.make(5000)];
 		},
 	},
 	5: {
