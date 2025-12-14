@@ -1,5 +1,7 @@
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
+import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 
 export type EffectGen<
 	TEffect extends Effect.Effect<unknown, unknown, unknown>,
@@ -23,4 +25,19 @@ export const flatMapError = Fn.dual<
 	return self.pipe(
 		Effect.catchAll((err) => map(err).pipe(Effect.flatMap(Effect.fail))),
 	);
+});
+
+export const whileLoop = Effect.fn("whileLoop")(function* <T, E, R>(
+	initial: T,
+	body: (state: T) => Effect.Effect<Option.Option<T>, E, R>,
+) {
+	let state = initial;
+	while (true) {
+		const next = yield* body(state);
+		if (Option.isNone(next)) {
+			return state;
+		}
+
+		state = next.value;
+	}
 });
