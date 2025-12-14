@@ -27,7 +27,7 @@ export namespace EffectBunTest {
 
 	export type TestFunction<A, E, R, TestArgs extends Array<unknown>> = (
 		...args: TestArgs
-	) => EffectGen<Effect.Effect<A, E, R>>;
+	) => Effect.Effect<A, E, R> | EffectGen<Effect.Effect<A, E, R>>;
 
 	export type Test<R> = <A, E>(
 		name: string,
@@ -176,10 +176,14 @@ function makeTester<R>(
 		args: TestArgs,
 		self: EffectBunTest.TestFunction<A, E, R, TestArgs>,
 	) {
-		return Effect.suspend(() => Effect.fn(self)(...args)).pipe(
-			mapEffect,
-			runTestPromise,
-		);
+		return Effect.suspend(() => {
+			const result = self(...args);
+			if (Effect.isEffect(result)) {
+				return result;
+			}
+
+			return Effect.gen(() => result);
+		}).pipe(mapEffect, runTestPromise);
 	}
 
 	const test: EffectBunTest.Tester<R> = (name, self, options) => {
