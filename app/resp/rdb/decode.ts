@@ -1,17 +1,27 @@
 import * as FileSystem from "@effect/platform/FileSystem";
+import * as Arr from "effect/Array";
 import * as BigInteger from "effect/BigInt";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
-import { IntegerFromString } from "$/schema/number";
 import { concatUint8, concatUint8AsNumber } from "$/utils/buffer";
 import { whileLoop } from "$/utils/effect";
-import { ENCODING, OpCode } from "./constants";
+import { ENCODING, OpCode, ValueType } from "./constants";
 import { LZF } from "./lzf";
-import type { AuxiliaryFields, StringEncoded } from "./type";
+import type {
+	AuxiliaryFields,
+	Database,
+	DatabaseEntries,
+	DatabaseMeta,
+	Databases,
+	RDBFile,
+	StringEncoded,
+	Value,
+} from "./type";
 
 const MAGIC = "REDIS";
 const VERSION_LENGTH = 4;
@@ -27,23 +37,45 @@ export const decode = Effect.fn("decode")(function* (
 ) {
 	yield* Effect.log(buffer.toString(ENCODING));
 
-	const b = yield* decodeMagic(buffer, config?.magic ?? MAGIC).pipe(
-		Effect.flatMap((buffer) =>
-			decodeVersion(buffer, config?.versionLength ?? VERSION_LENGTH),
+	const data = yield* Effect.Do.pipe(
+		Effect.bind("version", () =>
+			decodeMagic(buffer, config?.magic ?? MAGIC).pipe(
+				Effect.flatMap((buffer) =>
+					decodeVersion(buffer, config?.versionLength ?? VERSION_LENGTH),
+				),
+			),
 		),
-		Effect.flatMap(({ rest }) => decodeAuxFields(rest)),
+		Effect.bind("aux", ({ version }) => decodeAuxFields(version.rest)),
+		Effect.bind("databases", ({ aux }) => decodeDatabases(aux.rest)),
 	);
 
-	yield* Effect.log(...HashMap.entries(b.fields));
-	yield* Effect.log(b.rest.toString(ENCODING));
+	const result: RDBFile = {
+		version: data.version.value,
+		meta: data.aux.value,
+		databases: data.databases.value,
+	};
 
-	return yield* Effect.void;
-});
+	yield* Effect.log("version", result.version);
+	yield* Effect.log("meta", [...HashMap.entries(result.meta)]);
+	yield* Effect.log(
+		"dbs",
+		[...HashMap.entries(result.databases)].map(([selector, db]) => [
+			selector,
+			db.meta,
+			[...HashMap.entries(db.entries)],
+		]),
+	);
+	yield* Effect.log(
+		Arr.zip(
+			data.databases.rest,
+			data.databases.rest.toString(ENCODING).split(""),
+		),
+	);
 
-const decodeMagic = Effect.fnUntraced(function* (
-	buffer: Buffer,
-	expected: string,
-) {
+	return result;
+}, Effect.ensureErrorType<DecodeError>());
+
+const decodeMagic = Effect.fn(function* (buffer: Buffer, expected: string) {
 	const received = buffer.toString(ENCODING, 0, expected.length);
 	if (received !== expected) {
 		return yield* new DecodeError({
@@ -54,49 +86,50 @@ const decodeMagic = Effect.fnUntraced(function* (
 	return buffer.subarray(expected.length);
 });
 
-const decodeVersion = Effect.fnUntraced(function* (
-	buffer: Buffer,
-	length: number,
-) {
+const decodeVersion = Effect.fn(function* (buffer: Buffer, length: number) {
 	const raw = buffer.toString(ENCODING, 0, length);
-	const version = yield* Schema.decode(IntegerFromString)(raw).pipe(
+	const value = yield* Schema.decode(Schema.BigInt)(raw).pipe(
 		Effect.mapError(
 			() => new DecodeError({ message: `Invalid version. Received ${raw}` }),
 		),
 	);
 
-	return { version, rest: buffer.subarray(length) };
+	const result: DecodeResult<bigint> = {
+		value,
+		rest: buffer.subarray(length),
+	};
+	return result;
 });
 
-const decodeAuxFields = Effect.fnUntraced(function* (buffer: Buffer) {
-	const fields: AuxiliaryFields = HashMap.empty().pipe(HashMap.beginMutation);
-
-	const result = yield* whileLoop(
-		{ buffer, fields },
-		Effect.fnUntraced(function* ({ buffer, fields }) {
-			const field = yield* decodeAuxField(buffer);
+const decodeAuxFields = Effect.fn(function* (buffer: Buffer) {
+	const init: DecodeResult<AuxiliaryFields> = {
+		rest: buffer,
+		value: HashMap.empty().pipe(HashMap.beginMutation),
+	};
+	return yield* whileLoop(
+		init,
+		Effect.fn(function* ({ rest, value: fields }) {
+			const field = yield* decodeAuxField(rest);
 			return Option.map(field, ({ key, value, rest }) => ({
-				fields: HashMap.set(fields, key, value),
-				buffer: rest,
+				value: HashMap.set(fields, key, value),
+				rest,
 			}));
 		}),
 	);
-
-	return { fields: HashMap.endMutation(result.fields), rest: result.buffer };
 });
 
-const decodeAuxField = Effect.fnUntraced(function* (buffer: Buffer) {
+const decodeAuxField = Effect.fn(function* (buffer: Buffer) {
 	const code = buffer.at(0);
 	if (code !== OpCode.AuxiliaryField) {
 		return Option.none();
 	}
 
-	const key = yield* decodeStringEncoded(buffer.subarray(1));
+	const key = yield* decodeStringEncodedString(buffer.subarray(1));
 	const value = yield* decodeStringEncoded(key.rest);
 
 	return Option.some({
 		rest: value.rest,
-		key: key.value.toString(),
+		key: key.value,
 		value: value.value,
 	});
 });
@@ -115,9 +148,105 @@ enum SpecialLengthEncodingSubtype {
 	CompressedString = 3,
 }
 
-const decodeStringEncoded = Effect.fnUntraced(function* (
+// TODO master | dedupe length and string encoded logic | by Evgenii Perminov at Wed, 17 Dec 2025 19:55:39 GMT
+const decodeLengthEncoded = Effect.fn(function* (
 	buffer: Buffer,
-): Effect.fn.Return<DecodeResult<StringEncoded>, DecodeError> {
+): DecodeGen<bigint> {
+	const firstByte = buffer.at(0);
+	if (Predicate.isUndefined(firstByte)) {
+		return yield* new DecodeError({
+			message: "Cannot decode length from an empty buffer",
+		});
+	}
+
+	const type = firstByte >> 6;
+	switch (type) {
+		case LengthEncodingType.Bits6: {
+			const value = BigInt(firstByte & 0b00111111);
+			const rest = buffer.subarray(1);
+			return { value, rest };
+		}
+
+		case LengthEncodingType.Bits14: {
+			const secondByte = buffer.at(2);
+			if (Predicate.isUndefined(secondByte)) {
+				return yield* new DecodeError({
+					message: `First byte is ${firstByte} - expected a 2nd byte after`,
+				});
+			}
+
+			const value = BigInt(firstByte & 0b00111111) + BigInt(secondByte << 6);
+			const rest = buffer.subarray(2);
+			return { value, rest };
+		}
+
+		case LengthEncodingType.Bytes4: {
+			const value = concatUint8(buffer.subarray(1, 5));
+			const rest = buffer.subarray(5);
+			return { value, rest };
+		}
+
+		case LengthEncodingType.Special: {
+			const subtype = firstByte & 0b00111111;
+			switch (subtype) {
+				case SpecialLengthEncodingSubtype.Int8Bit: {
+					const data = buffer.subarray(1);
+					const value = data.at(0);
+					if (Predicate.isUndefined(value)) {
+						return yield* new DecodeError({
+							message: `First byte is ${firstByte} - expected an 8bit integer to follow`,
+						});
+					}
+
+					const rest = data.subarray(1);
+					return pipe(
+						value,
+						BigInteger.fromNumber,
+						Option.getOrElse(() => 0n),
+						(value) => ({ value, rest }),
+					);
+				}
+				case SpecialLengthEncodingSubtype.Int16Bit: {
+					const data = buffer.subarray(1);
+					const value = concatUint8(data.subarray(0, 2));
+					const rest = data.subarray(2);
+					return { value, rest };
+				}
+				case SpecialLengthEncodingSubtype.Int32Bit: {
+					const data = buffer.subarray(1);
+					const value = concatUint8(data.subarray(0, 4));
+					const rest = data.subarray(4);
+					return { value, rest };
+				}
+			}
+
+			return yield* new DecodeError({
+				message: `Unexpected special encoding subtype ${firstByte}`,
+			});
+		}
+	}
+
+	return yield* new DecodeError({
+		message: `Unexpected encoding type ${firstByte}`,
+	});
+});
+
+const decodeLengthEncodedInteger = Effect.fn(function* (buffer: Buffer) {
+	const { value, rest } = yield* decodeLengthEncoded(buffer);
+	const parsed = BigInteger.toNumber(value);
+	if (Option.isNone(parsed)) {
+		return yield* new DecodeError({
+			message: `Could not parse received integer: ${value}`,
+		});
+	}
+
+	const result: DecodeResult<number> = { rest, value: parsed.value };
+	return result;
+});
+
+const decodeStringEncoded = Effect.fn(function* (
+	buffer: Buffer,
+): DecodeGen<StringEncoded> {
 	const firstByte = buffer.at(0);
 	if (Predicate.isUndefined(firstByte)) {
 		return yield* new DecodeError({
@@ -191,11 +320,11 @@ const decodeStringEncoded = Effect.fnUntraced(function* (
 					return { value, rest };
 				}
 				case SpecialLengthEncodingSubtype.CompressedString: {
-					const { value: clen, rest } = yield* decodeStringEncodedInteger(
+					const { value: clen, rest } = yield* decodeLengthEncodedInteger(
 						buffer.subarray(1),
 					);
 					const { value: len, rest: rest2 } =
-						yield* decodeStringEncodedInteger(rest);
+						yield* decodeLengthEncodedInteger(rest);
 					const raw = rest2.subarray(0, clen);
 					const parsed = LZF.decompress(raw);
 					if (Option.isNone(parsed)) {
@@ -226,32 +355,206 @@ const decodeStringEncoded = Effect.fnUntraced(function* (
 	});
 });
 
-const decodeStringEncodedBigInt = Effect.fnUntraced(function* (buffer: Buffer) {
+const decodeStringEncodedString = Effect.fn(function* (buffer: Buffer) {
 	const { value, rest } = yield* decodeStringEncoded(buffer);
-	if (!Predicate.isBigInt(value)) {
+	if (!Predicate.isString(value)) {
 		return yield* new DecodeError({
-			message: `Expected an integer value. Received ${value}`,
+			message: `Expected a string value. Received: ${value}`,
 		});
 	}
 
-	const result: DecodeResult<bigint> = { rest, value };
+	const result: DecodeResult<string> = { rest, value };
 	return result;
 });
 
-const decodeStringEncodedInteger = Effect.fnUntraced(function* (
+const decodeDatabases = Effect.fn(function* (buffer: Buffer) {
+	const init: DecodeResult<Databases> = {
+		rest: buffer,
+		value: HashMap.empty().pipe(HashMap.beginMutation),
+	};
+	return yield* whileLoop(
+		init,
+		Effect.fn(function* ({ rest, value: dbs }) {
+			const db = yield* decodeDatabase(rest);
+			return Option.map(db, ({ value, rest }) => ({
+				value: HashMap.set(dbs, value.selector, value.db),
+				rest,
+			}));
+		}),
+	);
+});
+
+interface DecodedDatabase {
+	readonly selector: bigint;
+	readonly db: Database;
+}
+const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
+	const code = buffer.at(0);
+	if (code !== OpCode.DatabaseSelector) {
+		return Option.none();
+	}
+
+	const selector = yield* decodeLengthEncoded(buffer.subarray(1));
+	const meta = yield* decodeDatabaseMeta(selector.rest);
+
+	const init: DecodeResult<DatabaseEntries> = {
+		rest: meta.rest,
+		value: HashMap.empty().pipe(HashMap.beginMutation),
+	};
+
+	const db = yield* whileLoop(
+		init,
+		Effect.fn(function* ({ rest, value: db }) {
+			const entry = yield* decodeDatabaseEntry(rest)
+				// TODO master | delete | by Evgenii Perminov at Wed, 17 Dec 2025 22:19:57 GMT
+				.pipe(
+					Effect.catchAll(() => Effect.succeed({ rest, value: Option.none() })),
+				);
+			return Option.map(entry.value, ({ value, key, expiry }) => ({
+				value: HashMap.set(db, key, { value, expiry }),
+				rest: entry.rest,
+			}));
+		}),
+	);
+
+	return Option.some<DecodeResult<DecodedDatabase>>({
+		rest: db.rest,
+		value: {
+			db: { entries: db.value, meta: meta.value },
+			selector: selector.value,
+		},
+	});
+});
+
+const decodeDatabaseMeta = Effect.fn(function* (
 	buffer: Buffer,
-) {
-	const { value, rest } = yield* decodeStringEncodedBigInt(buffer);
-	const parsed = BigInteger.toNumber(value);
-	if (Option.isNone(parsed)) {
+): DecodeGen<DatabaseMeta | null> {
+	const code = buffer.at(0);
+	if (code !== OpCode.ResizeDB) {
+		return { rest: buffer, value: null };
+	}
+
+	const hashSize = yield* decodeLengthEncoded(buffer.subarray(1));
+	const expireHashSize = yield* decodeLengthEncoded(hashSize.rest);
+	return {
+		value: { hashSize: hashSize.value, expireHashSize: expireHashSize.value },
+		rest: expireHashSize.rest,
+	};
+});
+
+interface DatabaseEntry {
+	readonly key: string;
+	readonly value: Value;
+	readonly expiry: bigint | null;
+}
+const decodeDatabaseEntry = Effect.fn(function* (
+	buffer: Buffer,
+): DecodeGen<Option.Option<DatabaseEntry>> {
+	const expiry = decodeDatabaseEntryExpiry(buffer);
+
+	const type = expiry.rest.at(0);
+	if (type === undefined) {
 		return yield* new DecodeError({
-			message: `Could not parse received integer: ${value}`,
+			message: "Expected a value type byte. Received end of buffer",
 		});
 	}
 
-	const result: DecodeResult<number> = { rest, value: parsed.value };
-	return result;
+	const data = expiry.rest.subarray(1);
+	const decodeValue = Effect.fn(function* <T extends Value>(
+		decoder: (buffer: Buffer) => Effect.Effect<DecodeResult<T>, DecodeError>,
+	): DecodeGen<Option.Option<DatabaseEntry>> {
+		const key = yield* decodeStringEncodedString(data);
+		const value = yield* decoder(key.rest);
+		return {
+			rest: value.rest,
+			value: Option.some({
+				value: value.value,
+				key: key.value,
+				expiry: expiry.value,
+			}),
+		};
+	});
+
+	switch (type) {
+		case ValueType.StringEncoded: {
+			return yield* decodeValue(decodeStringEncoded);
+		}
+		case ValueType.List: {
+			return yield* new DecodeError({
+				message: "List value type is unsupported",
+			});
+		}
+		case ValueType.Set: {
+			return yield* new DecodeError({
+				message: "Set value type is unsupported",
+			});
+		}
+		case ValueType.SortedSet: {
+			return yield* new DecodeError({
+				message: "Sorted Set value type is unsupported",
+			});
+		}
+		case ValueType.Hash: {
+			return yield* new DecodeError({
+				message: "Hash value type is unsupported",
+			});
+		}
+		case ValueType.Zipmap: {
+			return yield* new DecodeError({
+				message: "ZipMap value type is unsupported",
+			});
+		}
+		case ValueType.Ziplist: {
+			return yield* new DecodeError({
+				message: "ZipList value type is unsupported",
+			});
+		}
+		case ValueType.Intset: {
+			return yield* new DecodeError({
+				message: "InetSet value type is unsupported",
+			});
+		}
+		case ValueType.ZipSortedSet: {
+			return yield* new DecodeError({
+				message: "ZipSortedSet value type is unsupported",
+			});
+		}
+		case ValueType.ZipHashmap: {
+			return yield* new DecodeError({
+				message: "ZipHashMap value type is unsupported",
+			});
+		}
+		case ValueType.QuickList: {
+			return yield* new DecodeError({
+				message: "QuickList value type is unsupported",
+			});
+		}
+	}
+
+	return yield* new DecodeError({ message: `Unexpected value type: ${type}` });
 });
+
+function decodeDatabaseEntryExpiry(
+	buffer: Buffer,
+): DecodeResult<bigint | null> {
+	const code = buffer.at(0);
+	switch (code) {
+		case OpCode.ExpireTime: {
+			const data = buffer.subarray(1);
+			const value = concatUint8(data.subarray(0, 4)) * 1000n;
+			const rest = data.subarray(4);
+			return { value, rest };
+		}
+		case OpCode.ExpireTimeMs: {
+			const data = buffer.subarray(1);
+			const value = concatUint8(data.subarray(0, 8));
+			const rest = data.subarray(8);
+			return { value, rest };
+		}
+	}
+
+	return { rest: buffer, value: null };
+}
 
 export const decodeFile = Effect.fn("decodeFile")(function* (
 	path: string,
@@ -269,5 +572,7 @@ export class DecodeError extends Data.TaggedError("DecodeError")<{
 
 interface DecodeResult<T> {
 	readonly value: T;
-	rest: Buffer;
+	readonly rest: Buffer;
 }
+
+type DecodeGen<T> = Effect.fn.Return<DecodeResult<T>, DecodeError>;

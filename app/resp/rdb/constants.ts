@@ -10,12 +10,12 @@ export enum OpCode {
 	/** Expire time in seconds, see Key Expiry Timestamp */
 	ExpireTime = 0xfd,
 	/** Expire time in milliseconds, see Key Expiry Timestamp */
-	ExpiteTimeMs = 0xfc,
+	ExpireTimeMs = 0xfc,
 	/** End of the RDB file */
 	EndOfFile = 0xff,
 }
 
-export enum RDBValueType {
+export enum ValueType {
 	StringEncoded = 0,
 	List = 1,
 	Set = 2,

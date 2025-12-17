@@ -1,7 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as Option from "effect/Option";
-import * as Predicate from "effect/Predicate";
 
 export type EffectGen<
 	TEffect extends Effect.Effect<unknown, unknown, unknown>,
