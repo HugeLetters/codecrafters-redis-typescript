@@ -3,13 +3,15 @@ import * as Arr from "effect/Array";
 import * as BigInteger from "effect/BigInt";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
-import { concatUint8, concatUint8AsNumber } from "$/utils/buffer";
+import { crc_64_redis as crc_64 } from "js-crc/models";
 import { whileLoop } from "$/utils/effect";
+import { concatInteger, concatUint8AsNumber } from "$/utils/number";
 import { ENCODING, OpCode, ValueType } from "./constants";
 import { LZF } from "./lzf";
 import type {
@@ -48,6 +50,13 @@ export const decode = Effect.fn("decode")(function* (
 		Effect.bind("aux", ({ version }) => decodeAuxFields(version.rest)),
 		Effect.bind("databases", ({ aux }) => decodeDatabases(aux.rest)),
 	);
+
+	const isChecksumValid = yield* validateChecksum(buffer, data.databases.rest);
+	if (!isChecksumValid) {
+		return yield* new DecodeError({
+			message: `Checksum didn't match. Received: ${formatBuffer(data.databases.rest)}`,
+		});
+	}
 
 	const result: RDBFile = {
 		version: data.version.value,
@@ -181,7 +190,7 @@ const decodeLengthEncoded = Effect.fn(function* (
 		}
 
 		case LengthEncodingType.Bytes4: {
-			const value = concatUint8(buffer.subarray(1, 5));
+			const value = concatInteger(buffer.subarray(1, 5));
 			const rest = buffer.subarray(5);
 			return { value, rest };
 		}
@@ -208,13 +217,13 @@ const decodeLengthEncoded = Effect.fn(function* (
 				}
 				case SpecialLengthEncodingSubtype.Int16Bit: {
 					const data = buffer.subarray(1);
-					const value = concatUint8(data.subarray(0, 2));
+					const value = concatInteger(data.subarray(0, 2));
 					const rest = data.subarray(2);
 					return { value, rest };
 				}
 				case SpecialLengthEncodingSubtype.Int32Bit: {
 					const data = buffer.subarray(1);
-					const value = concatUint8(data.subarray(0, 4));
+					const value = concatInteger(data.subarray(0, 4));
 					const rest = data.subarray(4);
 					return { value, rest };
 				}
@@ -309,13 +318,13 @@ const decodeStringEncoded = Effect.fn(function* (
 				}
 				case SpecialLengthEncodingSubtype.Int16Bit: {
 					const data = buffer.subarray(1);
-					const value = concatUint8(data.subarray(0, 2));
+					const value = concatInteger(data.subarray(0, 2));
 					const rest = data.subarray(2);
 					return { value, rest };
 				}
 				case SpecialLengthEncodingSubtype.Int32Bit: {
 					const data = buffer.subarray(1);
-					const value = concatUint8(data.subarray(0, 4));
+					const value = concatInteger(data.subarray(0, 4));
 					const rest = data.subarray(4);
 					return { value, rest };
 				}
@@ -329,14 +338,14 @@ const decodeStringEncoded = Effect.fn(function* (
 					const parsed = LZF.decompress(raw);
 					if (Option.isNone(parsed)) {
 						return yield* new DecodeError({
-							message: `Invalid LZF string: ${raw.toString(ENCODING)}`,
+							message: `Invalid LZF string: ${formatBuffer(raw)}`,
 						});
 					}
 
 					const value = parsed.value;
 					if (value.length !== len) {
 						return yield* new DecodeError({
-							message: `LZF string length doesn't match. Expected ${len}. Received ${value.length} and string: ${value}`,
+							message: `LZF string length doesn't match. Expected ${len}. Received ${value.length} and string: ${formatBuffer(value)}`,
 						});
 					}
 
@@ -405,20 +414,21 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 	const db = yield* whileLoop(
 		init,
 		Effect.fn(function* ({ rest, value: db }) {
-			const entry = yield* decodeDatabaseEntry(rest)
-				// TODO master | delete | by Evgenii Perminov at Wed, 17 Dec 2025 22:19:57 GMT
-				.pipe(
-					Effect.catchAll(() => Effect.succeed({ rest, value: Option.none() })),
-				);
-			return Option.map(entry.value, ({ value, key, expiry }) => ({
+			if (rest.at(0) === OpCode.EndOfFile) {
+				return Option.none();
+			}
+
+			const entry = yield* decodeDatabaseEntry(rest);
+			const { expiry, key, value } = entry.value;
+			return Option.some({
 				value: HashMap.set(db, key, { value, expiry }),
 				rest: entry.rest,
-			}));
+			});
 		}),
 	);
 
 	return Option.some<DecodeResult<DecodedDatabase>>({
-		rest: db.rest,
+		rest: db.rest.subarray(1),
 		value: {
 			db: { entries: db.value, meta: meta.value },
 			selector: selector.value,
@@ -449,7 +459,7 @@ interface DatabaseEntry {
 }
 const decodeDatabaseEntry = Effect.fn(function* (
 	buffer: Buffer,
-): DecodeGen<Option.Option<DatabaseEntry>> {
+): DecodeGen<DatabaseEntry> {
 	const expiry = decodeDatabaseEntryExpiry(buffer);
 
 	const type = expiry.rest.at(0);
@@ -462,16 +472,16 @@ const decodeDatabaseEntry = Effect.fn(function* (
 	const data = expiry.rest.subarray(1);
 	const decodeValue = Effect.fn(function* <T extends Value>(
 		decoder: (buffer: Buffer) => Effect.Effect<DecodeResult<T>, DecodeError>,
-	): DecodeGen<Option.Option<DatabaseEntry>> {
+	): DecodeGen<DatabaseEntry> {
 		const key = yield* decodeStringEncodedString(data);
 		const value = yield* decoder(key.rest);
 		return {
 			rest: value.rest,
-			value: Option.some({
+			value: {
 				value: value.value,
 				key: key.value,
 				expiry: expiry.value,
-			}),
+			},
 		};
 	});
 
@@ -541,13 +551,13 @@ function decodeDatabaseEntryExpiry(
 	switch (code) {
 		case OpCode.ExpireTime: {
 			const data = buffer.subarray(1);
-			const value = concatUint8(data.subarray(0, 4)) * 1000n;
+			const value = concatInteger(data.subarray(0, 4)) * 1000n;
 			const rest = data.subarray(4);
 			return { value, rest };
 		}
 		case OpCode.ExpireTimeMs: {
 			const data = buffer.subarray(1);
-			const value = concatUint8(data.subarray(0, 8));
+			const value = concatInteger(data.subarray(0, 8));
 			const rest = data.subarray(8);
 			return { value, rest };
 		}
@@ -555,6 +565,27 @@ function decodeDatabaseEntryExpiry(
 
 	return { rest: buffer, value: null };
 }
+
+const validateChecksum = Effect.fn(function* (file: Buffer, checksum: Buffer) {
+	if (checksum.length !== 8) {
+		return yield* new DecodeError({
+			message: `Expected checksum to be of length 8. Received length ${checksum.length} of ${formatBuffer(checksum)}`,
+		});
+	}
+
+	const checksumValue = concatInteger(checksum);
+	if (checksumValue === 0n) {
+		return true;
+	}
+
+	return pipe(
+		file.subarray(0, -8),
+		crc_64.array,
+		(_) => _.reverse(),
+		concatInteger,
+		Equal.equals(checksumValue),
+	);
+});
 
 export const decodeFile = Effect.fn("decodeFile")(function* (
 	path: string,
@@ -576,3 +607,7 @@ interface DecodeResult<T> {
 }
 
 type DecodeGen<T> = Effect.fn.Return<DecodeResult<T>, DecodeError>;
+
+function formatBuffer(buffer: Buffer) {
+	return buffer.join(".");
+}

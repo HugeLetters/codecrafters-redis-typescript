@@ -1,9 +1,10 @@
-/** biome-ignore-all lint/style/noNonNullAssertion: its a port */
-import * as Option from "effect/Option";
-
 /**
  * vendored from https://github.com/McSimp/lzfjs
  */
+
+/** biome-ignore-all lint/style/noNonNullAssertion: its a port */
+import * as Option from "effect/Option";
+
 export namespace LZF {
 	export function decompress(data: ArrayBuffer | Buffer) {
 		const input = new Uint8Array(data);
