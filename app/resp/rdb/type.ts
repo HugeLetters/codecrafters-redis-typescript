@@ -26,7 +26,7 @@ export type Value =
 	| RDBHash
 	| IntSet;
 
-interface ValueWithMeta {
+export interface ValueWithMeta {
 	readonly value: Value;
 	readonly expiry: bigint | null;
 }
@@ -69,3 +69,8 @@ type RDBValueTypeToValueMapper = Satisfies<
 >;
 type RDBValueTypeToValue<TType extends ValueType> =
 	RDBValueTypeToValueMapper[TType];
+
+export interface EncodingConfig {
+	magic?: string;
+	versionLength?: number;
+}

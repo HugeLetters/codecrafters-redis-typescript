@@ -1,5 +1,4 @@
 import * as FileSystem from "@effect/platform/FileSystem";
-import * as Arr from "effect/Array";
 import * as BigInteger from "effect/BigInt";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -13,7 +12,15 @@ import * as Schema from "effect/Schema";
 import { crc_64_redis as crc_64 } from "js-crc/models";
 import { whileLoop } from "$/utils/effect";
 import { concatInteger } from "$/utils/number";
-import { ENCODING, OpCode, ValueType } from "./constants";
+import {
+	ENCODING,
+	LengthEncodingType,
+	MAGIC,
+	OpCode,
+	SpecialLengthEncodingSubtype,
+	ValueType,
+	VERSION_LENGTH,
+} from "./constants";
 import { LZF } from "./lzf";
 import type {
 	AuxiliaryFields,
@@ -21,25 +28,16 @@ import type {
 	DatabaseEntries,
 	DatabaseMeta,
 	Databases,
+	EncodingConfig,
 	RDBFile,
 	StringEncoded,
 	Value,
 } from "./type";
 
-const MAGIC = "REDIS";
-const VERSION_LENGTH = 4;
-
-interface DecodeConfig {
-	magic?: string;
-	versionLength?: number;
-}
-
 export const decode = Effect.fn("decode")(function* (
 	buffer: Buffer,
-	config?: DecodeConfig,
+	config?: EncodingConfig,
 ) {
-	yield* Effect.log(buffer.toString(ENCODING));
-
 	const data = yield* Effect.Do.pipe(
 		Effect.bind("version", () =>
 			decodeMagic(buffer, config?.magic ?? MAGIC).pipe(
@@ -64,23 +62,6 @@ export const decode = Effect.fn("decode")(function* (
 		meta: data.aux.value,
 		databases: data.databases.value,
 	};
-
-	yield* Effect.log("version", result.version);
-	yield* Effect.log("meta", [...HashMap.entries(result.meta)]);
-	yield* Effect.log(
-		"dbs",
-		[...HashMap.entries(result.databases)].map(([selector, db]) => [
-			selector,
-			db.meta,
-			[...HashMap.entries(db.entries)],
-		]),
-	);
-	yield* Effect.log(
-		Arr.zip(
-			data.databases.rest,
-			data.databases.rest.toString(ENCODING).split(""),
-		),
-	);
 
 	return result;
 }, Effect.ensureErrorType<DecodeError>());
@@ -143,20 +124,6 @@ const decodeAuxField = Effect.fn(function* (buffer: Buffer) {
 		value: value.value,
 	});
 });
-
-enum LengthEncodingType {
-	Bits6 = 0b00,
-	Bits14 = 0b01,
-	Bytes4 = 0b10,
-	Special = 0b11,
-}
-
-enum SpecialLengthEncodingSubtype {
-	Int8Bit = 0,
-	Int16Bit = 1,
-	Int32Bit = 2,
-	CompressedString = 3,
-}
 
 const decodeLengthBasicLength = Effect.fn(function* (buffer: Buffer) {
 	const firstByte = buffer.at(0);
@@ -577,7 +544,7 @@ const validateChecksum = Effect.fn(function* (file: Buffer, checksum: Buffer) {
 
 export const decodeFile = Effect.fn("decodeFile")(function* (
 	path: string,
-	config?: DecodeConfig,
+	config?: EncodingConfig,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const file = yield* fs.readFile(path);

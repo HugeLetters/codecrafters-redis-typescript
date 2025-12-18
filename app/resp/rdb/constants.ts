@@ -28,3 +28,20 @@ export enum ValueType {
 	ZipHashmap = 13,
 	QuickList = 14,
 }
+
+export const MAGIC = "REDIS";
+export const VERSION_LENGTH = 4;
+
+export enum LengthEncodingType {
+	Bits6 = 0b00,
+	Bits14 = 0b01,
+	Bytes4 = 0b10,
+	Special = 0b11,
+}
+
+export enum SpecialLengthEncodingSubtype {
+	Int8Bit = 0,
+	Int16Bit = 1,
+	Int32Bit = 2,
+	CompressedString = 3,
+}
