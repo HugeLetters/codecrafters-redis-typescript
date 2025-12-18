@@ -3,6 +3,7 @@ import * as Arr from "effect/Array";
 import * as BigInteger from "effect/BigInt";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Either from "effect/Either";
 import * as Equal from "effect/Equal";
 import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
@@ -11,7 +12,7 @@ import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { crc_64_redis as crc_64 } from "js-crc/models";
 import { whileLoop } from "$/utils/effect";
-import { concatInteger, concatUint8AsNumber } from "$/utils/number";
+import { concatInteger } from "$/utils/number";
 import { ENCODING, OpCode, ValueType } from "./constants";
 import { LZF } from "./lzf";
 import type {
@@ -157,10 +158,7 @@ enum SpecialLengthEncodingSubtype {
 	CompressedString = 3,
 }
 
-// TODO master | dedupe length and string encoded logic | by Evgenii Perminov at Wed, 17 Dec 2025 19:55:39 GMT
-const decodeLengthEncoded = Effect.fn(function* (
-	buffer: Buffer,
-): DecodeGen<bigint> {
+const decodeLengthBasicLength = Effect.fn(function* (buffer: Buffer) {
 	const firstByte = buffer.at(0);
 	if (Predicate.isUndefined(firstByte)) {
 		return yield* new DecodeError({
@@ -173,7 +171,7 @@ const decodeLengthEncoded = Effect.fn(function* (
 		case LengthEncodingType.Bits6: {
 			const value = BigInt(firstByte & 0b00111111);
 			const rest = buffer.subarray(1);
-			return { value, rest };
+			return Either.right({ value, rest });
 		}
 
 		case LengthEncodingType.Bits14: {
@@ -186,57 +184,100 @@ const decodeLengthEncoded = Effect.fn(function* (
 
 			const value = BigInt(firstByte & 0b00111111) + BigInt(secondByte << 6);
 			const rest = buffer.subarray(2);
-			return { value, rest };
+			return Either.right({ value, rest });
 		}
 
 		case LengthEncodingType.Bytes4: {
 			const value = concatInteger(buffer.subarray(1, 5));
 			const rest = buffer.subarray(5);
-			return { value, rest };
+			return Either.right({ value, rest });
 		}
 
 		case LengthEncodingType.Special: {
-			const subtype = firstByte & 0b00111111;
-			switch (subtype) {
-				case SpecialLengthEncodingSubtype.Int8Bit: {
-					const data = buffer.subarray(1);
-					const value = data.at(0);
-					if (Predicate.isUndefined(value)) {
-						return yield* new DecodeError({
-							message: `First byte is ${firstByte} - expected an 8bit integer to follow`,
-						});
-					}
-
-					const rest = data.subarray(1);
-					return pipe(
-						value,
-						BigInteger.fromNumber,
-						Option.getOrElse(() => 0n),
-						(value) => ({ value, rest }),
-					);
-				}
-				case SpecialLengthEncodingSubtype.Int16Bit: {
-					const data = buffer.subarray(1);
-					const value = concatInteger(data.subarray(0, 2));
-					const rest = data.subarray(2);
-					return { value, rest };
-				}
-				case SpecialLengthEncodingSubtype.Int32Bit: {
-					const data = buffer.subarray(1);
-					const value = concatInteger(data.subarray(0, 4));
-					const rest = data.subarray(4);
-					return { value, rest };
-				}
-			}
-
-			return yield* new DecodeError({
-				message: `Unexpected special encoding subtype ${firstByte}`,
-			});
+			return Either.left(type);
 		}
 	}
 
 	return yield* new DecodeError({
 		message: `Unexpected encoding type ${firstByte}`,
+	});
+}, Effect.ensureSuccessType<
+	Either.Either<DecodeResult<bigint>, LengthEncodingType>
+>());
+
+const decodeSpecialInteger = Effect.fn(function* (buffer: Buffer) {
+	const firstByte = buffer.at(0);
+	if (Predicate.isUndefined(firstByte)) {
+		return yield* new DecodeError({
+			message: "Cannot decode length from an empty buffer",
+		});
+	}
+
+	const type = firstByte & 0b00111111;
+	switch (type) {
+		case SpecialLengthEncodingSubtype.Int8Bit: {
+			const data = buffer.subarray(1);
+			const value = data.at(0);
+			if (Predicate.isUndefined(value)) {
+				return yield* new DecodeError({
+					message: `First byte is ${firstByte} - expected an 8bit integer to follow`,
+				});
+			}
+
+			const rest = data.subarray(1);
+			return Either.right({
+				value: BigInteger.fromNumber(value).pipe(Option.getOrElse(() => 0n)),
+				rest,
+			});
+		}
+		case SpecialLengthEncodingSubtype.Int16Bit: {
+			const data = buffer.subarray(1);
+			const value = concatInteger(data.subarray(0, 2));
+			const rest = data.subarray(2);
+			return Either.right({ value, rest });
+		}
+		case SpecialLengthEncodingSubtype.Int32Bit: {
+			const data = buffer.subarray(1);
+			const value = concatInteger(data.subarray(0, 4));
+			const rest = data.subarray(4);
+			return Either.right({ value, rest });
+		}
+		case SpecialLengthEncodingSubtype.CompressedString: {
+			return Either.left(type);
+		}
+	}
+
+	return yield* new DecodeError({
+		message: `Unexpected special encoding subtype ${firstByte}`,
+	});
+}, Effect.ensureSuccessType<
+	Either.Either<DecodeResult<bigint>, SpecialLengthEncodingSubtype>
+>());
+
+const decodeLengthEncoded = Effect.fn(function* (
+	buffer: Buffer,
+): DecodeGen<bigint> {
+	const length = yield* decodeLengthBasicLength(buffer);
+	if (Either.isRight(length)) {
+		return length.right;
+	}
+
+	const type = length.left;
+	switch (type) {
+		case LengthEncodingType.Special: {
+			const special = yield* decodeSpecialInteger(buffer);
+			if (Either.isRight(special)) {
+				return special.right;
+			}
+
+			return yield* new DecodeError({
+				message: `Unexpected special encoding subtype ${special.left}`,
+			});
+		}
+	}
+
+	return yield* new DecodeError({
+		message: `Unexpected encoding type ${type}`,
 	});
 });
 
@@ -256,78 +297,25 @@ const decodeLengthEncodedInteger = Effect.fn(function* (buffer: Buffer) {
 const decodeStringEncoded = Effect.fn(function* (
 	buffer: Buffer,
 ): DecodeGen<StringEncoded> {
-	const firstByte = buffer.at(0);
-	if (Predicate.isUndefined(firstByte)) {
-		return yield* new DecodeError({
-			message: "Cannot decode string from en empty buffer",
-		});
+	const lengthE = yield* decodeLengthBasicLength(buffer);
+	if (Either.isRight(lengthE)) {
+		const data = lengthE.right.rest;
+		const length = Number(lengthE.right.value);
+		const value = data.toString(ENCODING, 0, length);
+		const rest = data.subarray(length);
+		return { value, rest };
 	}
 
-	const type = firstByte >> 6;
+	const type = lengthE.left;
 	switch (type) {
-		case LengthEncodingType.Bits6: {
-			const length = firstByte & 0b00111111;
-			const data = buffer.subarray(1);
-			const value = data.toString(ENCODING, 0, length);
-			const rest = data.subarray(length);
-			return { value, rest };
-		}
-
-		case LengthEncodingType.Bits14: {
-			const secondByte = buffer.at(2);
-			if (Predicate.isUndefined(secondByte)) {
-				return yield* new DecodeError({
-					message: `First byte is ${firstByte} - expected a 2nd byte after`,
-				});
+		case LengthEncodingType.Special: {
+			const special = yield* decodeSpecialInteger(buffer);
+			if (Either.isRight(special)) {
+				return special.right;
 			}
 
-			const length = (firstByte & 0b00111111) + (secondByte << 6);
-			const data = buffer.subarray(2);
-			const value = data.toString(ENCODING, 0, length);
-			const rest = data.subarray(length);
-			return { value, rest };
-		}
-
-		case LengthEncodingType.Bytes4: {
-			const length = concatUint8AsNumber(buffer.subarray(1, 5)) ?? 0;
-			const data = buffer.subarray(5);
-			const value = data.toString(ENCODING, 0, length);
-			const rest = data.subarray(length);
-			return { value, rest };
-		}
-
-		case LengthEncodingType.Special: {
-			const subtype = firstByte & 0b00111111;
+			const subtype = special.left;
 			switch (subtype) {
-				case SpecialLengthEncodingSubtype.Int8Bit: {
-					const data = buffer.subarray(1);
-					const value = data.at(0);
-					if (Predicate.isUndefined(value)) {
-						return yield* new DecodeError({
-							message: `First byte is ${firstByte} - expected an 8bit integer to follow`,
-						});
-					}
-
-					const rest = data.subarray(1);
-					return {
-						value: BigInteger.fromNumber(value).pipe(
-							Option.getOrElse(() => 0n),
-						),
-						rest,
-					};
-				}
-				case SpecialLengthEncodingSubtype.Int16Bit: {
-					const data = buffer.subarray(1);
-					const value = concatInteger(data.subarray(0, 2));
-					const rest = data.subarray(2);
-					return { value, rest };
-				}
-				case SpecialLengthEncodingSubtype.Int32Bit: {
-					const data = buffer.subarray(1);
-					const value = concatInteger(data.subarray(0, 4));
-					const rest = data.subarray(4);
-					return { value, rest };
-				}
 				case SpecialLengthEncodingSubtype.CompressedString: {
 					const { value: clen, rest } = yield* decodeLengthEncodedInteger(
 						buffer.subarray(1),
@@ -354,13 +342,13 @@ const decodeStringEncoded = Effect.fn(function* (
 			}
 
 			return yield* new DecodeError({
-				message: `Unexpected special encoding subtype ${firstByte}`,
+				message: `Unexpected special encoding subtype ${subtype}`,
 			});
 		}
 	}
 
 	return yield* new DecodeError({
-		message: `Unexpected encoding type ${firstByte}`,
+		message: `Unexpected encoding type ${type}`,
 	});
 });
 
