@@ -56,6 +56,9 @@ export namespace Command {
 									return "OK";
 								}),
 						),
+						Match.when(["KEYS", Match.string], ([_, pattern]) =>
+							kv.keys(pattern),
+						),
 						Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
 							runtimeConfig.get(key).pipe(
 								Effect.map((value) => [key, value] as const),

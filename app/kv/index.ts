@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import * as Cron from "effect/Cron";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
@@ -76,6 +77,14 @@ export namespace KV {
 					yield* SynchronizedRef.update(storageRef, (storage) => {
 						return HashMap.set(storage, key, { value, expiry });
 					});
+				}),
+				keys: Effect.fn(function* (pattern: string) {
+					if (pattern === "*") {
+						const storage = yield* storageRef;
+						return storage.pipe(HashMap.keys, Arr.fromIterable);
+					}
+
+					return Arr.empty<string>();
 				}),
 			};
 		}).pipe(Logger.withSpan("KvStorage")),

@@ -156,6 +156,12 @@ const PRESET_COMMANDS: Record<string, PresetCommand> = {
 			return ["CONFIG", "GET", "dir"];
 		},
 	},
+	6: {
+		label: "KEYS *",
+		command() {
+			return ["KEYS", "*"];
+		},
+	},
 };
 
 function useWindowSize() {
