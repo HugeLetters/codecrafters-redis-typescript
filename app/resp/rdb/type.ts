@@ -15,7 +15,7 @@ export class RDBSet extends Data.TaggedClass("Set")<{
 	readonly content: HashSet.HashSet<StringEncoded>;
 }> {}
 
-export class RDBSortedSetValue extends Data.Class<{
+export class RDBSortedSetValue extends Data.TaggedClass("RDBSortedSetValue")<{
 	readonly value: StringEncoded;
 	readonly order: number;
 }> {}
@@ -39,18 +39,18 @@ export type Value =
 	| RDBHash
 	| IntSet;
 
-export class ValueWithMeta extends Data.Class<{
+export class ValueWithMeta extends Data.TaggedClass("ValueWithMeta")<{
 	readonly value: Value;
 	readonly expiry: bigint | null;
 }> {}
 
-export class DatabaseMeta extends Data.Class<{
+export class DatabaseMeta extends Data.TaggedClass("DatabaseMeta")<{
 	readonly hashSize: bigint;
 	readonly expireHashSize: bigint;
 }> {}
 
 export type DatabaseEntries = HashMap.HashMap<string, ValueWithMeta>;
-export class Database extends Data.Class<{
+export class Database extends Data.TaggedClass("Database")<{
 	readonly meta: DatabaseMeta | null;
 	readonly entries: DatabaseEntries;
 }> {}
@@ -58,7 +58,7 @@ export type Databases = HashMap.HashMap<bigint, Database>;
 
 export type AuxiliaryFields = HashMap.HashMap<string, StringEncoded>;
 
-export class RDBFile extends Data.Class<{
+export class RDBFile extends Data.TaggedClass("RDBFile")<{
 	readonly version: bigint;
 	readonly meta: AuxiliaryFields;
 	readonly databases: Databases;

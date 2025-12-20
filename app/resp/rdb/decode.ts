@@ -26,7 +26,7 @@ import {
 	type AuxiliaryFields,
 	Database,
 	type DatabaseEntries,
-	type DatabaseMeta,
+	DatabaseMeta,
 	type Databases,
 	type EncodingConfig,
 	RDBFile,
@@ -418,7 +418,10 @@ const decodeDatabaseMeta = Effect.fn(function* (
 	const hashSize = yield* decodeLengthEncoded(buffer.subarray(1));
 	const expireHashSize = yield* decodeLengthEncoded(hashSize.rest);
 	return {
-		value: { hashSize: hashSize.value, expireHashSize: expireHashSize.value },
+		value: new DatabaseMeta({
+			hashSize: hashSize.value,
+			expireHashSize: expireHashSize.value,
+		}),
 		rest: expireHashSize.rest,
 	};
 });
