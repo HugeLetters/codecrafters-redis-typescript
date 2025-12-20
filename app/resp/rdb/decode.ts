@@ -22,16 +22,17 @@ import {
 	VERSION_LENGTH,
 } from "./constants";
 import { LZF } from "./lzf";
-import type {
-	AuxiliaryFields,
+import {
+	type AuxiliaryFields,
 	Database,
-	DatabaseEntries,
-	DatabaseMeta,
-	Databases,
-	EncodingConfig,
+	type DatabaseEntries,
+	type DatabaseMeta,
+	type Databases,
+	type EncodingConfig,
 	RDBFile,
-	StringEncoded,
-	Value,
+	type StringEncoded,
+	type Value,
+	ValueWithMeta,
 } from "./type";
 
 export const decode = Effect.fn("decode")(function* (
@@ -57,13 +58,11 @@ export const decode = Effect.fn("decode")(function* (
 		});
 	}
 
-	const result: RDBFile = {
+	return new RDBFile({
 		version: data.version.value,
 		meta: data.aux.value,
 		databases: data.databases.value,
-	};
-
-	return result;
+	});
 }, Effect.ensureErrorType<DecodeError>());
 
 const decodeMagic = Effect.fn(function* (buffer: Buffer, expected: string) {
@@ -376,7 +375,7 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 			const entry = yield* decodeDatabaseEntry(rest);
 			const { expiry, key, value } = entry.value;
 			return Option.some({
-				value: HashMap.set(db, key, { value, expiry }),
+				value: HashMap.set(db, key, new ValueWithMeta({ value, expiry })),
 				rest: entry.rest,
 			});
 		}),
@@ -385,7 +384,7 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 	return Option.some<DecodeResult<DecodedDatabase>>({
 		rest: db.rest.subarray(1),
 		value: {
-			db: { entries: db.value, meta: meta.value },
+			db: new Database({ entries: db.value, meta: meta.value }),
 			selector: selector.value,
 		},
 	});
