@@ -335,16 +335,26 @@ const decodeDatabases = Effect.fn(function* (buffer: Buffer) {
 		rest: buffer,
 		value: HashMap.empty().pipe(HashMap.beginMutation),
 	};
-	return yield* whileLoop(
+	const dbs = yield* whileLoop(
 		init,
 		Effect.fn(function* ({ rest, value: dbs }) {
+			if (rest.at(0) === OpCode.EndOfFile) {
+				return Option.none();
+			}
+
 			const db = yield* decodeDatabase(rest);
-			return Option.map(db, ({ value, rest }) => ({
-				value: HashMap.set(dbs, value.selector, value.db),
-				rest,
-			}));
+			return Option.some({
+				value: HashMap.set(dbs, db.value.selector, db.value.db),
+				rest: db.rest,
+			});
 		}),
 	);
+
+	const result: DecodeResult<Databases> = {
+		value: dbs.value,
+		rest: dbs.rest.subarray(1),
+	};
+	return result;
 });
 
 interface DecodedDatabase {
@@ -354,7 +364,9 @@ interface DecodedDatabase {
 const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 	const code = buffer.at(0);
 	if (code !== OpCode.DatabaseSelector) {
-		return Option.none();
+		return yield* new DecodeError({
+			message: `Expected Database selector byte ${OpCode.DatabaseSelector}. Received ${code}`,
+		});
 	}
 
 	const selector = yield* decodeLengthEncoded(buffer.subarray(1));
@@ -368,6 +380,10 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 	const db = yield* whileLoop(
 		init,
 		Effect.fn(function* ({ rest, value: db }) {
+			if (rest.at(0) === OpCode.DatabaseSelector) {
+				return Option.none();
+			}
+
 			if (rest.at(0) === OpCode.EndOfFile) {
 				return Option.none();
 			}
@@ -381,13 +397,14 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 		}),
 	);
 
-	return Option.some<DecodeResult<DecodedDatabase>>({
-		rest: db.rest.subarray(1),
+	const result: DecodeResult<DecodedDatabase> = {
+		rest: db.rest,
 		value: {
 			db: new Database({ entries: db.value, meta: meta.value }),
 			selector: selector.value,
 		},
-	});
+	};
+	return result;
 });
 
 const decodeDatabaseMeta = Effect.fn(function* (

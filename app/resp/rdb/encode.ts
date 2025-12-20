@@ -51,7 +51,7 @@ export const encode = Effect.fn("encode")(function* (
 		Buffer.from([OpCode.EndOfFile]),
 	]);
 
-	const checksum = crc_64.array(data);
+	const checksum = crc_64.array(data).reverse();
 
 	return Buffer.concat([data, Buffer.from(checksum)]);
 });
@@ -68,21 +68,22 @@ const encodeVersion = Effect.fn(function* (version: bigint, length: number) {
 });
 
 const encodeAux = Effect.fn(function* (fields: AuxiliaryFields) {
-	const encodedFields = yield* pipe(
+	return yield* pipe(
 		fields,
 		HashMap.entries,
-		Iterable.map(([key, value]) => [
-			encodeStringEncoded(key),
-			encodeStringEncoded(value),
-		]),
-		Iterable.flatten,
+		Iterable.map(([key, value]) => encodeAuxField(key, value)),
 		Effect.allWith({ concurrency: "unbounded" }),
+		Effect.map(Buffer.concat),
 	);
+});
 
-	return Buffer.concat([
-		Buffer.from([OpCode.AuxiliaryField]),
-		...encodedFields,
+const encodeAuxField = Effect.fn(function* (key: string, value: StringEncoded) {
+	const data = yield* Effect.all([
+		encodeStringEncoded(key),
+		encodeStringEncoded(value),
 	]);
+
+	return Buffer.concat([Buffer.from([OpCode.AuxiliaryField]), ...data]);
 });
 
 const encodeLength = Effect.fn(function* (value: bigint) {
