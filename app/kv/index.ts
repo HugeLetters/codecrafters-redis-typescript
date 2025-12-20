@@ -1,3 +1,4 @@
+import * as Path from "@effect/platform/Path";
 import * as Arr from "effect/Array";
 import * as Cron from "effect/Cron";
 import * as DateTime from "effect/DateTime";
@@ -5,15 +6,18 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import * as HashMap from "effect/HashMap";
+import * as Iterable from "effect/Iterable";
 import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import * as SynchronizedRef from "effect/SynchronizedRef";
+import { AppConfig } from "$/config";
+import { RDB } from "$/rdb";
 import { Logger } from "$/utils/logger";
 
 export namespace KV {
 	export class KvStorage extends Effect.Service<KvStorage>()("@kv/KvStorage", {
 		scoped: Effect.gen(function* () {
-			const storageInit = HashMap.empty<string, Value>();
+			const storageInit = yield* createStorageInit;
 			const storageRef = yield* SynchronizedRef.make(storageInit);
 
 			const CleanupFirstExpired = SynchronizedRef.updateEffect(
@@ -116,5 +120,57 @@ export namespace KV {
 			Option.map(DateTime.lessThanOrEqualTo(now)),
 			Option.getOrElse(Fn.constFalse),
 		);
+	}
+
+	const getRDBData = Effect.gen(function* () {
+		const runtimeConfig = yield* AppConfig;
+		const dir = runtimeConfig.getKnown("dir");
+		const db = runtimeConfig.getKnown("dbFilename");
+		const path = yield* Path.Path;
+		const fullPath = path.resolve(dir, db);
+		return yield* RDB.decodeFile(fullPath).pipe(
+			Effect.tapError(Effect.logError),
+			Effect.option,
+		);
+	});
+
+	const createStorageInit = Effect.gen(function* () {
+		const rdb = yield* getRDBData;
+		if (Option.isNone(rdb)) {
+			return HashMap.empty<string, Value>();
+		}
+
+		const { databases } = rdb.value;
+		const now = (yield* DateTime.now).pipe(DateTime.toEpochMillis);
+		return databases.pipe(
+			HashMap.values,
+			Iterable.flatMap((db) => db.entries),
+			Iterable.filterMap(([key, value]): Option.Option<[string, Value]> => {
+				const { expiry } = value;
+				if (expiry !== null && expiry <= now) {
+					return Option.none();
+				}
+
+				return rdbValueToKvValue(value.value).pipe(
+					Option.map((value) => {
+						const parsedExpiry = Option.fromNullable(expiry).pipe(
+							Option.map(Number),
+							Option.flatMap(DateTime.make),
+							Option.map(DateTime.toUtc),
+						);
+						return [key, { value, expiry: parsedExpiry }];
+					}),
+				);
+			}),
+			HashMap.fromIterable,
+		);
+	});
+
+	function rdbValueToKvValue(value: RDB.Value): Option.Option<PlainValue> {
+		if (typeof value !== "string") {
+			return Option.none();
+		}
+
+		return Option.some(value);
 	}
 }

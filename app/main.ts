@@ -1,5 +1,6 @@
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
+import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Effect from "effect/Effect";
 import { flow } from "effect/Function";
 import * as Layer from "effect/Layer";
@@ -85,7 +86,8 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
 const CommandProcessorLive = Command.Processor.Default.pipe(
-	Layer.provide([KV.KvStorage.Default, AppConfig.Default]),
+	Layer.provide(KV.KvStorage.Default),
+	Layer.provide([AppConfig.Default, BunContext.layer]),
 );
 
 main.pipe(
