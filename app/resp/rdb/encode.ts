@@ -54,7 +54,7 @@ export const encode = Effect.fn("encode")(function* (
 	const checksum = crc_64.array(data).reverse();
 
 	return Buffer.concat([data, Buffer.from(checksum)]);
-});
+}, Effect.ensureErrorType<EncodeError>());
 
 const encodeVersion = Effect.fn(function* (version: bigint, length: number) {
 	const formatted = String(version).padStart(length, "0");

@@ -99,29 +99,19 @@ const decodeAuxFields = Effect.fn(function* (buffer: Buffer) {
 	return yield* whileLoop(
 		init,
 		Effect.fn(function* ({ rest, value: fields }) {
-			const field = yield* decodeAuxField(rest);
-			return Option.map(field, ({ key, value, rest }) => ({
-				value: HashMap.set(fields, key, value),
-				rest,
-			}));
+			const code = rest.at(0);
+			if (code !== OpCode.AuxiliaryField) {
+				return Option.none();
+			}
+
+			const key = yield* decodeStringEncodedString(rest.subarray(1));
+			const value = yield* decodeStringEncoded(key.rest);
+			return Option.some({
+				value: HashMap.set(fields, key.value, value.value),
+				rest: value.rest,
+			});
 		}),
 	);
-});
-
-const decodeAuxField = Effect.fn(function* (buffer: Buffer) {
-	const code = buffer.at(0);
-	if (code !== OpCode.AuxiliaryField) {
-		return Option.none();
-	}
-
-	const key = yield* decodeStringEncodedString(buffer.subarray(1));
-	const value = yield* decodeStringEncoded(key.rest);
-
-	return Option.some({
-		rest: value.rest,
-		key: key.value,
-		value: value.value,
-	});
 });
 
 const decodeLengthBasicLength = Effect.fn(function* (buffer: Buffer) {
@@ -361,7 +351,9 @@ interface DecodedDatabase {
 	readonly selector: bigint;
 	readonly db: Database;
 }
-const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
+const decodeDatabase = Effect.fn(function* (
+	buffer: Buffer,
+): DecodeGen<DecodedDatabase> {
 	const code = buffer.at(0);
 	if (code !== OpCode.DatabaseSelector) {
 		return yield* new DecodeError({
@@ -397,14 +389,13 @@ const decodeDatabase = Effect.fn(function* (buffer: Buffer) {
 		}),
 	);
 
-	const result: DecodeResult<DecodedDatabase> = {
+	return {
 		rest: db.rest,
 		value: {
 			db: new Database({ entries: db.value, meta: meta.value }),
 			selector: selector.value,
 		},
 	};
-	return result;
 });
 
 const decodeDatabaseMeta = Effect.fn(function* (
