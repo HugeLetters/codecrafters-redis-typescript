@@ -91,12 +91,14 @@ const decodeVersion = Effect.fn(function* (buffer: Buffer, length: number) {
 	return result;
 });
 
-const decodeAuxFields = Effect.fn(function* (buffer: Buffer) {
+const decodeAuxFields = Effect.fn(function* (
+	buffer: Buffer,
+): DecodeGen<AuxiliaryFields> {
 	const init: DecodeResult<AuxiliaryFields> = {
 		rest: buffer,
 		value: HashMap.empty().pipe(HashMap.beginMutation),
 	};
-	return yield* whileLoop(
+	const fields = yield* whileLoop(
 		init,
 		Effect.fn(function* ({ rest, value: fields }) {
 			const code = rest.at(0);
@@ -112,6 +114,11 @@ const decodeAuxFields = Effect.fn(function* (buffer: Buffer) {
 			});
 		}),
 	);
+
+	return {
+		...fields,
+		value: fields.value.pipe(HashMap.endMutation),
+	};
 });
 
 const decodeLengthBasicLength = Effect.fn(function* (buffer: Buffer) {
@@ -341,7 +348,7 @@ const decodeDatabases = Effect.fn(function* (buffer: Buffer) {
 	);
 
 	const result: DecodeResult<Databases> = {
-		value: dbs.value,
+		value: dbs.value.pipe(HashMap.endMutation),
 		rest: dbs.rest.subarray(1),
 	};
 	return result;
@@ -392,7 +399,10 @@ const decodeDatabase = Effect.fn(function* (
 	return {
 		rest: db.rest,
 		value: {
-			db: new Database({ entries: db.value, meta: meta.value }),
+			db: new Database({
+				entries: db.value.pipe(HashMap.endMutation),
+				meta: meta.value,
+			}),
 			selector: selector.value,
 		},
 	};
