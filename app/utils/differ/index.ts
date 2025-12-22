@@ -1,8 +1,11 @@
+import { inspect } from "node:util";
+import { regex } from "arkregex";
 import * as Arr from "effect/Array";
 import * as Chunk from "effect/Chunk";
 import * as Data from "effect/Data";
 import * as Differ from "effect/Differ";
 import * as Equal from "effect/Equal";
+import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as HashSet from "effect/HashSet";
 import * as Match from "effect/Match";
@@ -293,128 +296,416 @@ export namespace UnknownDiffer {
 			differ: PlainDiffer.differ,
 		},
 	};
-
-	export function format(patch: Patch): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "UnknownEmpty()";
-			case "AndThen":
-				return `UnknownAndThen(${format(patch.first)}, ${format(patch.second)})`;
-			case "Plain":
-				return `Plain(${formatPlain(patch.patch)})`;
-			case "Array":
-				return `Array(${formatArray(patch.patch)})`;
-			case "Chunk":
-				return `Chunk(${formatChunk(patch.patch)})`;
-			case "Record":
-				return `Record(${formatRecord(patch.patch)})`;
-			case "HashMap":
-				return `HashMap(${formatHashMap(patch.patch)})`;
-			case "HashSet":
-				return `HashSet(${formatHashSet(patch.patch)})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+	export namespace Formatter {
+		export function format(patch: Patch): string {
+			const tree = makeUnknownTree(patch);
+			return drawTree(tree);
 		}
-	}
 
-	function formatPlain(patch: PlainPatch["patch"]) {
-		switch (patch._tag) {
-			case "Empty":
-				return "PlainEmpty()";
-			case "Replace":
-				return `Replace(${patch.value})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+		interface EmptyPatch {
+			readonly _tag: "Empty";
 		}
-	}
 
-	function formatArray(patch: ArrayPatch["patch"]): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "ArrayEmpty()";
-			case "AndThen":
-				return `ArrayAndThen(${formatArray(patch.first)} -> ${formatArray(patch.second)})`;
-			case "Append":
-				return `Appended(${patch.values.join(", ")})`;
-			case "Slice":
-				return `Slice(${patch.from} - ${patch.until})`;
-			case "Update":
-				return `Update(${patch.index}: ${format(patch.patch)})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+		interface NestedPatch {
+			readonly _tag: "Nested";
+			readonly label: string;
+			readonly patch: PatchTree;
 		}
-	}
 
-	function formatChunk(patch: ChunkPatch["patch"]): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "ChunkEmpty()";
-			case "AndThen":
-				return `ChunkAndThen(${formatChunk(patch.first)} -> ${formatChunk(patch.second)})`;
-			case "Append":
-				return `Appended(${patch.values.join(", ")})`;
-			case "Slice":
-				return `Slice(${patch.from} - ${patch.until})`;
-			case "Update":
-				return `Update(${patch.index}: ${format(patch.patch)})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+		interface SequencePatch {
+			readonly _tag: "Sequence";
+			readonly patch: Chunk.Chunk<PatchTree>;
 		}
-	}
 
-	function formatRecord(patch: RecordPatch["patch"]): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "RecordEmpty()";
-			case "AndThen":
-				return `RecordAndThen(${formatRecord(patch.first)} -> ${formatRecord(patch.second)})`;
-			case "Remove":
-				return `Remove(${patch.key})`;
-			case "Add":
-				return `Add(${patch.key}: ${patch.value})`;
-			case "Update":
-				return `Update(${patch.key}: ${format(patch.patch)})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+		interface UnitPatch {
+			readonly _tag: "Unit";
+			readonly content: string;
 		}
-	}
 
-	function formatHashMap(patch: HashMapPatch["patch"]): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "HashMapEmpty()";
-			case "AndThen":
-				return `HashMapAndThen(${formatHashMap(patch.first)}, ${formatHashMap(patch.second)})`;
-			case "Remove":
-				return `Remove(${patch.key})`;
-			case "Add":
-				return `Add(${patch.key} ~> ${patch.value})`;
-			case "Update":
-				return `Update(${patch.key} ~> ${format(patch.patch)})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+		type PatchTree = EmptyPatch | UnitPatch | NestedPatch | SequencePatch;
+
+		const empty: PatchTree = { _tag: "Empty" };
+
+		const ItemPrefix = "├──";
+		const LastPrefix = "└──";
+		const LinePrefix = "│  ";
+		const AfterLastPrefix = "   ";
+		interface TreeMeta {
+			prefix: {
+				item: string;
+				line: string;
+				last: string;
+				afterLast: string;
+			};
 		}
-	}
+		function drawTree(
+			tree: PatchTree,
+			meta: TreeMeta = {
+				prefix: {
+					item: "",
+					last: "",
+					line: "",
+					afterLast: "",
+				},
+			},
+		): string {
+			const { prefix } = meta;
+			switch (tree._tag) {
+				case "Empty":
+					return `${prefix.last}<unchanged>`;
+				case "Unit":
+					return `${prefix.last}${tree.content}`;
+				case "Sequence": {
+					const nonEmptyPatches = tree.patch.pipe(
+						flattenSequence,
+						Chunk.filter((tree) => tree._tag !== "Empty"),
+					);
 
-	function formatHashSet(patch: HashSetPatch["patch"]): string {
-		switch (patch._tag) {
-			case "Empty":
-				return "HashSetEmpty()";
-			case "AndThen":
-				return `HashSetAndThen(${formatHashSet(patch.first)} -> ${formatHashSet(patch.second)})`;
-			case "Add":
-				return `Add(${patch.value})`;
-			case "Remove":
-				return `Remove(${patch.value})`;
-			default:
-				patch satisfies never;
-				return "UnknownPatch";
+					if (Chunk.isEmpty(nonEmptyPatches)) {
+						return `${prefix.last}${drawTree(empty)}`;
+					}
+
+					return nonEmptyPatches.pipe(
+						Chunk.map((tree, i) => {
+							const isLast = i === nonEmptyPatches.length - 1;
+							return `${drawTree(tree, {
+								prefix: {
+									...prefix,
+									line: isLast
+										? prefix.line
+										: prefix.line.replace(
+												regex(`${AfterLastPrefix}$`),
+												LinePrefix,
+											),
+									last: isLast ? prefix.last : prefix.item,
+								},
+							})}`;
+						}),
+						Chunk.join("\n"),
+					);
+				}
+				case "Nested": {
+					const patch = drawTree(tree.patch, {
+						prefix: {
+							item: `${prefix.line}${ItemPrefix}`,
+							line: `${prefix.line}${AfterLastPrefix}`,
+							last: `${prefix.line}${LastPrefix}`,
+							afterLast: `${prefix.line}${AfterLastPrefix}`,
+						},
+					});
+					return `${prefix.last}${tree.label}\n${patch}`;
+				}
+				default:
+					tree satisfies never;
+					return `UnknownTree`;
+			}
+		}
+
+		function flattenSequence(
+			patches: Chunk.Chunk<PatchTree>,
+		): Chunk.Chunk<Exclude<PatchTree, SequencePatch>> {
+			return Chunk.flatMap(patches, (tree) => {
+				if (tree._tag !== "Sequence") {
+					return Chunk.of(tree);
+				}
+
+				return flattenSequence(tree.patch);
+			});
+		}
+
+		function makeUnknownTree(patch: Patch): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeUnknownTree(patch.first);
+					const second = makeUnknownTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Plain": {
+					return makePlainTree(patch.patch);
+				}
+				case "Array": {
+					const tree = makeArrayTree(patch.patch);
+
+					return {
+						_tag: "Nested",
+						label: "Array",
+						patch: tree,
+					};
+				}
+				case "Chunk": {
+					const tree = makeChunkTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: "Chunk",
+						patch: tree,
+					};
+				}
+				case "Record": {
+					const tree = makeRecordTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: "Record",
+						patch: tree,
+					};
+				}
+				case "HashMap": {
+					const tree = makeHashMapTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: "HashMap",
+						patch: tree,
+					};
+				}
+				case "HashSet": {
+					const tree = makeHashSetTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: "HashSet",
+						patch: tree,
+					};
+				}
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makePlainTree(patch: PlainPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "Replace":
+					return {
+						_tag: "Unit",
+						content: `Replaced(${formatValue(patch.value)})`,
+					};
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeArrayTree(patch: ArrayPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+
+				case "AndThen": {
+					const first = makeArrayTree(patch.first);
+					const second = makeArrayTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Append":
+					return {
+						_tag: "Sequence",
+						patch: pipe(
+							patch.values,
+							Chunk.fromIterable,
+							Chunk.map((value) => ({
+								_tag: "Unit",
+								content: `Appended ${formatValue(value)}`,
+							})),
+						),
+					};
+				case "Slice":
+					return {
+						_tag: "Unit",
+						content: `Slice(${patch.from} - ${patch.until})`,
+					};
+				case "Update": {
+					const tree = makeUnknownTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: `Updated: ${patch.index}`,
+						patch: tree,
+					};
+				}
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeChunkTree(patch: ChunkPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeChunkTree(patch.first);
+					const second = makeChunkTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Append":
+					return {
+						_tag: "Sequence",
+						patch: Chunk.fromIterable(patch.values).pipe(
+							Chunk.map((value) => ({
+								_tag: "Unit",
+								content: `Appended ${formatValue(value)}`,
+							})),
+						),
+					};
+				case "Slice":
+					return {
+						_tag: "Unit",
+						content: `Slice(${patch.from} - ${patch.until})`,
+					};
+				case "Update": {
+					const tree = makeUnknownTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: `Updated: ${patch.index}`,
+						patch: tree,
+					};
+				}
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeRecordTree(patch: RecordPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeRecordTree(patch.first);
+					const second = makeRecordTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Remove":
+					return {
+						_tag: "Unit",
+						content: `Remove(${patch.key})`,
+					};
+				case "Add":
+					return {
+						_tag: "Unit",
+						content: `Add(${patch.key}: ${formatValue(patch.value)})`,
+					};
+				case "Update": {
+					const tree = makeUnknownTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: `Updated: ${patch.key}`,
+						patch: tree,
+					};
+				}
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeHashMapTree(patch: HashMapPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeHashMapTree(patch.first);
+					const second = makeHashMapTree(patch.second);
+
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Remove":
+					return {
+						_tag: "Unit",
+						content: `Remove(${formatValue(patch.key)})`,
+					};
+				case "Add":
+					return {
+						_tag: "Unit",
+						content: `Add(${formatValue(patch.key)} ~> ${formatValue(patch.value)})`,
+					};
+				case "Update": {
+					const tree = makeUnknownTree(patch.patch);
+					return {
+						_tag: "Nested",
+						label: `Updated: ${formatValue(patch.key)}`,
+						patch: tree,
+					};
+				}
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeHashSetTree(patch: HashSetPatch["patch"]): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeHashSetTree(patch.first);
+					const second = makeHashSetTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Add":
+					return {
+						_tag: "Unit",
+						content: `Add(${formatValue(patch.value)})`,
+					};
+				case "Remove":
+					return {
+						_tag: "Unit",
+						content: `Remove(${formatValue(patch.value)})`,
+					};
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function formatValue(value: unknown) {
+			return inspect(value, {
+				compact: true,
+				colors: true,
+				depth: 0,
+				maxArrayLength: 0,
+				maxStringLength: 10,
+				breakLength: Number.POSITIVE_INFINITY,
+			});
 		}
 	}
 }
