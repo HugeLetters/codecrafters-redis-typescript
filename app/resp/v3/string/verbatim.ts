@@ -10,9 +10,9 @@ import * as Option from "effect/Option";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 
-export class VerbatimString extends Schema.Class<VerbatimString>(
+export class VerbatimString extends Schema.TaggedClass<VerbatimString>(
 	"VerbatimString",
-)({
+)("VerbatimString", {
 	encoding: Schema.String.pipe(Schema.length(3)),
 	text: Schema.String,
 }) {}
@@ -90,7 +90,10 @@ const LeftoverVerbatimStringContent = Schema.String.pipe(
 			const text = content.slice(ENCODING_LENGTH + 1);
 			const leftover = afterContent.slice(leftoverPosition);
 			type Output = LeftoverData<VerbatimString>;
-			const output: Output = { data: { encoding, text }, leftover };
+			const output: Output = {
+				data: { _tag: "VerbatimString", encoding, text },
+				leftover,
+			};
 			return output;
 		}),
 		encode(input) {
