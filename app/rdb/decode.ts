@@ -399,10 +399,10 @@ const decodeDatabase = Effect.fn(function* (
 	return {
 		rest: db.rest,
 		value: {
-			db: new Database({
-				entries: db.value.pipe(HashMap.endMutation),
-				meta: meta.value,
-			}),
+			db: new Database(
+				{ entries: db.value.pipe(HashMap.endMutation) },
+				meta.value ?? undefined,
+			),
 			selector: selector.value,
 		},
 	};

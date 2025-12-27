@@ -1,5 +1,5 @@
 import * as Data from "effect/Data";
-import type * as HashMap from "effect/HashMap";
+import * as HashMap from "effect/HashMap";
 import type * as HashSet from "effect/HashSet";
 import type * as SortedSet from "effect/SortedSet";
 import type { Satisfies } from "$/utils/type";
@@ -50,10 +50,30 @@ export class DatabaseMeta extends Data.TaggedClass("DatabaseMeta")<{
 }> {}
 
 export type DatabaseEntries = HashMap.HashMap<string, ValueWithMeta>;
-export class Database extends Data.TaggedClass("Database")<{
-	readonly meta: DatabaseMeta | null;
+
+interface DatabaseConstructor {
 	readonly entries: DatabaseEntries;
-}> {}
+}
+export class Database extends Data.TaggedClass(
+	"Database",
+)<DatabaseConstructor> {
+	constructor(config: DatabaseConstructor, metaOverride?: DatabaseMeta) {
+		super(config);
+
+		this.meta =
+			metaOverride ??
+			new DatabaseMeta({
+				hashSize: this.entries.pipe(HashMap.size, BigInt),
+				expireHashSize: this.entries.pipe(
+					HashMap.filter((value) => value.expiry !== null),
+					HashMap.size,
+					BigInt,
+				),
+			});
+	}
+
+	readonly meta;
+}
 export type Databases = HashMap.HashMap<bigint, Database>;
 
 export type AuxiliaryFields = HashMap.HashMap<string, StringEncoded>;

@@ -180,14 +180,8 @@ const encodeDatabases = Effect.fn(function* (dbs: Databases) {
 const encodeDatabase = Effect.fn(function* (db: Database) {
 	const data = yield* Effect.all(
 		[
-			encodeLength(db.entries.pipe(HashMap.size, BigInt)),
-			encodeLength(
-				db.entries.pipe(
-					HashMap.filter((value) => value.expiry !== null),
-					HashMap.size,
-					BigInt,
-				),
-			),
+			encodeLength(db.meta.hashSize),
+			encodeLength(db.meta.expireHashSize),
 			encodeDatabaseEntries(db.entries),
 		],
 		{ concurrency: "unbounded" },
