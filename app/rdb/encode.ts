@@ -4,7 +4,6 @@ import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as Iterable from "effect/Iterable";
 import * as Match from "effect/Match";
-import * as Predicate from "effect/Predicate";
 import { crc_64_redis as crc_64 } from "js-crc/models";
 import {
 	LengthEncodingType,
@@ -179,19 +178,21 @@ const encodeDatabases = Effect.fn(function* (dbs: Databases) {
 });
 
 const encodeDatabase = Effect.fn(function* (db: Database) {
-	if (!Predicate.isNull(db.meta)) {
-		const data = yield* Effect.all(
-			[
-				encodeLength(db.meta.hashSize),
-				encodeLength(db.meta.expireHashSize),
-				encodeDatabaseEntries(db.entries),
-			],
-			{ concurrency: "unbounded" },
-		);
-		return Buffer.concat([Buffer.from([OpCode.ResizeDB]), ...data]);
-	}
-
-	return yield* encodeDatabaseEntries(db.entries);
+	const data = yield* Effect.all(
+		[
+			encodeLength(db.entries.pipe(HashMap.size, BigInt)),
+			encodeLength(
+				db.entries.pipe(
+					HashMap.filter((value) => value.expiry !== null),
+					HashMap.size,
+					BigInt,
+				),
+			),
+			encodeDatabaseEntries(db.entries),
+		],
+		{ concurrency: "unbounded" },
+	);
+	return Buffer.concat([Buffer.from([OpCode.ResizeDB]), ...data]);
 });
 
 const encodeDatabaseEntries = Effect.fn(function* (entries: DatabaseEntries) {
