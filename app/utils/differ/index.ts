@@ -13,7 +13,7 @@ import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
 import type { BuiltInDiffer } from "./internal";
 
-namespace PlainDiffer {
+namespace StringDiffer {
 	class EmptyPatch extends Data.TaggedClass("Empty") {}
 	class AndThenPatch extends Data.TaggedClass("AndThen")<{
 		readonly first: Patch;
@@ -24,7 +24,113 @@ namespace PlainDiffer {
 		readonly to: Value;
 	}> {}
 
-	export type Patch = EmptyPatch | AndThenPatch | ReplacePatch;
+	class AppendedPatch extends Data.TaggedClass("Appended")<{
+		readonly appended: Value;
+	}> {}
+	class UnappendedPatch extends Data.TaggedClass("Unappended")<{
+		readonly unappended: Value;
+	}> {}
+	class PrependedPatch extends Data.TaggedClass("Prepended")<{
+		readonly preprended: Value;
+	}> {}
+	class UnprependedPatch extends Data.TaggedClass("Unprepended")<{
+		readonly unpreprended: Value;
+	}> {}
+
+	export type Patch =
+		| EmptyPatch
+		| AndThenPatch
+		| ReplacePatch
+		| AppendedPatch
+		| UnappendedPatch
+		| PrependedPatch
+		| UnprependedPatch;
+
+	export type Value = string;
+
+	export const differ = Differ.make<Value, Patch>({
+		combine(first, second) {
+			if (first._tag === "Empty") {
+				return second;
+			}
+
+			if (second._tag === "Empty") {
+				return first;
+			}
+
+			return new AndThenPatch({ first, second });
+		},
+		diff(oldValue, newValue): Patch {
+			if (oldValue === newValue) {
+				return differ.empty;
+			}
+
+			if (newValue.startsWith(oldValue)) {
+				return new AppendedPatch({ appended: newValue.slice(oldValue.length) });
+			}
+
+			if (oldValue.startsWith(newValue)) {
+				return new UnappendedPatch({
+					unappended: oldValue.slice(newValue.length),
+				});
+			}
+
+			if (newValue.endsWith(oldValue)) {
+				return new PrependedPatch({
+					preprended: newValue.slice(0, -oldValue.length),
+				});
+			}
+
+			if (oldValue.endsWith(newValue)) {
+				return new UnprependedPatch({
+					unpreprended: oldValue.slice(0, -newValue.length),
+				});
+			}
+
+			return new ReplacePatch({ from: oldValue, to: newValue });
+		},
+		empty: new EmptyPatch(),
+		patch(patch, oldValue): Value {
+			switch (patch._tag) {
+				case "Empty":
+					return oldValue;
+				case "AndThen": {
+					const first = differ.patch(patch.first, oldValue);
+					return differ.patch(patch.second, first);
+				}
+				case "Replace":
+					return patch.to;
+				case "Appended":
+					return `${oldValue}${patch.appended}`;
+				case "Prepended":
+					return `${patch.preprended}${oldValue}`;
+				case "Unappended":
+					return oldValue.slice(0, -patch.unappended.length);
+				case "Unprepended":
+					return oldValue.slice(patch.unpreprended.length);
+				default:
+					patch satisfies never;
+					return oldValue;
+			}
+		},
+	});
+}
+
+namespace PlainDiffer {
+	class EmptyPatch extends Data.TaggedClass("Empty") {}
+	class AndThenPatch extends Data.TaggedClass("AndThen")<{
+		readonly first: Patch;
+		readonly second: Patch;
+	}> {}
+	class ReplacePatch extends Data.TaggedClass("Replace")<{
+		readonly from: Value;
+		readonly to: Value;
+	}> {}
+	class StringPatch extends Data.TaggedClass("StringPatch")<{
+		readonly patch: StringDiffer.Patch;
+	}> {}
+
+	export type Patch = EmptyPatch | AndThenPatch | ReplacePatch | StringPatch;
 
 	export type Value = unknown;
 
@@ -45,6 +151,12 @@ namespace PlainDiffer {
 				return differ.empty;
 			}
 
+			if (Predicate.isString(oldValue) && Predicate.isString(newValue)) {
+				return new StringPatch({
+					patch: StringDiffer.differ.diff(oldValue, newValue),
+				});
+			}
+
 			return new ReplacePatch({ from: oldValue, to: newValue });
 		},
 		empty: new EmptyPatch(),
@@ -58,6 +170,12 @@ namespace PlainDiffer {
 				}
 				case "Replace":
 					return patch.to;
+				case "StringPatch":
+					if (!Predicate.isString(oldValue)) {
+						return oldValue;
+					}
+
+					return StringDiffer.differ.patch(patch.patch, oldValue);
 				default:
 					patch satisfies never;
 					return oldValue;
@@ -505,6 +623,59 @@ export namespace UnknownDiffer {
 						_tag: "Unit",
 						content: `Replace: ${formatValue(patch.from)} ~> ${formatValue(patch.to)}`,
 					};
+				case "StringPatch":
+					return {
+						_tag: "Nested",
+						label: "String",
+						patch: makeStringTree(patch.patch),
+					};
+				default:
+					patch satisfies never;
+					return {
+						_tag: "Unit",
+						content: "UnknownPatch",
+					};
+			}
+		}
+
+		function makeStringTree(patch: StringDiffer.Patch): PatchTree {
+			switch (patch._tag) {
+				case "Empty":
+					return empty;
+				case "AndThen": {
+					const first = makeStringTree(patch.first);
+					const second = makeStringTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
+				case "Replace":
+					return {
+						_tag: "Unit",
+						content: `Replace: ${formatValue(patch.from)} ~> ${formatValue(patch.to)}`,
+					};
+				case "Appended":
+					return {
+						_tag: "Unit",
+						content: `Appended: ${formatValue(patch.appended)}`,
+					};
+				case "Unappended":
+					return {
+						_tag: "Unit",
+						content: `Unappended: ${formatValue(patch.unappended)}`,
+					};
+				case "Prepended":
+					return {
+						_tag: "Unit",
+						content: `Prepended: ${formatValue(patch.preprended)}`,
+					};
+				case "Unprepended":
+					return {
+						_tag: "Unit",
+						content: `Unprepended: ${formatValue(patch.unpreprended)}`,
+					};
+
 				default:
 					patch satisfies never;
 					return {
