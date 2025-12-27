@@ -21,9 +21,9 @@ describe("decode", () => {
 					version: 12n,
 					meta: HashMap.fromIterable<string, StringEncoded>([
 						["redis-ver", "8.4.0"],
-						["used-mem", 1888226560n],
+						["used-mem", 887920n],
 						["redis-bits", 64n],
-						["ctime", 876954473n],
+						["ctime", 1766016308n],
 						["aof-base", 0n],
 					]),
 					databases: HashMap.fromIterable([
@@ -48,14 +48,14 @@ describe("decode", () => {
 									[
 										"key2",
 										new ValueWithMeta({
-											expiry: 14044979214449442816n,
+											expiry: 1766016608706n,
 											value: "redis value",
 										}),
 									],
 									[
 										"key4",
 										new ValueWithMeta({
-											expiry: 5350495360299106304n,
+											expiry: 1766016368714n,
 											value: "expires soon",
 										}),
 									],

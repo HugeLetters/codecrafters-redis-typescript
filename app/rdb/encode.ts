@@ -140,7 +140,7 @@ const encodeStringEncodedInteger = Effect.fn(function* (value: bigint) {
 		const buffer = yield* bigintToUint8Array(value, 2n);
 		const code =
 			(LengthEncodingType.Special << 6) + SpecialLengthEncodingSubtype.Int16Bit;
-		return Buffer.concat([Buffer.from([code]), buffer]);
+		return Buffer.concat([Buffer.from([code]), buffer.reverse()]);
 	}
 
 	if (value < 1n << 32n) {
@@ -148,7 +148,7 @@ const encodeStringEncodedInteger = Effect.fn(function* (value: bigint) {
 		const code =
 			(LengthEncodingType.Special << 6) + SpecialLengthEncodingSubtype.Int32Bit;
 
-		return Buffer.concat([Buffer.from([code]), buffer]);
+		return Buffer.concat([Buffer.from([code]), buffer.reverse()]);
 	}
 
 	return yield* new EncodeError({ message: `Integer ${value} is too large` });
@@ -275,7 +275,10 @@ const encodeDatabaseExpiry = Effect.fn(function* (value: ValueWithMeta) {
 		const expiryS = value.expiry / 1000n;
 		if (expiryS < 1n << 4n) {
 			const buffer = yield* bigintToUint8Array(expiryS, 4n);
-			return Buffer.concat([Buffer.from([OpCode.ExpireTime]), buffer]);
+			return Buffer.concat([
+				Buffer.from([OpCode.ExpireTime]),
+				buffer.reverse(),
+			]);
 		}
 	}
 
@@ -286,7 +289,7 @@ const encodeDatabaseExpiry = Effect.fn(function* (value: ValueWithMeta) {
 			});
 		}),
 	);
-	return Buffer.concat([Buffer.from([OpCode.ExpireTimeMs]), buffer]);
+	return Buffer.concat([Buffer.from([OpCode.ExpireTimeMs]), buffer.reverse()]);
 });
 
 const bigintToUint8Array = Effect.fn(function* (value: bigint, size: bigint) {

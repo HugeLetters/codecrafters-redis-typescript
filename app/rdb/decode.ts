@@ -195,13 +195,13 @@ const decodeSpecialInteger = Effect.fn(function* (buffer: Buffer) {
 		}
 		case SpecialLengthEncodingSubtype.Int16Bit: {
 			const data = buffer.subarray(1);
-			const value = concatInteger(data.subarray(0, 2));
+			const value = concatInteger(data.subarray(0, 2).toReversed());
 			const rest = data.subarray(2);
 			return Either.right({ value, rest });
 		}
 		case SpecialLengthEncodingSubtype.Int32Bit: {
 			const data = buffer.subarray(1);
-			const value = concatInteger(data.subarray(0, 4));
+			const value = concatInteger(data.subarray(0, 4).toReversed());
 			const rest = data.subarray(4);
 			return Either.right({ value, rest });
 		}
@@ -526,13 +526,13 @@ function decodeDatabaseEntryExpiry(
 	switch (code) {
 		case OpCode.ExpireTime: {
 			const data = buffer.subarray(1);
-			const value = concatInteger(data.subarray(0, 4)) * 1000n;
+			const value = concatInteger(data.subarray(0, 4).toReversed()) * 1000n;
 			const rest = data.subarray(4);
 			return { value, rest };
 		}
 		case OpCode.ExpireTimeMs: {
 			const data = buffer.subarray(1);
-			const value = concatInteger(data.subarray(0, 8));
+			const value = concatInteger(data.subarray(0, 8).toReversed());
 			const rest = data.subarray(8);
 			return { value, rest };
 		}
@@ -548,7 +548,7 @@ const validateChecksum = Effect.fn(function* (file: Buffer, checksum: Buffer) {
 		});
 	}
 
-	const checksumValue = concatInteger(checksum);
+	const checksumValue = concatInteger(checksum.toReversed());
 	if (checksumValue === 0n) {
 		return true;
 	}
@@ -556,7 +556,6 @@ const validateChecksum = Effect.fn(function* (file: Buffer, checksum: Buffer) {
 	return pipe(
 		file.subarray(0, -8),
 		crc_64.array,
-		(_) => _.reverse(),
 		concatInteger,
 		Equal.equals(checksumValue),
 	);
