@@ -2,16 +2,13 @@ import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as Record from "effect/Record";
-import { argvConfigProvider } from "$/utils/config/argv";
 import { Config } from "./config";
 
 export class AppConfig extends Effect.Service<AppConfig>()(
 	"@config/AppConfig",
 	{
 		effect: Effect.gen(function* () {
-			const config = yield* Config.pipe(
-				Effect.withConfigProvider(argvConfigProvider()),
-			);
+			const config = yield* Config;
 
 			const configMap = pipe(
 				config,

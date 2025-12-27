@@ -19,6 +19,7 @@ import {
 import { JobQueue } from "$/utils/job-queue";
 import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
+import { argvConfigProvider } from "./utils/config/argv";
 
 const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
@@ -93,6 +94,7 @@ const CommandProcessorLive = Command.Processor.Default.pipe(
 
 main.pipe(
 	Effect.provide([CommandProcessorLive, DevToolsLive]),
+	Effect.withConfigProvider(argvConfigProvider()),
 	Protocol.config({
 		// codecrafters seems to pretty much always expect a bulk string
 		shouldTrySimpleStringEncode: Fn.constFalse,
