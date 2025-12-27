@@ -16,14 +16,17 @@ import type { BuiltInDiffer } from "./internal";
 namespace PlainDiffer {
 	class EmptyPatch extends Data.TaggedClass("Empty") {}
 	class ReplacePatch extends Data.TaggedClass("Replace")<{
-		value: unknown;
+		from: Value;
+		to: Value;
 	}> {}
 
 	export type Patch = EmptyPatch | ReplacePatch;
 
+	export type Value = unknown;
+
 	export const empty = new EmptyPatch();
 
-	export const differ = Differ.make<unknown, Patch>({
+	export const differ = Differ.make<Value, Patch>({
 		combine(_first, second) {
 			return second;
 		},
@@ -32,7 +35,7 @@ namespace PlainDiffer {
 				return empty;
 			}
 
-			return new ReplacePatch({ value: newValue });
+			return new ReplacePatch({ from: oldValue, to: newValue });
 		},
 		empty,
 		patch(patch, oldValue) {
@@ -40,7 +43,7 @@ namespace PlainDiffer {
 				case "Empty":
 					return oldValue;
 				case "Replace":
-					return patch.value;
+					return patch.to;
 				default:
 					patch satisfies never;
 					return oldValue;
@@ -56,12 +59,14 @@ namespace RecordDiffer {
 		Patch
 	>;
 
+	export type Value<TValue = unknown> = Record.ReadonlyRecord<string, TValue>;
+
 	export const make = <Value, Patch>(differ: Differ.Differ<Value, Patch>) => {
 		const hmDiffer = Differ.hashMap<string, Value, Patch>(differ);
 
 		return Differ.make({
 			empty: hmDiffer.empty,
-			diff: (oldValue: Record.ReadonlyRecord<string, Value>, newValue) => {
+			diff: (oldValue: RecordDiffer.Value<Value>, newValue) => {
 				const oldHm = HashMap.fromIterable(Object.entries(oldValue));
 				const newHm = HashMap.fromIterable(Object.entries(newValue));
 				return hmDiffer.diff(oldHm, newHm);
@@ -134,9 +139,7 @@ export namespace UnknownDiffer {
 						return differ.empty;
 					}
 
-					return new ChunkPatch({
-						patch: patch,
-					});
+					return new ChunkPatch({ patch });
 				}),
 				Match.when(
 					pair(ValueHelpers.hashMap.matcher),
@@ -150,9 +153,7 @@ export namespace UnknownDiffer {
 							return differ.empty;
 						}
 
-						return new HashMapPatch({
-							patch: patch,
-						});
+						return new HashMapPatch({ patch });
 					},
 				),
 				Match.when(
@@ -167,9 +168,7 @@ export namespace UnknownDiffer {
 							return differ.empty;
 						}
 
-						return new HashSetPatch({
-							patch: patch,
-						});
+						return new HashSetPatch({ patch });
 					},
 				),
 				Match.when(pair(ValueHelpers.array.matcher), ([oldValue, newValue]) => {
@@ -182,9 +181,7 @@ export namespace UnknownDiffer {
 						return differ.empty;
 					}
 
-					return new ArrayPatch({
-						patch: patch,
-					});
+					return new ArrayPatch({ patch });
 				}),
 				Match.when(
 					pair(ValueHelpers.record.matcher),
@@ -207,7 +204,7 @@ export namespace UnknownDiffer {
 						return differ.empty;
 					}
 
-					return new PlainPatch({ patch: patch });
+					return new PlainPatch({ patch });
 				}),
 			);
 		},
@@ -485,7 +482,7 @@ export namespace UnknownDiffer {
 				case "Replace":
 					return {
 						_tag: "Unit",
-						content: `Replaced(${formatValue(patch.value)})`,
+						content: `Replaced(${formatValue(patch.from)} -> ${formatValue(patch.to)})`,
 					};
 				default:
 					patch satisfies never;
@@ -558,12 +555,10 @@ export namespace UnknownDiffer {
 				case "Append":
 					return {
 						_tag: "Sequence",
-						patch: Chunk.fromIterable(patch.values).pipe(
-							Chunk.map((value) => ({
-								_tag: "Unit",
-								content: `Appended ${formatValue(value)}`,
-							})),
-						),
+						patch: Chunk.map(patch.values, (value) => ({
+							_tag: "Unit",
+							content: `Appended ${formatValue(value)}`,
+						})),
 					};
 				case "Slice":
 					return {

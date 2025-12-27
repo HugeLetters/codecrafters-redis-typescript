@@ -1,3 +1,4 @@
+import type * as EChunk from "effect/Chunk";
 import type * as Differ from "effect/Differ";
 
 export namespace BuiltInDiffer {
@@ -58,7 +59,7 @@ export namespace BuiltInDiffer {
 		interface Append<Value, Patch>
 			extends Differ.Differ.Chunk.Patch<Value, Patch> {
 			readonly _tag: "Append";
-			readonly values: Array<Value>;
+			readonly values: EChunk.Chunk<Value>;
 		}
 
 		interface Slice<Value, Patch>
