@@ -482,7 +482,7 @@ export namespace UnknownDiffer {
 				case "Replace":
 					return {
 						_tag: "Unit",
-						content: `Replaced(${formatValue(patch.from)} -> ${formatValue(patch.to)})`,
+						content: `Replace: ${formatValue(patch.from)} -> ${formatValue(patch.to)}`,
 					};
 				default:
 					patch satisfies never;
@@ -514,20 +514,20 @@ export namespace UnknownDiffer {
 							Chunk.fromIterable,
 							Chunk.map((value) => ({
 								_tag: "Unit",
-								content: `Appended ${formatValue(value)}`,
+								content: `Append: ${formatValue(value)}`,
 							})),
 						),
 					};
 				case "Slice":
 					return {
 						_tag: "Unit",
-						content: `Slice(${patch.from} - ${patch.until})`,
+						content: `Slice: ${patch.from} - ${patch.until}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Updated: ${patch.index}`,
+						label: `Update: ${patch.index}`,
 						patch: tree,
 					};
 				}
@@ -557,19 +557,19 @@ export namespace UnknownDiffer {
 						_tag: "Sequence",
 						patch: Chunk.map(patch.values, (value) => ({
 							_tag: "Unit",
-							content: `Appended ${formatValue(value)}`,
+							content: `Append: ${formatValue(value)}`,
 						})),
 					};
 				case "Slice":
 					return {
 						_tag: "Unit",
-						content: `Slice(${patch.from} - ${patch.until})`,
+						content: `Slice: ${patch.from} - ${patch.until}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Updated: ${patch.index}`,
+						label: `Update: ${patch.index}`,
 						patch: tree,
 					};
 				}
@@ -597,18 +597,18 @@ export namespace UnknownDiffer {
 				case "Remove":
 					return {
 						_tag: "Unit",
-						content: `Remove(${patch.key})`,
+						content: `Remove: ${patch.key}`,
 					};
 				case "Add":
 					return {
 						_tag: "Unit",
-						content: `Add(${patch.key}: ${formatValue(patch.value)})`,
+						content: `Add: ${patch.key} ~> ${formatValue(patch.value)}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Updated: ${patch.key}`,
+						label: `Update: ${patch.key}`,
 						patch: tree,
 					};
 				}
@@ -637,18 +637,18 @@ export namespace UnknownDiffer {
 				case "Remove":
 					return {
 						_tag: "Unit",
-						content: `Remove(${formatValue(patch.key)})`,
+						content: `Remove: ${formatValue(patch.key)}`,
 					};
 				case "Add":
 					return {
 						_tag: "Unit",
-						content: `Add(${formatValue(patch.key)} ~> ${formatValue(patch.value)})`,
+						content: `Add: ${formatValue(patch.key)} ~> ${formatValue(patch.value)}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Updated: ${formatValue(patch.key)}`,
+						label: `Update: ${formatValue(patch.key)}`,
 						patch: tree,
 					};
 				}
@@ -676,12 +676,12 @@ export namespace UnknownDiffer {
 				case "Add":
 					return {
 						_tag: "Unit",
-						content: `Add(${formatValue(patch.value)})`,
+						content: `Add: ${formatValue(patch.value)}`,
 					};
 				case "Remove":
 					return {
 						_tag: "Unit",
-						content: `Remove(${formatValue(patch.value)})`,
+						content: `Remove: ${formatValue(patch.value)}`,
 					};
 				default:
 					patch satisfies never;
