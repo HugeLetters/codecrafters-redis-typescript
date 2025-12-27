@@ -14,7 +14,7 @@ export namespace Command {
 	export type Input = Protocol.Decoded;
 	export type RunProcessor = Processor["process"];
 	export type Result = ReturnType<RunProcessor>;
-	export type Success = Protocol.Decoded;
+	export type Success = Protocol.Value;
 	export type Error = Protocol.Error;
 	export type Context = Effect.Effect.Context<Result>;
 
@@ -53,7 +53,7 @@ export namespace Command {
 									);
 
 									yield* kv.set(key, value, { ttl: opts.PX });
-									return "OK";
+									return Protocol.simple("OK");
 								}),
 						),
 						Match.when(["KEYS", Match.string], ([_, pattern]) =>

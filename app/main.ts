@@ -2,6 +2,7 @@ import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
 import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Effect from "effect/Effect";
+import * as Fn from "effect/Function";
 import { flow } from "effect/Function";
 import * as Layer from "effect/Layer";
 import { Command } from "$/command";
@@ -23,7 +24,7 @@ const main = Effect.gen(function* () {
 	return yield* runSocketHandler(handleSocket);
 });
 
-const encodeResponse = Effect.fn(function* (input: Protocol.Decoded) {
+const encodeResponse = Effect.fn(function* (input: Protocol.Value) {
 	yield* Logger.logInfo("Received", { data: Protocol.format(input) });
 
 	const encoded = yield* Protocol.encode(input);
@@ -92,6 +93,10 @@ const CommandProcessorLive = Command.Processor.Default.pipe(
 
 main.pipe(
 	Effect.provide([CommandProcessorLive, DevToolsLive]),
+	Protocol.config({
+		// codecrafters seems to pretty much always expect a bulk string
+		shouldTrySimpleStringEncode: Fn.constFalse,
+	}),
 	Effect.scoped,
 	BunRuntime.runMain,
 );

@@ -1,6 +1,7 @@
+import * as Effect from "effect/Effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
-import { BULK_ENCODING_LENGTH_THRESHOLD } from "$/resp/constants";
+import { RespConfig } from "$/resp/constants";
 import { RespError } from "$/resp/error";
 import { V2 } from "$/resp/v2";
 import { BulkError } from "./bulk";
@@ -17,15 +18,17 @@ export const RespErrorFromString = AnyErrorEncoded.pipe(
 		decode(input) {
 			return decodeRespError(input);
 		},
-		encode(input, opts, _ast) {
-			if (input.message.length <= BULK_ENCODING_LENGTH_THRESHOLD) {
-				return encodeSimpleError(input, opts).pipe(
+		encode: Effect.fn(function* (input, opts) {
+			const { shouldTrySimpleStringEncode } = yield* RespConfig;
+
+			if (shouldTrySimpleStringEncode(input.message, "string")) {
+				return yield* encodeSimpleError(input, opts).pipe(
 					ParseResult.orElse(() => encodeBulkError(input, opts)),
 				);
 			}
 
-			return encodeBulkError(input, opts);
-		},
+			return yield* encodeBulkError(input, opts);
+		}),
 	}),
 	Schema.annotations({ identifier: "RespErrorFromString" }),
 );
