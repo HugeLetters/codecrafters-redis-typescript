@@ -15,33 +15,47 @@ import type { BuiltInDiffer } from "./internal";
 
 namespace PlainDiffer {
 	class EmptyPatch extends Data.TaggedClass("Empty") {}
+	class AndThenPatch extends Data.TaggedClass("AndThen")<{
+		readonly first: Patch;
+		readonly second: Patch;
+	}> {}
 	class ReplacePatch extends Data.TaggedClass("Replace")<{
-		from: Value;
-		to: Value;
+		readonly from: Value;
+		readonly to: Value;
 	}> {}
 
-	export type Patch = EmptyPatch | ReplacePatch;
+	export type Patch = EmptyPatch | AndThenPatch | ReplacePatch;
 
 	export type Value = unknown;
 
-	export const empty = new EmptyPatch();
-
 	export const differ = Differ.make<Value, Patch>({
-		combine(_first, second) {
-			return second;
+		combine(first, second) {
+			if (first._tag === "Empty") {
+				return second;
+			}
+
+			if (second._tag === "Empty") {
+				return first;
+			}
+
+			return new AndThenPatch({ first, second });
 		},
-		diff(oldValue, newValue) {
+		diff(oldValue, newValue): Patch {
 			if (Equal.equals(oldValue, newValue)) {
-				return empty;
+				return differ.empty;
 			}
 
 			return new ReplacePatch({ from: oldValue, to: newValue });
 		},
-		empty,
-		patch(patch, oldValue) {
+		empty: new EmptyPatch(),
+		patch(patch, oldValue): Value {
 			switch (patch._tag) {
 				case "Empty":
 					return oldValue;
+				case "AndThen": {
+					const first = differ.patch(patch.first, oldValue);
+					return differ.patch(patch.second, first);
+				}
 				case "Replace":
 					return patch.to;
 				default:
@@ -117,17 +131,16 @@ export namespace UnknownDiffer {
 		| HashMapPatch
 		| HashSetPatch;
 
+	export type Value = unknown;
+
 	function pair<V>(predicate: V) {
 		return [predicate, predicate] as const;
 	}
 
-	export const differ: Differ.Differ<unknown, Patch> = Differ.make<
-		unknown,
-		Patch
-	>({
+	export const differ = Differ.make<Value, Patch>({
 		empty: new EmptyPatch(),
 
-		diff(oldValue, newValue) {
+		diff(oldValue, newValue): Patch {
 			return Match.value([oldValue, newValue]).pipe(
 				Match.when(pair(ValueHelpers.chunk.matcher), ([oldValue, newValue]) => {
 					const patch = ValueHelpers.chunk.differ.diff(
@@ -221,13 +234,13 @@ export namespace UnknownDiffer {
 			return new AndThen({ first, second });
 		},
 
-		patch(patch, oldValue) {
+		patch(patch, oldValue): Value {
 			switch (patch._tag) {
 				case "Empty":
 					return oldValue;
 				case "AndThen": {
-					const firstResult = differ.patch(patch.first, oldValue);
-					return differ.patch(patch.second, firstResult);
+					const first = differ.patch(patch.first, oldValue);
+					return differ.patch(patch.second, first);
 				}
 				case "Plain":
 					return ValueHelpers.plain.differ.patch(patch.patch, oldValue);
@@ -479,10 +492,18 @@ export namespace UnknownDiffer {
 			switch (patch._tag) {
 				case "Empty":
 					return empty;
+				case "AndThen": {
+					const first = makePlainTree(patch.first);
+					const second = makePlainTree(patch.second);
+					return {
+						_tag: "Sequence",
+						patch: Chunk.make(first, second),
+					};
+				}
 				case "Replace":
 					return {
 						_tag: "Unit",
-						content: `Replace: ${formatValue(patch.from)} -> ${formatValue(patch.to)}`,
+						content: `Replace: ${formatValue(patch.from)} ~> ${formatValue(patch.to)}`,
 					};
 				default:
 					patch satisfies never;
@@ -521,13 +542,13 @@ export namespace UnknownDiffer {
 				case "Slice":
 					return {
 						_tag: "Unit",
-						content: `Slice: ${patch.from} - ${patch.until}`,
+						content: `Slice: ${formatValue(patch.from)} - ${formatValue(patch.until)}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Update: ${patch.index}`,
+						label: `Update: ${formatValue(patch.index)}`,
 						patch: tree,
 					};
 				}
@@ -563,13 +584,13 @@ export namespace UnknownDiffer {
 				case "Slice":
 					return {
 						_tag: "Unit",
-						content: `Slice: ${patch.from} - ${patch.until}`,
+						content: `Slice: ${formatValue(patch.from)} - ${formatValue(patch.until)}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Update: ${patch.index}`,
+						label: `Update: ${formatValue(patch.index)}`,
 						patch: tree,
 					};
 				}
@@ -597,18 +618,18 @@ export namespace UnknownDiffer {
 				case "Remove":
 					return {
 						_tag: "Unit",
-						content: `Remove: ${patch.key}`,
+						content: `Remove: ${formatValue(patch.key)}`,
 					};
 				case "Add":
 					return {
 						_tag: "Unit",
-						content: `Add: ${patch.key} ~> ${formatValue(patch.value)}`,
+						content: `Add: ${formatValue(patch.key)} ~> ${formatValue(patch.value)}`,
 					};
 				case "Update": {
 					const tree = makeUnknownTree(patch.patch);
 					return {
 						_tag: "Nested",
-						label: `Update: ${patch.key}`,
+						label: `Update: ${formatValue(patch.key)}`,
 						patch: tree,
 					};
 				}
