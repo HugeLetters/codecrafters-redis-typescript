@@ -1,5 +1,6 @@
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
+import { BULK_ENCODING_LENGTH_THRESHOLD } from "$/resp/constants";
 import { BulkString } from "./bulk";
 import { SimpleString } from "./simple";
 
@@ -16,7 +17,7 @@ export const RespString = AnyStringEncoded.pipe(
 			return decodeRespString(input);
 		},
 		encode(input, opts) {
-			if (input.length < 10) {
+			if (input.length <= BULK_ENCODING_LENGTH_THRESHOLD) {
 				return encodeSimpleString(input, opts).pipe(
 					ParseResult.orElse(() => encodeBulkString(input, opts)),
 				);
