@@ -3,36 +3,37 @@ import { pipe } from "effect/Function";
 import * as HashMap from "effect/HashMap";
 import * as HashSet from "effect/HashSet";
 import { ArrayPrefix, CRLF } from "./constants";
-import { IntegerPrefix } from "./v2/integer";
-import { Str } from "./v2/string";
-import { AttributePrefix, MapPrefix, SetPrefix } from "./v3/container/prefix";
-import { Primitive } from "./v3/primitive";
+import { V2 } from "./v2";
+import { V3 } from "./v3";
 
 export function simple(s: string) {
-	return `${Str.SimpleStringPrefix}${s}${CRLF}`;
+	return `${V2.String.SimpleStringPrefix}${s}${CRLF}`;
 }
 
 export function bulk(s: string) {
-	return `${Str.BulkStringPrefix}${s.length}${CRLF}${s}${CRLF}`;
+	return `${V2.String.BulkStringPrefix}${s.length}${CRLF}${s}${CRLF}`;
 }
 
 export function int(n: number) {
-	return `${IntegerPrefix}${n}${CRLF}`;
+	return `${V2.IntegerPrefix}${n}${CRLF}`;
 }
 
 export function err(s: string) {
-	return `${Str.SimpleErrorPrefix}${s}${CRLF}`;
+	return `${V2.String.SimpleErrorPrefix}${s}${CRLF}`;
+}
+export function bulkerr(s: string) {
+	return `${V3.String.BulkErrorPrefix}${s.length}${CRLF}${s}${CRLF}`;
 }
 
-export const null_ = `${Primitive.NullPrefix}${CRLF}`;
-export const bulknull = `${Str.BulkStringPrefix}-1${CRLF}`;
+export const null_ = `${V3.Primitive.NullPrefix}${CRLF}`;
+export const bulknull = `${V2.String.BulkStringPrefix}-1${CRLF}`;
 
 export function arr(arr: ReadonlyArray<string>) {
 	return `${ArrayPrefix}${arr.length}${CRLF}${arr.join("")}`;
 }
 
 export function respmap(entries: ReadonlyArray<[string, string]>) {
-	return `${MapPrefix}${entries.length}${CRLF}${pipe(
+	return `${V3.MapPrefix}${entries.length}${CRLF}${pipe(
 		entries,
 		Arr.map(([k, v]) => `${k}${v}`),
 		Arr.join(""),
@@ -40,11 +41,11 @@ export function respmap(entries: ReadonlyArray<[string, string]>) {
 }
 export function respset(entries: ReadonlyArray<string>) {
 	const set = new Set(entries);
-	return `${SetPrefix}${set.size}${CRLF}${Arr.join(set, "")}`;
+	return `${V3.SetPrefix}${set.size}${CRLF}${Arr.join(set, "")}`;
 }
 
 export function attr(entries: Array<[string, string]>) {
-	return `${AttributePrefix}${entries.length}${CRLF}${entries.map(([k, v]) => k + v).join("")}`;
+	return `${V3.AttributePrefix}${entries.length}${CRLF}${entries.map(([k, v]) => k + v).join("")}`;
 }
 
 export const hashmap = HashMap.fromIterable;
