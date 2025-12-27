@@ -14,7 +14,7 @@ export namespace Command {
 	export type Input = Protocol.Decoded;
 	export type RunProcessor = Processor["process"];
 	export type Result = ReturnType<RunProcessor>;
-	export type Success = Protocol.Decoded;
+	export type Success = Protocol.Value;
 	export type Error = Protocol.Error;
 	export type Context = Effect.Effect.Context<Result>;
 
@@ -27,7 +27,7 @@ export namespace Command {
 				return {
 					process: Match.type<Input>().pipe(
 						Match.withReturnType<Effect.Effect<Success, Error>>(),
-						Match.when(["PING"], () => Effect.succeed("PONG")),
+						Match.when(["PING"], () => Effect.succeed(Protocol.simple("PONG"))),
 						Match.when(["ECHO", Match.string], ([_, message]) =>
 							Effect.succeed(message),
 						),
@@ -53,7 +53,7 @@ export namespace Command {
 									);
 
 									yield* kv.set(key, value, { ttl: opts.PX });
-									return "OK";
+									return Protocol.simple("OK");
 								}),
 						),
 						Match.when(["KEYS", Match.string], ([_, pattern]) =>

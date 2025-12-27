@@ -71,7 +71,8 @@ const getEncodeFn = Fn.flow(
 		Match.when(Schema.is(RespError), () => Str.SimpleError),
 		Match.option,
 	),
-	Option.map(Fn.flow(Schema.asSchema, ParseResult.encodeUnknown)),
+	Option.map(Schema.asSchema),
+	Option.map(ParseResult.encodeUnknown),
 );
 export const RespValue = Schema.declare(
 	[],

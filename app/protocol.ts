@@ -1,4 +1,6 @@
 import { regex } from "arkregex";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
 import * as EffSchema from "effect/Schema";
 import * as Str from "effect/String";
 import { Resp } from "$/resp";
@@ -9,9 +11,20 @@ export namespace Protocol {
 	type Schema = typeof Schema;
 
 	export const decode = EffSchema.decode(Schema);
-	export const encode = EffSchema.encode(Schema);
 
+	export function encode(value: Value) {
+		if (value instanceof Boxed) {
+			return EffSchema.encode(value.schema)(value.value);
+		}
+
+		return EffSchema.encode(Schema)(value);
+	}
+
+	/** Values which can be received as a result of decoding */
 	export type Decoded = Schema["Type"];
+	/** Values which can be passed in to encoding/formatting */
+	export type Value = Decoded | Boxed;
+	/** Values which can be received as a result of encoding */
 	export type Encoded = Schema["Encoded"];
 
 	const stripForbidden = Str.replaceAll(
@@ -25,7 +38,34 @@ export namespace Protocol {
 	}
 	export type Error = ReturnType<typeof fail>;
 
-	export function format(value: Decoded): string {
-		return Resp.V2.format(value);
+	export function format(value: Value): string {
+		return Resp.V2.format(value instanceof Boxed ? value.value : value);
+	}
+
+	class Boxed<
+		T extends Decoded = Decoded,
+		E extends Encoded = Encoded,
+	> extends Data.TaggedClass("Boxed")<{
+		readonly value: T;
+		readonly schema: EffSchema.Schema<T, E>;
+	}> {}
+
+	/** Allows forcing a value to be encoded with the specified schema */
+	export function boxed<T extends Decoded, E extends Encoded>(
+		value: T,
+		schema: EffSchema.Schema<T, E>,
+	) {
+		return new Boxed<Decoded, Encoded>({ value, schema: schema as never });
+	}
+
+	export function simple(value: string) {
+		return boxed(
+			value,
+			EffSchema.Union(Resp.V2.String.SimpleString, Resp.V2.String.BulkString),
+		);
+	}
+
+	export function config(config: Resp.Config["Type"]) {
+		return Effect.provideService(Resp.Config, config);
 	}
 }

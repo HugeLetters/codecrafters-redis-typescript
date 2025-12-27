@@ -1,6 +1,7 @@
+import * as Effect from "effect/Effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
-import { BULK_ENCODING_LENGTH_THRESHOLD } from "$/resp/constants";
+import { RespConfig } from "$/resp/constants";
 import { BulkString } from "./bulk";
 import { SimpleString } from "./simple";
 
@@ -16,15 +17,17 @@ export const RespString = AnyStringEncoded.pipe(
 		decode(input) {
 			return decodeRespString(input);
 		},
-		encode(input, opts) {
-			if (input.length <= BULK_ENCODING_LENGTH_THRESHOLD) {
-				return encodeSimpleString(input, opts).pipe(
+		encode: Effect.fn(function* (input, opts) {
+			const { shouldTrySimpleStringEncode } = yield* RespConfig;
+
+			if (shouldTrySimpleStringEncode(input, "string")) {
+				return yield* encodeSimpleString(input, opts).pipe(
 					ParseResult.orElse(() => encodeBulkString(input, opts)),
 				);
 			}
 
-			return encodeBulkString(input, opts);
-		},
+			return yield* encodeBulkString(input, opts);
+		}),
 	}),
 	Schema.annotations({ identifier: "RespString" }),
 );
