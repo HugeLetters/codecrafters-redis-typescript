@@ -162,6 +162,12 @@ const PRESET_COMMANDS: Record<string, PresetCommand> = {
 			return ["KEYS", "*"];
 		},
 	},
+	7: {
+		label: "INFO replication",
+		command() {
+			return ["INFO", "replication"];
+		},
+	},
 };
 
 function useWindowSize() {

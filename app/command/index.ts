@@ -8,6 +8,7 @@ import * as Predicate from "effect/Predicate";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
+import { getInfo } from "./info";
 import { CommandOption } from "./options";
 
 export namespace Command {
@@ -67,6 +68,16 @@ export namespace Command {
 								),
 							),
 						),
+						Match.when(["INFO"], ([_, ..._headers]) => {
+							const headers = _headers.filter(Predicate.isString);
+							if (headers.length !== _headers.length) {
+								return fail(
+									`Encountered non-string headers: ${Protocol.format(_headers)}`,
+								);
+							}
+
+							return getInfo(headers);
+						}),
 						Match.when([Match.string], ([command]) =>
 							fail(`Unexpected command: ${command}`),
 						),
