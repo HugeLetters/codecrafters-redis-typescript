@@ -1,9 +1,9 @@
 import * as Chunk from "effect/Chunk";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
-import * as Option from "effect/Option";
+import * as Match from "effect/Match";
 import * as Str from "effect/String";
-import { AppConfig } from "$/config";
+import { Replication } from "$/replication";
 
 export const getInfo = Effect.fn("getInfo")(function* (
 	headers: ReadonlyArray<string>,
@@ -41,13 +41,23 @@ const getHeaderInfo = Effect.fn("getHeaderInfo")(function* (header: string) {
 }, Effect.ensureSuccessType<HeaderEntries>());
 
 const getReplicationInfo = Effect.fn("getReplicationInfo")(function* () {
-	const config = yield* AppConfig;
-	const res: HeaderEntries = Chunk.of([
-		"role",
-		Option.match(config.replicaof, {
-			onSome: () => "slave",
-			onNone: () => "master",
+	const replication = yield* Replication.Service;
+	const res: HeaderEntries = Chunk.of(["role", replication.data.role]);
+
+	return Match.value(replication.data).pipe(
+		Match.tagsExhaustive({
+			master(data): HeaderEntries {
+				return res.pipe(
+					Chunk.append<HeaderEntry>(["master_replid", data.replicationId]),
+					Chunk.append<HeaderEntry>([
+						"master_repl_offset",
+						`${data.replicationOffset}`,
+					]),
+				);
+			},
+			slave(_data): HeaderEntries {
+				return res;
+			},
 		}),
-	]);
-	return res;
+	);
 });

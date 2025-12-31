@@ -17,6 +17,7 @@ import {
 import { JobQueue } from "$/utils/job-queue";
 import { Logger } from "$/utils/logger";
 import { normalize } from "$/utils/string";
+import { Replication } from "./replication";
 import { argvConfigProvider } from "./utils/config/argv";
 
 const main = Effect.gen(function* () {
@@ -90,7 +91,12 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 );
 
 main.pipe(
-	Effect.provide([Command.Processor.Default, AppConfig.Default, DevToolsLive]),
+	Effect.provide([
+		Command.Processor.Default,
+		AppConfig.Default,
+		Replication.Service.Default,
+		DevToolsLive,
+	]),
 	Effect.withConfigProvider(argvConfigProvider()),
 	Protocol.config({
 		// codecrafters seems to pretty much always expect a bulk string
