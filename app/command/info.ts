@@ -1,7 +1,9 @@
 import * as Chunk from "effect/Chunk";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
+import * as Option from "effect/Option";
 import * as Str from "effect/String";
+import { AppConfig } from "$/config";
 
 export const getInfo = Effect.fn("getInfo")(function* (
 	headers: ReadonlyArray<string>,
@@ -38,6 +40,14 @@ const getHeaderInfo = Effect.fn("getHeaderInfo")(function* (header: string) {
 	return Chunk.empty();
 }, Effect.ensureSuccessType<HeaderEntries>());
 
-const getReplicationInfo = Effect.fn("getReplicationInfo")(function () {
-	return Effect.succeed<HeaderEntries>(Chunk.of(["role", "master"]));
+const getReplicationInfo = Effect.fn("getReplicationInfo")(function* () {
+	const config = yield* AppConfig;
+	const res: HeaderEntries = Chunk.of([
+		"role",
+		Option.match(config.replicaof, {
+			onSome: () => "slave",
+			onNone: () => "master",
+		}),
+	]);
+	return res;
 });

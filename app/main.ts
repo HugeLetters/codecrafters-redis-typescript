@@ -1,13 +1,11 @@
 import { DevTools } from "@effect/experimental";
 import { BunRuntime, BunSocket } from "@effect/platform-bun";
-import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Effect from "effect/Effect";
 import * as Fn from "effect/Function";
 import { flow } from "effect/Function";
 import * as Layer from "effect/Layer";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
-import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
 import { Integer } from "$/schema/number";
 import { runSocketHandler } from "$/server";
@@ -45,8 +43,8 @@ const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 }, Logger.withSpan("resp.decode"));
 
 const handleSocket = Effect.fn(function* (socket: Socket) {
-	const messageQueue = yield* JobQueue.make(Integer.make(1));
 	const command = yield* Command.Processor;
+
 	const handleCommand = flow(
 		command.process,
 		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
@@ -70,6 +68,9 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 		Logger.withSpan("command"),
 	);
 
+	type Context = Effect.Effect.Context<ReturnType<typeof handleCommand>>;
+	const messageQueue = yield* JobQueue.make<Context>(Integer.make(1));
+
 	const enqueueMessage = flow(
 		decodeBuffer,
 		Effect.flatMap(
@@ -87,13 +88,9 @@ const handleSocket = Effect.fn(function* (socket: Socket) {
 const DevToolsLive = DevTools.layerWebSocket().pipe(
 	Layer.provide(BunSocket.layerWebSocketConstructor),
 );
-const CommandProcessorLive = Command.Processor.Default.pipe(
-	Layer.provide(KV.KvStorage.Default),
-	Layer.provide([AppConfig.Default, BunContext.layer]),
-);
 
 main.pipe(
-	Effect.provide([CommandProcessorLive, DevToolsLive]),
+	Effect.provide([Command.Processor.Default, AppConfig.Default, DevToolsLive]),
 	Effect.withConfigProvider(argvConfigProvider()),
 	Protocol.config({
 		// codecrafters seems to pretty much always expect a bulk string

@@ -24,10 +24,10 @@ export namespace Command {
 		{
 			effect: Effect.gen(function* () {
 				const kv = yield* KV.KvStorage;
-				const runtimeConfig = yield* AppConfig;
+				const appConfig = yield* AppConfig;
 				return {
 					process: Match.type<Input>().pipe(
-						Match.withReturnType<Effect.Effect<Success, Error>>(),
+						Match.withReturnType<Effect.Effect<Success, Error, unknown>>(),
 						Match.when(["PING"], () => Effect.succeed(Protocol.simple("PONG"))),
 						Match.when(["ECHO", Match.string], ([_, message]) =>
 							Effect.succeed(message),
@@ -61,7 +61,7 @@ export namespace Command {
 							kv.keys(pattern),
 						),
 						Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
-							runtimeConfig.get(key).pipe(
+							appConfig.get(key).pipe(
 								Effect.map((value) => [key, value] as const),
 								Effect.catchTag("NoSuchElementException", () =>
 									fail(`Key ${key} is not set`),
@@ -87,6 +87,7 @@ export namespace Command {
 					),
 				};
 			}),
+			dependencies: [AppConfig.Default, KV.KvStorage.Default],
 		},
 	) {}
 

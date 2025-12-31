@@ -1,4 +1,4 @@
-import * as Path from "@effect/platform/Path";
+import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Arr from "effect/Array";
 import * as Cron from "effect/Cron";
 import * as DateTime from "effect/DateTime";
@@ -92,6 +92,7 @@ export namespace KV {
 				}),
 			};
 		}).pipe(Logger.withSpan("KvStorage")),
+		dependencies: [AppConfig.Default, BunContext.layer],
 	}) {}
 
 	export type Key = string;
@@ -123,12 +124,12 @@ export namespace KV {
 	}
 
 	const getRDBData = Effect.gen(function* () {
-		const runtimeConfig = yield* AppConfig;
-		const dir = runtimeConfig.getKnown("dir");
-		const db = runtimeConfig.getKnown("dbFilename");
-		const path = yield* Path.Path;
-		const fullPath = path.resolve(dir, db);
-		return yield* RDB.decodeFile(fullPath).pipe(
+		const { rdbPath } = yield* AppConfig;
+		if (Option.isNone(rdbPath)) {
+			return Option.none();
+		}
+
+		return yield* RDB.decodeFile(rdbPath.value).pipe(
 			Effect.tapError(Effect.logError),
 			Effect.option,
 		);

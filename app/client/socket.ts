@@ -4,8 +4,8 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
+import { AppConfig } from "$/config";
 import { Protocol } from "$/protocol";
-import { Config } from "$/server/config";
 
 interface SocketEventMap {
 	data: [string];
@@ -28,14 +28,14 @@ interface SocketOptions {
 }
 
 const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
-	const config = yield* Config;
+	const config = yield* AppConfig;
 
 	const socketEmitter = new EventEmitter<SocketEventMap>();
 	const rawClient = yield* Effect.async<RawClient, SocketConnectionError>(
 		(resolve) => {
 			Bun.connect({
-				hostname: config.HOST,
-				port: config.PORT,
+				hostname: config.host,
+				port: config.port,
 				socket: {
 					open(socket) {
 						opts.onStatusChange("Open");
@@ -140,6 +140,7 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 export const createSocket = Fn.flow(
 	initializeSocket,
 	Effect.catchTag("SocketConnectionError", () => Effect.void),
+	Effect.provide(AppConfig.Default),
 	Effect.scoped,
 	BunRuntime.runMain,
 );

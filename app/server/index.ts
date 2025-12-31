@@ -3,17 +3,17 @@ import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
 import type * as Scope from "effect/Scope";
-import { Config } from "$/server/config";
+import { AppConfig } from "$/config";
 import { logDefect } from "$/utils/defect";
 import { Logger } from "$/utils/logger";
 import { createSocketResource, type Socket } from "./socket";
 
 const ServerResource = Effect.gen(function* () {
-	const config = yield* Config;
+	const config = yield* AppConfig;
 
 	const server = Effect.async<Server>(function (resume) {
 		const server = createServer().listen(
-			{ host: config.HOST, port: config.PORT },
+			{ host: config.host, port: config.port },
 			() => {
 				resume(Effect.succeed(server));
 			},
@@ -23,7 +23,7 @@ const ServerResource = Effect.gen(function* () {
 			server.close(() => resume(Logger.logInfo("Interrupted")));
 		});
 	}).pipe(
-		Logger.logInfo.tap("Listening", { URL: `${config.HOST}:${config.PORT}` }),
+		Logger.logInfo.tap("Listening", { URL: `${config.host}:${config.port}` }),
 	);
 
 	return yield* server.pipe(
