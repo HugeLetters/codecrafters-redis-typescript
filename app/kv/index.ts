@@ -12,7 +12,7 @@ import * as Schedule from "effect/Schedule";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 import { AppConfig } from "$/config";
 import { RDB } from "$/rdb";
-import { Logger } from "$/utils/logger";
+import { Log } from "$/utils/log";
 
 export namespace KV {
 	export class KvStorage extends Effect.Service<KvStorage>()("@kv/KvStorage", {
@@ -32,7 +32,7 @@ export namespace KV {
 					}
 
 					const [key] = result.value;
-					yield* Logger.logInfo("Cleanup", { key });
+					yield* Log.logInfo("Cleanup", { key });
 					return HashMap.remove(storage, key);
 				}),
 			);
@@ -91,7 +91,7 @@ export namespace KV {
 					return Arr.empty<string>();
 				}),
 			};
-		}).pipe(Logger.withSpan("KvStorage")),
+		}).pipe(Log.withSpan("kv.storage")),
 		dependencies: [AppConfig.Default, BunContext.layer],
 	}) {}
 

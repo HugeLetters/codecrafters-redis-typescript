@@ -20,7 +20,6 @@ import * as Scope from "effect/Scope";
 import * as TestContext from "effect/TestContext";
 import type * as TestServices from "effect/TestServices";
 import type { EffectGen } from "$/utils/effect";
-import { Logger } from "$/utils/logger";
 
 export namespace EffectBunTest {
 	type API = BunTest.Test<[]>;
@@ -155,7 +154,7 @@ function runTestPromise<E, A>(effect: Effect.Effect<A, E>) {
 
 		const [mainError, ...restErrors] = Cause.prettyErrors(exit.cause);
 		for (const err of restErrors) {
-			yield* Logger.logError(err);
+			yield* Effect.logError(err);
 		}
 
 		return () => {

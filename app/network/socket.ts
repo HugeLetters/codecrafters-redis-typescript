@@ -1,39 +1,56 @@
-import type { Socket } from "node:net";
+import type { NetConnectOpts, Socket } from "node:net";
+import { createConnection as createNodeConnection } from "node:net";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
-import { Logger } from "$/utils/logger";
+import { acquireReleaseInterruptible } from "$/utils/resource";
 
-class SocketConnectionError extends Data.TaggedError("SocketConnection")<{
-	message: string;
+class SocketError extends Data.TaggedError("Socket")<{
+	readonly message: string;
+	readonly cause?: unknown;
 }> {}
 
 export function createSocketResource(socket: Socket) {
-	const openSocket = Effect.async<Socket, SocketConnectionError>((resume) => {
+	const openSocket = Effect.async<Socket, SocketError>((resume) => {
 		switch (socket.readyState) {
 			case "opening": {
 				function handleConnection() {
+					cleanup();
 					resume(Effect.succeed(socket));
 				}
-				function handleError() {
-					resume(new SocketConnectionError({ message: "Connection failed" }));
+				function handleError(error: unknown) {
+					cleanup();
+					resume(
+						new SocketError({
+							message: "Connection failed",
+							cause: error,
+						}),
+					);
 				}
 				function handleClose() {
+					cleanup();
 					resume(
-						new SocketConnectionError({
+						new SocketError({
 							message: "Connection closed before establishing",
 						}),
 					);
 				}
 
-				socket.once("connect", handleConnection);
-				socket.once("error", handleError);
-				socket.once("close", handleClose);
-				return Effect.sync(() => {
+				function cleanup() {
 					socket.off("connect", handleConnection);
 					socket.off("error", handleError);
 					socket.off("close", handleClose);
+				}
+
+				socket.once("connect", handleConnection);
+				socket.once("error", handleError);
+				socket.once("close", handleClose);
+				return Effect.async<void>((resume) => {
+					cleanup();
+					socket.end(() => {
+						resume(Effect.logWarning("Socket initialization interrupted"));
+					});
 				});
 			}
 			case "open":
@@ -43,29 +60,31 @@ export function createSocketResource(socket: Socket) {
 				return;
 			case "closed":
 				resume(
-					new SocketConnectionError({ message: "Socket is already closed" }),
+					new SocketError({ message: "Connection closed before establishing" }),
 				);
 				return;
 			default:
 				return socket.readyState satisfies never;
 		}
-	}).pipe(Logger.logInfo.tap("Connected"));
+	});
 
-	return openSocket.pipe(
-		Effect.acquireRelease((socket) => {
-			return Effect.async<void>((resume) => {
-				if (socket.readyState === "closed") {
-					resume(Effect.void);
-					return;
-				}
+	return acquireReleaseInterruptible(openSocket, (socket) => {
+		return Effect.async<void>((resume) => {
+			if (socket.closed) {
+				resume(Effect.void);
+				return;
+			}
 
-				socket.end(() => {
-					resume(Effect.void);
-				});
-			}).pipe(Logger.logInfo.tap("Closed"));
-		}),
-		Logger.withSpan("socket.resource"),
-	);
+			socket.end(() => {
+				resume(Effect.logInfo("Socket Closed"));
+			});
+		});
+	});
+}
+
+export function startSocket(opts: NetConnectOpts) {
+	const socket = createNodeConnection(opts);
+	return createSocketResource(socket);
 }
 
 export function writeToSocket(socket: Socket, data: string) {
@@ -84,7 +103,7 @@ class SocketWriteError extends Data.TaggedError("SocketWrite") {}
 
 type SocketHandler = (data: Buffer) => Effect.Effect<void>;
 /** Resolves when socket connection ends */
-export const runSocketDataHandler = Effect.fn(function* (
+export const handleSocketMessages = Effect.fn(function* (
 	socket: Socket,
 	handler: SocketHandler,
 ) {
