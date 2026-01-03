@@ -71,10 +71,10 @@ export function createServerResource(server: Server) {
 	});
 }
 
-export function startServer(opts: ListenOptions) {
-	const server = createNodeServer().listen(opts);
-	return createServerResource(server);
-}
+export const startServer = Effect.fn(function* (opts: ListenOptions) {
+	const server = yield* Effect.sync(() => createNodeServer().listen(opts));
+	return yield* createServerResource(server);
+});
 
 /** Resolved when server closes. */
 export const handleServerConnections = Effect.fn(function* <R>(

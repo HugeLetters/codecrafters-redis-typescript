@@ -82,10 +82,10 @@ export function createSocketResource(socket: Socket) {
 	});
 }
 
-export function startSocket(opts: NetConnectOpts) {
-	const socket = createNodeConnection(opts);
-	return createSocketResource(socket);
-}
+export const startSocket = Effect.fn(function* (opts: NetConnectOpts) {
+	const socket = yield* Effect.sync(() => createNodeConnection(opts));
+	return yield* createSocketResource(socket);
+});
 
 export function writeToSocket(socket: Socket, data: string) {
 	if (!socket.writable) {
@@ -108,12 +108,12 @@ export const handleSocketMessages = Effect.fn(function* (
 	handler: SocketHandler,
 ) {
 	const run = yield* FiberSet.makeRuntime<never, void, never>();
-	return yield* Effect.async<void>((resolve) => {
+	return yield* Effect.async<void>((resume) => {
 		const dataHandler = Fn.flow(handler, run);
 
 		function endHandler() {
 			cleanup();
-			resolve(Effect.void);
+			resume(Effect.void);
 		}
 
 		socket.on("data", dataHandler);
