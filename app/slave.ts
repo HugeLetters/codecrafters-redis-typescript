@@ -1,5 +1,6 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import { AppConfig } from "$/config";
 import { Net } from "$/network";
@@ -7,9 +8,16 @@ import { Protocol } from "$/protocol";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
+	if (Option.isNone(config.replicaof)) {
+		return yield* Effect.fail(
+			new Error("Cannot start a slave server without replicaof option"),
+		);
+	}
+
+	const replicaof = config.replicaof.value;
 	const socket = yield* Net.Socket.start({
-		host: config.host,
-		port: config.port,
+		host: replicaof.host,
+		port: replicaof.port,
 	}).pipe(Effect.retry(ConnectionRetryPolicy));
 
 	yield* performMasterHandshake(socket);
