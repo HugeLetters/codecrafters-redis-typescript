@@ -6,8 +6,6 @@ import { Net } from "$/network";
 import { Protocol } from "$/protocol";
 
 export const StartSlave = Effect.gen(function* () {
-	yield* Effect.sleep(200);
-
 	const config = yield* AppConfig;
 	const socket = yield* Net.Socket.start({
 		host: config.host,
@@ -30,4 +28,15 @@ const ConnectionRetryPolicy = Schedule.spaced(Duration.seconds(1)).pipe(
 
 const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 	yield* Net.Socket.write(socket, yield* Protocol.encode(["PING"]));
+	const pong = yield* Net.Socket.waitForMessage(socket).pipe(
+		Effect.flatMap(Protocol.decodeBuffer),
+	);
+
+	if (pong !== "PONG") {
+		return yield* Effect.fail(
+			new Error(
+				`Expected a PONG response from master server. Received ${Protocol.format(pong)} instead.`,
+			),
+		);
+	}
 });
