@@ -128,4 +128,31 @@ export const handleSocketMessages = Effect.fn(function* (
 	});
 });
 
+export const waitForMessage = Effect.fn(function (socket: Socket) {
+	return Effect.async<Buffer, SocketError>((resume) => {
+		function dataHandler(data: Buffer) {
+			cleanup();
+			resume(Effect.succeed(data));
+		}
+		function endHandler() {
+			cleanup();
+			resume(
+				new SocketError({
+					message: "Socket connection ended before receiving next message",
+				}),
+			);
+		}
+
+		socket.once("data", dataHandler);
+		socket.once("end", endHandler);
+
+		function cleanup() {
+			socket.off("data", dataHandler);
+			socket.off("end", endHandler);
+		}
+
+		return Effect.sync(cleanup);
+	});
+});
+
 export type { Socket };
