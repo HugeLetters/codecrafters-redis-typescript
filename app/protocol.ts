@@ -12,6 +12,10 @@ export namespace Protocol {
 
 	export const decode = EffSchema.decode(Schema);
 
+	export function decodeBuffer(buffer: Buffer) {
+		return decode(buffer.toString("utf-8"));
+	}
+
 	export function encode(value: Value) {
 		if (value instanceof Boxed) {
 			return EffSchema.encode(value.schema)(value.value);

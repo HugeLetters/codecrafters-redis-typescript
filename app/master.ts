@@ -21,21 +21,14 @@ export const StartMaster = Effect.gen(function* () {
 });
 
 const encodeResponse = Effect.fn(function* (input: Protocol.Value) {
-	yield* Log.logInfo("Received", { data: Protocol.format(input) });
-
 	const encoded = yield* Protocol.encode(input);
 	yield* Log.logInfo("Encoded", { data: normalize(encoded) });
-
 	return encoded;
 }, Log.withSpan("encode"));
 
 const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
-	const str = buffer.toString("utf8");
-	yield* Log.logInfo("Received", { data: normalize(str) });
-
-	const decoded = yield* Protocol.decode(str);
+	const decoded = yield* Protocol.decodeBuffer(buffer);
 	yield* Log.logInfo("Decoded", { data: Protocol.format(decoded) });
-
 	return decoded;
 }, Log.withSpan("decode"));
 
