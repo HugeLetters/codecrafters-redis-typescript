@@ -8,6 +8,7 @@ import { AppConfig } from "$/config";
 import { Net } from "$/network";
 import { Protocol } from "$/protocol";
 import { StartServer } from "$/server";
+import { Integer } from "./schema/number";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
@@ -93,4 +94,9 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 			),
 		);
 	}
+
+	yield* Net.Socket.write(
+		socket,
+		yield* Protocol.encode(["PSYNC", "?", Integer.make(-1)]),
+	);
 });
