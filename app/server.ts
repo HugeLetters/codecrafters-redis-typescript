@@ -37,9 +37,13 @@ const handleConnection = Effect.fn(function* (socket: Net.Socket.Socket) {
 
 	const command = yield* Command.Processor;
 
+	const write = Effect.fn(function* (data: Protocol.Value) {
+		const encoded = yield* encodeResponse(data);
+		yield* Net.Socket.write(socket, encoded);
+	});
+
 	const SendFallbackError = Protocol.fail("Internal Error").pipe(
-		Protocol.encode,
-		Effect.flatMap((data) => Net.Socket.write(socket, data)),
+		write,
 		Effect.catchTag("ParseError", (error) => {
 			return Log.logError("Failed to send a default error", {
 				error: error.message,
@@ -47,13 +51,22 @@ const handleConnection = Effect.fn(function* (socket: Net.Socket.Socket) {
 		}),
 	);
 
+	const handleProcessResponse = Effect.fn(function* (
+		response: Command.Response,
+	) {
+		if (response instanceof Command.Instruction) {
+			return yield* response
+				.run({ respond: write })
+				.pipe(Effect.catchTag("RespError", write));
+		}
+
+		yield* write(response);
+	});
+
 	const onMessage = flow(
 		command.process,
 		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
-		Effect.flatMap(encodeResponse),
-		Effect.flatMap((data) => {
-			return Net.Socket.write(socket, data);
-		}),
+		Effect.flatMap(handleProcessResponse),
 		Effect.catchTag("ParseError", (error) => {
 			return Log.logError("Invalid Response", { error: error.message }).pipe(
 				Effect.andThen(SendFallbackError),

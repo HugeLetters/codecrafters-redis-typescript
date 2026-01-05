@@ -1,4 +1,5 @@
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import { pipe } from "effect/Function";
@@ -21,8 +22,20 @@ export namespace Command {
 	export type Value<V extends Protocol.Decoded = Protocol.Decoded> =
 		Protocol.Value<V>;
 	export type Error = Protocol.Error;
-	export type Result<V extends Protocol.Decoded = Protocol.Decoded> =
-		Effect.Effect<V, Error>;
+
+	export type RespondFn<E, R> = (
+		data: Protocol.Value,
+	) => Effect.Effect<void, E, R>;
+	export interface InstructionContext<E = never, R = never> {
+		readonly respond: RespondFn<E, R>;
+	}
+	export class Instruction extends Data.TaggedClass("Instruction")<{
+		run: <E, R>(
+			ctx: InstructionContext<E, R>,
+		) => Effect.Effect<void, E | Error, R>;
+	}> {}
+	type InstructionEffect = Effect.Effect<Instruction, Error>;
+	type Result<V extends Protocol.Decoded> = Effect.Effect<V, Error>;
 
 	interface ExecutorImpl {
 		ping: Result<"PONG">;
@@ -40,10 +53,11 @@ export namespace Command {
 			listeningPort: (port: Integer) => Result<"OK">;
 			capabilites: (protocol: string) => Result<"OK">;
 		};
-		psync: (
-			replicationId: string,
-			offset: number,
-		) => Result<`FULLRESYNC ${string} ${number}`>;
+		psync: (replicationId: string, offset: number) => InstructionEffect;
+	}
+
+	function fullResyncResponse(data: Replication.MasterData) {
+		return `FULLRESYNC ${data.replicationId} ${data.replicationOffset}` as const;
 	}
 
 	export class Executor extends Effect.Service<Executor>()(
@@ -102,15 +116,23 @@ export namespace Command {
 							return Effect.succeed("OK");
 						},
 					},
-					psync: Effect.fn(function* (_replicationId, _offset) {
-						if (replication.data.role === "slave") {
-							return yield* fail(
-								"PSYNC command is not supported on slave servers",
-							);
-						}
+					psync(_replicationId, _offset) {
+						const instruction = new Instruction({
+							run: Effect.fn(function* (ctx) {
+								if (replication.data.role === "slave") {
+									return yield* fail(
+										"PSYNC command is not supported on slave servers",
+									);
+								}
 
-						return `FULLRESYNC ${replication.data.replicationId} ${replication.data.replicationOffset}` as const;
-					}),
+								yield* ctx.respond(
+									Protocol.simple(fullResyncResponse(replication.data)),
+								);
+							}),
+						});
+
+						return Effect.succeed(instruction);
+					},
 				};
 
 				return service;
@@ -139,13 +161,14 @@ export namespace Command {
 		});
 	});
 
+	export type Response = Value | Instruction;
 	// TODO master | when command is valid but parameter doesn't match - it will respond with unexpected command error instead of saying that parameter is of unexpected type etc - fix | by Evgenii Perminov at Mon, 05 Jan 2026 18:56:56 GMT
 	export class Processor extends Effect.Service<Processor>()(
 		"@command/Processor",
 		{
 			effect: Effect.gen(function* () {
 				const executor = yield* Executor;
-				type Result = Effect.Effect<Value, Error>;
+				type Result = Effect.Effect<Response, Error>;
 
 				const matchReplConf = Match.type<Input>().pipe(
 					Match.withReturnType<Result>(),
@@ -176,64 +199,64 @@ export namespace Command {
 					),
 				);
 
-				return {
-					process: Match.type<Input>().pipe(
-						Match.withReturnType<Result>(),
-						Match.when(["PING"], () => {
-							return executor.ping.pipe(Effect.map(Protocol.simple));
-						}),
-						Match.when(["ECHO", Match.string], ([_, message]) =>
-							executor.echo(message),
-						),
-						Match.when(["GET", Match.string], ([_, key]) => executor.get(key)),
-						Match.when(
-							["SET", Match.string, Match.string],
-							([_, key, value, ...rest]) => {
-								return Effect.gen(function* () {
-									const opts = yield* parseSetOptions(rest).pipe(
-										Effect.mapError((message) =>
-											fail(`SET: ${formatCommandOptionError(message)}`),
-										),
-									);
-									return yield* executor
-										.set(key, value, opts)
-										.pipe(Effect.map(Protocol.simple));
-								});
-							},
-						),
-						Match.when(["KEYS", Match.string], ([_, pattern]) =>
-							executor.keys(pattern),
-						),
-						Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
-							executor.config.get(key),
-						),
-						Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
-						Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
-						Match.when(
-							["PSYNC", Match.string, Match.string],
-							([_, id, rawOffset]) => {
-								return Effect.gen(function* () {
-									const offset = yield* Schema.decode(IntegerFromString)(
-										rawOffset,
-									).pipe(
-										Effect.mapError(() =>
-											fail("Expected offset to be an integer-string"),
-										),
-									);
-
-									return yield* executor
-										.psync(id, offset)
-										.pipe(Effect.map(Protocol.simple));
-								});
-							},
-						),
-						Match.when([Match.string], ([command]) =>
-							fail(`Unexpected command: ${command}`),
-						),
-						Match.orElse((value) =>
-							fail(`Unexpected input: ${Protocol.format(value)}`),
-						),
+				const process: (value: Input) => Result = Match.type<Input>().pipe(
+					Match.withReturnType<Result>(),
+					Match.when(["PING"], () => {
+						return executor.ping.pipe(Effect.map(Protocol.simple));
+					}),
+					Match.when(["ECHO", Match.string], ([_, message]) =>
+						executor.echo(message),
 					),
+					Match.when(["GET", Match.string], ([_, key]) => executor.get(key)),
+					Match.when(
+						["SET", Match.string, Match.string],
+						([_, key, value, ...rest]) => {
+							return Effect.gen(function* () {
+								const opts = yield* parseSetOptions(rest).pipe(
+									Effect.mapError((message) =>
+										fail(`SET: ${formatCommandOptionError(message)}`),
+									),
+								);
+								return yield* executor
+									.set(key, value, opts)
+									.pipe(Effect.map(Protocol.simple));
+							});
+						},
+					),
+					Match.when(["KEYS", Match.string], ([_, pattern]) =>
+						executor.keys(pattern),
+					),
+					Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
+						executor.config.get(key),
+					),
+					Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
+					Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
+					Match.when(
+						["PSYNC", Match.string, Match.string],
+						([_, id, rawOffset]) => {
+							return Effect.gen(function* () {
+								const offset = yield* Schema.decode(IntegerFromString)(
+									rawOffset,
+								).pipe(
+									Effect.mapError(() =>
+										fail("Expected offset to be an integer-string"),
+									),
+								);
+
+								return yield* executor.psync(id, offset);
+							});
+						},
+					),
+					Match.when([Match.string], ([command]) =>
+						fail(`Unexpected command: ${command}`),
+					),
+					Match.orElse((value) =>
+						fail(`Unexpected input: ${Protocol.format(value)}`),
+					),
+				);
+
+				return {
+					process,
 				};
 			}),
 		},
