@@ -40,6 +40,10 @@ export namespace Command {
 			listeningPort: (port: Integer) => Result<"OK">;
 			capabilites: (protocol: string) => Result<"OK">;
 		};
+		psync: (
+			replicationId: string,
+			offset: number,
+		) => Result<`FULLRESYNC ${string} ${number}`>;
 	}
 
 	export class Executor extends Effect.Service<Executor>()(
@@ -98,6 +102,15 @@ export namespace Command {
 							return Effect.succeed("OK");
 						},
 					},
+					psync: Effect.fn(function* (_replicationId, _offset) {
+						if (replication.data.role === "slave") {
+							return yield* fail(
+								"PSYNC command is not supported on slave servers",
+							);
+						}
+
+						return `FULLRESYNC ${replication.data.replicationId} ${replication.data.replicationOffset}` as const;
+					}),
 				};
 
 				return service;
@@ -113,12 +126,15 @@ export namespace Command {
 				return fail("SET command is not available for slave servers");
 			},
 			replconf: {
-				capabilites(_protocol) {
+				capabilites() {
 					return fail("REPLCONF command is not available for slave servers");
 				},
-				listeningPort(_port) {
+				listeningPort() {
 					return fail("REPLCONF command is not available for slave servers");
 				},
+			},
+			psync() {
+				return fail("PSYNC command is not supported on slave servers");
 			},
 		});
 	});
@@ -189,6 +205,10 @@ export namespace Command {
 						),
 						Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
 						Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
+						Match.when(
+							["PSYNC", Match.string, Match.number],
+							([_, id, offset]) => executor.psync(id, offset),
+						),
 						Match.when([Match.string], ([command]) =>
 							fail(`Unexpected command: ${command}`),
 						),
