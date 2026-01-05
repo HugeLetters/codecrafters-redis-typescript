@@ -87,7 +87,9 @@ export const startSocket = Effect.fn(function* (opts: NetConnectOpts) {
 	return yield* createSocketResource(socket);
 });
 
-export function writeToSocket(socket: Socket, data: string) {
+export type SocketInput = Buffer | Uint8Array | string;
+
+export function writeToSocket(socket: Socket, data: SocketInput) {
 	if (!socket.writable) {
 		return new SocketWriteError();
 	}
@@ -157,7 +159,7 @@ export const waitForMessage = Effect.fn(function (socket: Socket) {
 
 export const request = Effect.fn("request")(function* (
 	socket: Socket,
-	data: string,
+	data: SocketInput,
 ) {
 	yield* writeToSocket(socket, data);
 	return yield* waitForMessage(socket);
