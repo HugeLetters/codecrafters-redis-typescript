@@ -20,17 +20,13 @@ export namespace Command {
 		Protocol.Value<V>;
 	export type Error = Protocol.Error;
 	export type Result<V extends Protocol.Decoded = Protocol.Decoded> =
-		Effect.Effect<Value<V>, Error>;
+		Effect.Effect<V, Error>;
 
 	interface ExecutorImpl {
 		ping: Result<"PONG">;
 		echo: (value: string) => Result<string>;
 		get: (key: string) => Result<string | null>;
-		set: (
-			key: string,
-			value: string,
-			opts: ReadonlyArray<Input>,
-		) => Result<"OK">;
+		set: (key: string, value: string, opts: SetOptions) => Result<"OK">;
 		keys: (pattern: string) => Result<ReadonlyArray<string>>;
 		config: {
 			get: (
@@ -49,7 +45,7 @@ export namespace Command {
 				const replication = yield* Replication.Service;
 
 				const service: ExecutorImpl = {
-					ping: Effect.succeed(Protocol.simple("PONG")),
+					ping: Effect.succeed("PONG"),
 					echo: Effect.succeed,
 					get: Effect.fn(function* (key) {
 						const result = yield* kv.get(key);
@@ -58,15 +54,9 @@ export namespace Command {
 							Option.getOrNull,
 						);
 					}),
-					set: Effect.fn(function* (key, value, rest) {
-						const opts = yield* parseSetOptions(rest).pipe(
-							Effect.mapError((message) =>
-								Protocol.fail(`SET: ${formatCommandOptionError(message)}`),
-							),
-						);
-
+					set: Effect.fn(function* (key, value, opts) {
 						yield* kv.set(key, value, { ttl: opts.PX });
-						return Protocol.simple("OK");
+						return "OK" as const;
 					}),
 					keys: Effect.fn(function (pattern: string) {
 						return kv.keys(pattern);
@@ -119,14 +109,29 @@ export namespace Command {
 				return {
 					process: Match.type<Input>().pipe(
 						Match.withReturnType<Effect.Effect<Value, Error, unknown>>(),
-						Match.when(["PING"], () => executor.ping),
+						Match.when(["PING"], () => {
+							return executor.ping.pipe(Effect.map(Protocol.simple));
+						}),
 						Match.when(["ECHO", Match.string], ([_, message]) =>
 							executor.echo(message),
 						),
 						Match.when(["GET", Match.string], ([_, key]) => executor.get(key)),
 						Match.when(
 							["SET", Match.string, Match.string],
-							([_, key, value, ...rest]) => executor.set(key, value, rest),
+							([_, key, value, ...rest]) => {
+								return Effect.gen(function* () {
+									const opts = yield* parseSetOptions(rest).pipe(
+										Effect.mapError((message) =>
+											Protocol.fail(
+												`SET: ${formatCommandOptionError(message)}`,
+											),
+										),
+									);
+									return yield* executor
+										.set(key, value, opts)
+										.pipe(Effect.map(Protocol.simple));
+								});
+							},
 						),
 						Match.when(["KEYS", Match.string], ([_, pattern]) =>
 							executor.keys(pattern),
@@ -178,6 +183,8 @@ export namespace Command {
 			CommandOption.optionalOrUndefined,
 		),
 	});
+
+	type SetOptions = Effect.Effect.Success<ReturnType<typeof parseSetOptions>>;
 }
 
 function formatCommandOptionError(
