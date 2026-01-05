@@ -7,10 +7,12 @@ import * as Match from "effect/Match";
 import * as Num from "effect/Number";
 import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
 import { Replication } from "$/replication";
+import { Integer } from "$/schema/number";
 import { getInfo } from "./info";
 import { CommandOption } from "./options";
 
@@ -34,6 +36,10 @@ export namespace Command {
 			) => Result<readonly [key: string, value: Protocol.Decoded]>;
 		};
 		info: (headers: ReadonlyArray<Input>) => Result<string>;
+		replconf: {
+			listeningPort: (port: Integer) => Result<"OK">;
+			capabilites: (protocol: string) => Result<"OK">;
+		};
 	}
 
 	export class Executor extends Effect.Service<Executor>()(
@@ -84,6 +90,14 @@ export namespace Command {
 						},
 						Effect.provideService(Replication.Service, replication),
 					),
+					replconf: {
+						capabilites(_protocol) {
+							return Effect.succeed("OK");
+						},
+						listeningPort(_port) {
+							return Effect.succeed("OK");
+						},
+					},
 				};
 
 				return service;
@@ -98,17 +112,48 @@ export namespace Command {
 			set() {
 				return Protocol.fail("SET command is not available for slave servers");
 			},
+			replconf: {
+				capabilites(_protocol) {
+					return Protocol.fail(
+						"REPLCONF command is not available for slave servers",
+					);
+				},
+				listeningPort(_port) {
+					return Protocol.fail(
+						"REPLCONF command is not available for slave servers",
+					);
+				},
+			},
 		});
 	});
 
+	// TODO master | when command is valid but parameter doesn't match - it will respond with unexpected command error instead of saying that parameter is of unexpected type etc - fix | by Evgenii Perminov at Mon, 05 Jan 2026 18:56:56 GMT
 	export class Processor extends Effect.Service<Processor>()(
 		"@command/Processor",
 		{
 			effect: Effect.gen(function* () {
 				const executor = yield* Executor;
+				type Result = Effect.Effect<Value, Error>;
+
+				const matchReplConf = Match.type<Input>().pipe(
+					Match.withReturnType<Result>(),
+					Match.when(["listening-port", Schema.is(Integer)], ([_, port]) =>
+						executor.replconf.listeningPort(port),
+					),
+					Match.when(["capa", Match.string], ([_, protocol]) =>
+						executor.replconf.capabilites(protocol),
+					),
+					Match.when([Match.string], ([command]) =>
+						fail(`Unexpected REPLCONF subcommand: ${command}`),
+					),
+					Match.orElse((value) =>
+						fail(`Unexpected REPLCONF input: ${Protocol.format(value)}`),
+					),
+				);
+
 				return {
 					process: Match.type<Input>().pipe(
-						Match.withReturnType<Effect.Effect<Value, Error, unknown>>(),
+						Match.withReturnType<Result>(),
 						Match.when(["PING"], () => {
 							return executor.ping.pipe(Effect.map(Protocol.simple));
 						}),
@@ -140,6 +185,7 @@ export namespace Command {
 							executor.config.get(key),
 						),
 						Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
+						Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
 						Match.when([Match.string], ([command]) =>
 							fail(`Unexpected command: ${command}`),
 						),
