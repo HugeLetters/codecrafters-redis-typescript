@@ -155,4 +155,12 @@ export const waitForMessage = Effect.fn(function (socket: Socket) {
 	});
 });
 
+export const request = Effect.fn("request")(function* (
+	socket: Socket,
+	data: string,
+) {
+	yield* writeToSocket(socket, data);
+	return yield* waitForMessage(socket);
+});
+
 export type { Socket };
