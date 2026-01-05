@@ -50,15 +50,42 @@ const ConnectionRetryPolicy = Schedule.spaced(Duration.seconds(1)).pipe(
 );
 
 const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
-	yield* Net.Socket.write(socket, yield* Protocol.encode(["PING"]));
-	const pong = yield* Net.Socket.waitForMessage(socket).pipe(
-		Effect.flatMap(Protocol.decodeBuffer),
-	);
+	const pong = yield* Net.Socket.request(
+		socket,
+		yield* Protocol.encode(["PING"]),
+	).pipe(Effect.flatMap(Protocol.decodeBuffer));
 
 	if (pong !== "PONG") {
 		return yield* Effect.fail(
 			new Error(
 				`Expected a PONG response from master server. Received ${Protocol.format(pong)} instead.`,
+			),
+		);
+	}
+
+	const config = yield* AppConfig;
+	const portOk = yield* Net.Socket.request(
+		socket,
+		yield* Protocol.encode(["REPLCONF", "listening-port", config.port]),
+	).pipe(Effect.flatMap(Protocol.decodeBuffer));
+
+	if (portOk !== "OK") {
+		return yield* Effect.fail(
+			new Error(
+				`Expected a OK response from master server. Received ${Protocol.format(pong)} instead.`,
+			),
+		);
+	}
+
+	const psyncOk = yield* Net.Socket.request(
+		socket,
+		yield* Protocol.encode(["REPLCONF", "capa", "psync2"]),
+	).pipe(Effect.flatMap(Protocol.decodeBuffer));
+
+	if (psyncOk !== "OK") {
+		return yield* Effect.fail(
+			new Error(
+				`Expected a OK response from master server. Received ${Protocol.format(pong)} instead.`,
 			),
 		);
 	}
