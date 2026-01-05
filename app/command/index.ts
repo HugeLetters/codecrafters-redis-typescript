@@ -158,11 +158,15 @@ export namespace Command {
 									fail("Expected port to be an integer-string"),
 								),
 							);
-							return yield* executor.replconf.listeningPort(port);
+							return yield* executor.replconf
+								.listeningPort(port)
+								.pipe(Effect.map(Protocol.simple));
 						});
 					}),
 					Match.when(["capa", Match.string], ([_, protocol]) =>
-						executor.replconf.capabilites(protocol),
+						executor.replconf
+							.capabilites(protocol)
+							.pipe(Effect.map(Protocol.simple)),
 					),
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected REPLCONF subcommand: ${command}`),
