@@ -21,19 +21,12 @@ export function decodeBuffer(buffer: Buffer) {
 	return decode(buffer.toString("utf-8"));
 }
 
-export const encode_ = Match.type<Value>().pipe(
+export const encode = Match.type<Value>().pipe(
 	Match.when(Match.instanceOfUnsafe(Boxed), (boxed) =>
 		EffSchema.encode(boxed.schema)(boxed.value),
 	),
 	Match.orElse(EffSchema.encode(Schema)),
 );
-export function encode(value: Value) {
-	if (value instanceof Boxed) {
-		return EffSchema.encode(value.schema)(value.value);
-	}
-
-	return EffSchema.encode(Schema)(value);
-}
 
 /** Values which can be received as a result of decoding */
 export type Decoded = Schema["Type"];
