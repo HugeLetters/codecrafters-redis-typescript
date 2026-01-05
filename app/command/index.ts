@@ -221,7 +221,9 @@ export namespace Command {
 										),
 									);
 
-									return yield* executor.psync(id, offset);
+									return yield* executor
+										.psync(id, offset)
+										.pipe(Effect.map(Protocol.simple));
 								});
 							},
 						),
