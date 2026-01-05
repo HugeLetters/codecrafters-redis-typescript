@@ -1,10 +1,13 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
+import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { Net } from "$/network";
 import { Protocol } from "$/protocol";
+import { StartServer } from "$/server";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
@@ -22,13 +25,25 @@ export const StartSlave = Effect.gen(function* () {
 
 	yield* performMasterHandshake(socket);
 
-	yield* Net.Socket.handleMessages(socket, (d) =>
+	const HandleMasterMessages = Net.Socket.handleMessages(socket, (d) =>
 		Protocol.decode(d.toString()).pipe(
 			Effect.catchAll(Effect.logError),
 			Effect.tap(Effect.log),
 		),
 	);
+
+	yield* Effect.all(
+		[
+			HandleMasterMessages,
+			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
+		],
+		{ concurrency: "unbounded" },
+	);
 });
+
+const SlaveCommandProcessor = Command.Processor.Default.pipe(
+	Layer.provide(Command.ExecutorSlave),
+);
 
 const ConnectionRetryPolicy = Schedule.spaced(Duration.seconds(1)).pipe(
 	Schedule.intersect(Schedule.recurs(3)),

@@ -1,5 +1,4 @@
 import * as Path from "@effect/platform/Path";
-import * as BunContext from "@effect/platform-bun/BunContext";
 import { regex } from "arkregex";
 import * as ConfigM from "effect/Config";
 import * as ConfigError from "effect/ConfigError";
@@ -106,6 +105,5 @@ export class AppConfig extends Effect.Service<AppConfig>()(
 				},
 			} as const;
 		}),
-		dependencies: [BunContext.layer],
 	},
 ) {}

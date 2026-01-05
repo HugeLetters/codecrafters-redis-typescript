@@ -1,4 +1,3 @@
-import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Arr from "effect/Array";
 import * as Cron from "effect/Cron";
 import * as DateTime from "effect/DateTime";
@@ -92,7 +91,6 @@ export namespace KV {
 				}),
 			};
 		}).pipe(Log.withSpan("kv.storage")),
-		dependencies: [AppConfig.Default, BunContext.layer],
 	}) {}
 
 	export type Key = string;

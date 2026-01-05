@@ -47,7 +47,6 @@ export namespace Replication {
 					data,
 				};
 			}),
-			dependencies: [AppConfig.Default],
 		},
 	) {}
 }

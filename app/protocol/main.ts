@@ -1,0 +1,88 @@
+import { regex } from "arkregex";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as EffSchema from "effect/Schema";
+import * as Str from "effect/String";
+import { Resp } from "$/resp";
+import { CR, CRLF, LF } from "../resp/constants";
+
+const Schema = Resp.V2.RespValue;
+type Schema = typeof Schema;
+
+class Boxed<T extends Decoded = Decoded> extends Data.TaggedClass("Boxed")<{
+	readonly value: T;
+	readonly schema: EffSchema.Schema<Decoded, string>;
+}> {}
+
+export const decode = EffSchema.decode(Schema);
+
+export function decodeBuffer(buffer: Buffer) {
+	return decode(buffer.toString("utf-8"));
+}
+
+export const encode_ = Match.type<Value>().pipe(
+	Match.when(Match.instanceOfUnsafe(Boxed), (boxed) =>
+		EffSchema.encode(boxed.schema)(boxed.value),
+	),
+	Match.orElse(EffSchema.encode(Schema)),
+);
+export function encode(value: Value) {
+	if (value instanceof Boxed) {
+		return EffSchema.encode(value.schema)(value.value);
+	}
+
+	return EffSchema.encode(Schema)(value);
+}
+
+/** Values which can be received as a result of decoding */
+export type Decoded = Schema["Type"];
+/** Values which can be passed in to encoding/formatting */
+export type Value<V extends Decoded = Decoded> = V | Boxed<V>;
+/** Values which can be received as a result of encoding */
+export type Encoded = Schema["Encoded"];
+
+const stripForbidden = Str.replaceAll(
+	regex(`(?:${CRLF})|(?:${CR})|(?:${LF})`, "g"),
+	" ",
+);
+export function fail(message: string) {
+	// since we're using Resp2 - that means this will be encoded as a simple error - which means no \r\n allowed
+	const stripped = stripForbidden(message);
+	return new Resp.Error({ message: stripped });
+}
+export type Error = ReturnType<typeof fail>;
+
+const getRespValue = Match.type<Value>().pipe(
+	Match.withReturnType<Decoded>(),
+	Match.when(Match.instanceOfUnsafe(Boxed), (boxed) => boxed.value),
+	Match.orElse((value) => value),
+);
+export function format(value: Value): string {
+	return Resp.V2.format(getRespValue(value));
+}
+
+/** Allows forcing a value to be encoded with the specified schema */
+export function boxed<T extends Decoded, E extends Encoded>(
+	value: T,
+	schema: EffSchema.Schema<T, E>,
+) {
+	return new Boxed({ value, schema: schema as never });
+}
+
+/** Will always try to encode as simple string first and only if it fails fallback to bulk string */
+export function simple<T extends string>(value: T) {
+	return boxed(
+		value,
+		EffSchema.Union(
+			Resp.V2.String.SimpleString,
+			Resp.V2.String.BulkString,
+		) as never,
+	);
+}
+
+export function config(config: Resp.Config["Type"]) {
+	return Effect.provideService(Resp.Config, config);
+}
+
+export type { Boxed };

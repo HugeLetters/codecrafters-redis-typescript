@@ -1,9 +1,11 @@
 import { EventEmitter } from "node:events";
 import { BunRuntime } from "@effect/platform-bun";
+import * as BunContext from "@effect/platform-bun/BunContext";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FiberSet from "effect/FiberSet";
 import * as Fn from "effect/Function";
+import * as Layer from "effect/Layer";
 import { AppConfig } from "$/config";
 import { Protocol } from "$/protocol";
 
@@ -137,10 +139,13 @@ const initializeSocket = Effect.fn(function* (opts: SocketOptions) {
 	yield* dataConsumer;
 });
 
+const BunLive = BunContext.layer;
+const AppConfigLive = AppConfig.Default.pipe(Layer.provide(BunLive));
+
 export const createSocket = Fn.flow(
 	initializeSocket,
 	Effect.catchTag("SocketConnectionError", () => Effect.void),
-	Effect.provide(AppConfig.Default),
+	Effect.provide(AppConfigLive),
 	Effect.scoped,
 	BunRuntime.runMain,
 );
