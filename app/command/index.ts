@@ -206,8 +206,20 @@ export namespace Command {
 						Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
 						Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
 						Match.when(
-							["PSYNC", Match.string, Match.number],
-							([_, id, offset]) => executor.psync(id, offset),
+							["PSYNC", Match.string, Match.string],
+							([_, id, rawOffset]) => {
+								return Effect.gen(function* () {
+									const offset = yield* Schema.decode(IntegerFromString)(
+										rawOffset,
+									).pipe(
+										Effect.mapError(() =>
+											fail("Expected offset to be an integer-string"),
+										),
+									);
+
+									return yield* executor.psync(id, offset);
+								});
+							},
 						),
 						Match.when([Match.string], ([command]) =>
 							fail(`Unexpected command: ${command}`),
