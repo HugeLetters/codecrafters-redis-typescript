@@ -12,7 +12,7 @@ import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
 import { Replication } from "$/replication";
-import { Integer } from "$/schema/number";
+import { type Integer, IntegerFromString } from "$/schema/number";
 import { getInfo } from "./info";
 import { CommandOption } from "./options";
 
@@ -110,18 +110,14 @@ export namespace Command {
 		return Context.add(c, Executor, {
 			...master,
 			set() {
-				return Protocol.fail("SET command is not available for slave servers");
+				return fail("SET command is not available for slave servers");
 			},
 			replconf: {
 				capabilites(_protocol) {
-					return Protocol.fail(
-						"REPLCONF command is not available for slave servers",
-					);
+					return fail("REPLCONF command is not available for slave servers");
 				},
 				listeningPort(_port) {
-					return Protocol.fail(
-						"REPLCONF command is not available for slave servers",
-					);
+					return fail("REPLCONF command is not available for slave servers");
 				},
 			},
 		});
@@ -137,9 +133,18 @@ export namespace Command {
 
 				const matchReplConf = Match.type<Input>().pipe(
 					Match.withReturnType<Result>(),
-					Match.when(["listening-port", Schema.is(Integer)], ([_, port]) =>
-						executor.replconf.listeningPort(port),
-					),
+					Match.when(["listening-port", Match.string], ([_, rawPort]) => {
+						return Effect.gen(function* () {
+							const port = yield* Schema.decode(IntegerFromString)(
+								rawPort,
+							).pipe(
+								Effect.mapError(() =>
+									fail("Expected port to be an integer-string"),
+								),
+							);
+							return yield* executor.replconf.listeningPort(port);
+						});
+					}),
 					Match.when(["capa", Match.string], ([_, protocol]) =>
 						executor.replconf.capabilites(protocol),
 					),
@@ -167,9 +172,7 @@ export namespace Command {
 								return Effect.gen(function* () {
 									const opts = yield* parseSetOptions(rest).pipe(
 										Effect.mapError((message) =>
-											Protocol.fail(
-												`SET: ${formatCommandOptionError(message)}`,
-											),
+											fail(`SET: ${formatCommandOptionError(message)}`),
 										),
 									);
 									return yield* executor

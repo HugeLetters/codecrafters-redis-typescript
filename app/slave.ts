@@ -66,7 +66,11 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 	const config = yield* AppConfig;
 	const portOk = yield* Net.Socket.request(
 		socket,
-		yield* Protocol.encode(["REPLCONF", "listening-port", config.port]),
+		yield* Protocol.encode([
+			"REPLCONF",
+			"listening-port",
+			config.port.toString(),
+		]),
 	).pipe(Effect.flatMap(Protocol.decodeBuffer));
 
 	if (portOk !== "OK") {
