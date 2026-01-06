@@ -581,6 +581,28 @@ export const decodeFile = Effect.fn("decodeFile")(function* (
 	return yield* decode(buffer, config);
 });
 
+const RdbStringRegex = regex(
+	`^\\${Resp.V2.String.BulkStringPrefix}(?<length>\\d+)${Resp.CRLF}`,
+);
+export const decodeNetworkBuffer = Effect.fn("decodeNetworkBuffer")(function* (
+	buffer: Buffer,
+	config?: EncodingConfig,
+) {
+	const string = buffer.toString("utf-8");
+	const match = RdbStringRegex.exec(string);
+	if (!match) {
+		return yield* Effect.fail("todo");
+	}
+
+	const length = yield* Schema.decode(IntegerFromString)(match.groups.length);
+	const contents = buffer.subarray(match[0].length);
+	if (length !== contents.length) {
+		return yield* Effect.fail("todo");
+	}
+
+	return yield* decode(contents, config);
+});
+
 export class DecodeError extends Data.TaggedError("DecodeError")<{
 	readonly message: string;
 }> {}
