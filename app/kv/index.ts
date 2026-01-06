@@ -89,6 +89,10 @@ export namespace KV {
 
 					return Arr.empty<string>();
 				}),
+				asRDB: Effect.gen(function* () {
+					const storage = yield* storageRef;
+					return yield* kvToRdb(storage);
+				}),
 			};
 		}).pipe(Log.withSpan("kv.storage")),
 	}) {}
@@ -171,4 +175,31 @@ export namespace KV {
 
 		return Option.some(value);
 	}
+
+	export const kvToRdb = Effect.fn("kvToRdb")(function* (
+		kv: HashMap.HashMap<string, Value>,
+	) {
+		const now = yield* DateTime.now;
+		return new RDB.RDB({
+			version: 1n,
+			meta: HashMap.empty(),
+			databases: HashMap.make([
+				0n,
+				new RDB.Database({
+					entries: kv.pipe(
+						HashMap.filterMap((value) => {
+							const expiry = Option.getOrNull(value.expiry);
+							if (expiry !== null && DateTime.lessThanOrEqualTo(expiry, now)) {
+								return Option.none();
+							}
+
+							return Option.some(
+								new RDB.ValueWithMeta({ value: value.value, expiry }),
+							);
+						}),
+					),
+				}),
+			]),
+		});
+	});
 }
