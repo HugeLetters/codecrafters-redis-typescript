@@ -13,6 +13,7 @@ import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
 import { Replication } from "$/replication";
+import { Resp } from "$/resp";
 import { type Integer, IntegerFromString } from "$/schema/number";
 import { getInfo } from "./info";
 import { CommandOption } from "./options";
@@ -27,7 +28,8 @@ export namespace Command {
 		data: Protocol.Value,
 	) => Effect.Effect<void, E, R>;
 	export interface InstructionContext<E = never, R = never> {
-		readonly respond: RespondFn<E, R>;
+		readonly respond: (data: Protocol.Value) => Effect.Effect<void, E, R>;
+		readonly rawRespond: (data: string) => Effect.Effect<void, E, R>;
 	}
 	export class Instruction extends Data.TaggedClass("Instruction")<{
 		run: <E, R>(
@@ -128,6 +130,8 @@ export namespace Command {
 								yield* ctx.respond(
 									Protocol.simple(fullResyncResponse(replication.data)),
 								);
+
+								yield* ctx.rawRespond(`${Resp.V2.String.BulkStringPrefix}\r\n`);
 							}),
 						});
 

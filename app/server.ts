@@ -56,7 +56,12 @@ const handleConnection = Effect.fn(function* (socket: Net.Socket.Socket) {
 	) {
 		if (response instanceof Command.Instruction) {
 			return yield* response
-				.run({ respond: write })
+				.run({
+					respond: write,
+					rawRespond(data) {
+						return Net.Socket.write(socket, data);
+					},
+				})
 				.pipe(Effect.catchTag("RespError", write));
 		}
 
