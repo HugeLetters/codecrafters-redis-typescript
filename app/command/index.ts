@@ -12,6 +12,7 @@ import * as Schema from "effect/Schema";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Protocol } from "$/protocol";
+import { RDB } from "$/rdb";
 import { Replication } from "$/replication";
 import { Resp } from "$/resp";
 import { type Integer, IntegerFromString } from "$/schema/number";
@@ -29,7 +30,7 @@ export namespace Command {
 	) => Effect.Effect<void, E, R>;
 	export interface InstructionContext<E = never, R = never> {
 		readonly respond: (data: Protocol.Value) => Effect.Effect<void, E, R>;
-		readonly rawRespond: (data: string) => Effect.Effect<void, E, R>;
+		readonly rawRespond: (data: Buffer | string) => Effect.Effect<void, E, R>;
 	}
 	export class Instruction extends Data.TaggedClass("Instruction")<{
 		run: <E, R>(
@@ -131,7 +132,15 @@ export namespace Command {
 									Protocol.simple(fullResyncResponse(replication.data)),
 								);
 
-								yield* ctx.rawRespond(`${Resp.V2.String.BulkStringPrefix}\r\n`);
+								const rdb = yield* kv.asRDB;
+								const encodedRdb = yield* RDB.encode(rdb).pipe(
+									Effect.tapError(Effect.logError),
+									Effect.mapError(() => fail("Internal Error")),
+								);
+								const meta = Buffer.from(
+									`${Resp.V2.String.BulkStringPrefix}${encodedRdb.length}\r\n`,
+								);
+								yield* ctx.rawRespond(Buffer.concat([meta, encodedRdb]));
 							}),
 						});
 
