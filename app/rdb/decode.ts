@@ -591,13 +591,21 @@ export const decodeNetworkBuffer = Effect.fn("decodeNetworkBuffer")(function* (
 	const string = buffer.toString("utf-8");
 	const match = RdbStringRegex.exec(string);
 	if (!match) {
-		return yield* Effect.fail("todo");
+		return yield* Effect.fail(
+			new Error(
+				`RDB network-string does not match pattern. Received ${string}`,
+			),
+		);
 	}
 
 	const length = yield* Schema.decode(IntegerFromString)(match.groups.length);
 	const contents = buffer.subarray(match[0].length);
 	if (length !== contents.length) {
-		return yield* Effect.fail("todo");
+		return yield* Effect.fail(
+			new Error(
+				`RDB network-string length doesn't match. Expected ${length}. Received ${contents.length}`,
+			),
+		);
 	}
 
 	return yield* decode(contents, config);
