@@ -263,6 +263,15 @@ export namespace Command {
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected command: ${command}`),
 					),
+					Match.when(Protocol.isError, (err) => {
+						return Effect.succeed(
+							new Instruction({
+								run() {
+									return Effect.logError(Protocol.format(err));
+								},
+							}),
+						);
+					}),
 					Match.orElse((value) =>
 						fail(`Unexpected input: ${Protocol.format(value)}`),
 					),

@@ -45,6 +45,7 @@ export function fail(message: string) {
 	return new Resp.Error({ message: stripped });
 }
 export type Error = ReturnType<typeof fail>;
+export const isError = EffSchema.is(Resp.Error);
 
 const getRespValue = Match.type<Value>().pipe(
 	Match.withReturnType<Decoded>(),
