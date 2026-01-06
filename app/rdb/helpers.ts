@@ -2,7 +2,6 @@ import * as Arr from "effect/Array";
 import * as DateTime from "effect/DateTime";
 import * as HashMap from "effect/HashMap";
 import * as Iterable from "effect/Iterable";
-import * as Option from "effect/Option";
 import type {
 	Database,
 	DatabaseEntries,
@@ -56,10 +55,7 @@ function formatDBEntries(entries: DatabaseEntries, prefix: string) {
 
 function formatDBValueWithMeta(value: ValueWithMeta) {
 	if (value.expiry) {
-		return `Expires at ${DateTime.make(Number(value.expiry)).pipe(
-			Option.map(DateTime.format({})),
-			Option.getOrElse(() => "Invalid Expiry"),
-		)}. ${formatValue(value.value)}`;
+		return `Expires at ${DateTime.format(value.expiry)}. ${formatValue(value.value)}`;
 	}
 
 	return formatValue(value.value);

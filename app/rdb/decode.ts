@@ -1,6 +1,8 @@
 import * as FileSystem from "@effect/platform/FileSystem";
+import { regex } from "arkregex";
 import * as BigInteger from "effect/BigInt";
 import * as Data from "effect/Data";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Either from "effect/Either";
 import * as Equal from "effect/Equal";
@@ -10,6 +12,8 @@ import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { crc_64_redis as crc_64 } from "js-crc/models";
+import { Resp } from "$/resp";
+import { IntegerFromString } from "$/schema/number";
 import { whileLoop } from "$/utils/effect";
 import { concatInteger } from "$/utils/number";
 import {
@@ -429,8 +433,8 @@ const decodeDatabaseMeta = Effect.fn(function* (
 
 interface DatabaseEntry {
 	readonly key: string;
-	readonly value: Value;
-	readonly expiry: bigint | null;
+	readonly value: ValueWithMeta["value"];
+	readonly expiry: ValueWithMeta["expiry"];
 }
 const decodeDatabaseEntry = Effect.fn(function* (
 	buffer: Buffer,
@@ -450,12 +454,18 @@ const decodeDatabaseEntry = Effect.fn(function* (
 	): DecodeGen<DatabaseEntry> {
 		const key = yield* decodeStringEncodedString(data);
 		const value = yield* decoder(key.rest);
+		const parsedExpiry = Option.fromNullable(expiry.value).pipe(
+			Option.map(Number),
+			Option.flatMap(DateTime.make),
+			Option.map(DateTime.toUtc),
+			Option.getOrNull,
+		);
 		return {
 			rest: value.rest,
 			value: {
 				value: value.value,
 				key: key.value,
-				expiry: expiry.value,
+				expiry: parsedExpiry,
 			},
 		};
 	});

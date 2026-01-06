@@ -1,7 +1,9 @@
 import { describe } from "bun:test";
 import * as BunContext from "@effect/platform-bun/BunContext";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
 import { expectEquivalence, test } from "$/test";
 import { decode } from "./decode";
 import { encode } from "./encode";
@@ -27,7 +29,9 @@ describe("encode", () => {
 									"key1",
 									new ValueWithMeta({
 										value: "value1",
-										expiry: BigInt(new Date("12/12/2012").getTime()),
+										expiry: DateTime.make(new Date("12/12/2012")).pipe(
+											Option.getOrThrow,
+										),
 									}),
 								],
 								["key2", new ValueWithMeta({ value: 42n, expiry: null })],

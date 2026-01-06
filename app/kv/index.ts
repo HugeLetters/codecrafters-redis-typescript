@@ -139,25 +139,24 @@ export namespace KV {
 			return HashMap.empty<string, Value>();
 		}
 
-		const { databases } = rdb.value;
-		const now = (yield* DateTime.now).pipe(DateTime.toEpochMillis);
+		return yield* rdbToKv(rdb.value);
+	});
+
+	export const rdbToKv = Effect.fn("rdvToKv")(function* (rdb: RDB.RDB) {
+		const { databases } = rdb;
+		const now = yield* DateTime.now;
 		return databases.pipe(
 			HashMap.values,
 			Iterable.flatMap((db) => db.entries),
 			Iterable.filterMap(([key, value]): Option.Option<[string, Value]> => {
 				const { expiry } = value;
-				if (expiry !== null && expiry <= now) {
+				if (expiry !== null && DateTime.lessThanOrEqualTo(expiry, now)) {
 					return Option.none();
 				}
 
 				return rdbValueToKvValue(value.value).pipe(
 					Option.map((value) => {
-						const parsedExpiry = Option.fromNullable(expiry).pipe(
-							Option.map(Number),
-							Option.flatMap(DateTime.make),
-							Option.map(DateTime.toUtc),
-						);
-						return [key, { value, expiry: parsedExpiry }];
+						return [key, { value, expiry: Option.fromNullable(expiry) }];
 					}),
 				);
 			}),

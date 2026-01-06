@@ -271,8 +271,9 @@ const encodeDatabaseExpiry = Effect.fn(function* (value: ValueWithMeta) {
 		return EmptyBuffer;
 	}
 
-	if (value.expiry % 1000n === 0n) {
-		const expiryS = value.expiry / 1000n;
+	const expiry = BigInt(value.expiry.epochMillis);
+	if (expiry % 1000n === 0n) {
+		const expiryS = expiry / 1000n;
 		if (expiryS < 1n << 4n) {
 			const buffer = yield* bigintToUint8Array(expiryS, 4n);
 			return Buffer.concat([
@@ -282,7 +283,7 @@ const encodeDatabaseExpiry = Effect.fn(function* (value: ValueWithMeta) {
 		}
 	}
 
-	const buffer = yield* bigintToUint8Array(value.expiry, 8n).pipe(
+	const buffer = yield* bigintToUint8Array(expiry, 8n).pipe(
 		Effect.mapError(() => {
 			return new EncodeError({
 				message: `Expiry value too large: ${value.expiry}`,

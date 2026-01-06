@@ -1,4 +1,5 @@
 import * as Data from "effect/Data";
+import type * as DateTime from "effect/DateTime";
 import * as HashMap from "effect/HashMap";
 import type * as HashSet from "effect/HashSet";
 import type * as SortedSet from "effect/SortedSet";
@@ -41,7 +42,7 @@ export type Value =
 
 export class ValueWithMeta extends Data.TaggedClass("ValueWithMeta")<{
 	readonly value: Value;
-	readonly expiry: bigint | null;
+	readonly expiry: DateTime.Utc | null;
 }> {}
 
 export class DatabaseMeta extends Data.TaggedClass("DatabaseMeta")<{

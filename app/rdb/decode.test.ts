@@ -1,8 +1,11 @@
 import { describe } from "bun:test";
 import * as Path from "@effect/platform/Path";
 import * as BunContext from "@effect/platform-bun/BunContext";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import { flow } from "effect/Function";
 import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
 import { expectEquivalence, test } from "$/test";
 import { decodeFile } from "./decode";
 import { Database, RDBFile, type StringEncoded, ValueWithMeta } from "./type";
@@ -14,6 +17,8 @@ describe("decode", () => {
 			const path = yield* Path.Path;
 			const file = path.resolve(import.meta.dir, "./mock/base.rdb");
 			const decoded = yield* decodeFile(file);
+
+			const utc = flow(DateTime.make, Option.getOrThrow);
 
 			expectEquivalence(
 				decoded,
@@ -48,14 +53,14 @@ describe("decode", () => {
 									[
 										"key2",
 										new ValueWithMeta({
-											expiry: 1766016608706n,
+											expiry: utc(1766016608706),
 											value: "redis value",
 										}),
 									],
 									[
 										"key4",
 										new ValueWithMeta({
-											expiry: 1766016368714n,
+											expiry: utc(1766016368714),
 											value: "expires soon",
 										}),
 									],
