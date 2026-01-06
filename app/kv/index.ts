@@ -93,6 +93,11 @@ export namespace KV {
 					const storage = yield* storageRef;
 					return yield* kvToRdb(storage);
 				}),
+				setMany: Effect.fn(function* (kv: HashMap.HashMap<string, Value>) {
+					yield* SynchronizedRef.update(storageRef, (storage) => {
+						return HashMap.union(storage, kv);
+					});
+				}),
 			};
 		}).pipe(Log.withSpan("kv.storage")),
 	}) {}

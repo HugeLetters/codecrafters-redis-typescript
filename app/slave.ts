@@ -5,10 +5,11 @@ import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
+import { KV } from "$/kv";
 import { Net } from "$/network";
 import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
-import { StartServer } from "$/server";
+import { handleConnection, StartServer } from "$/server";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
@@ -24,18 +25,14 @@ export const StartSlave = Effect.gen(function* () {
 		port: replicaof.port,
 	}).pipe(Effect.retry(ConnectionRetryPolicy));
 
-	yield* performMasterHandshake(socket);
-
-	const HandleMasterMessages = Net.Socket.handleMessages(socket, (d) =>
-		Protocol.decode(d.toString()).pipe(
-			Effect.tap(Effect.log),
-			Effect.catchAll(Effect.logError),
-		),
-	);
+	const { rdb } = yield* performMasterHandshake(socket);
+	const kv = yield* KV.KvStorage;
+	const syncedKv = yield* KV.rdbToKv(rdb);
+	yield* kv.setMany(syncedKv);
 
 	yield* Effect.all(
 		[
-			HandleMasterMessages,
+			handleConnection(socket).pipe(Effect.provide(MasterCommandProcessor)),
 			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
 		],
 		{ concurrency: "unbounded" },
@@ -44,6 +41,9 @@ export const StartSlave = Effect.gen(function* () {
 
 const SlaveCommandProcessor = Command.Processor.Default.pipe(
 	Layer.provide(Command.ExecutorSlave),
+);
+const MasterCommandProcessor = Command.Processor.Default.pipe(
+	Layer.provide(Command.Executor.Default),
 );
 
 const ConnectionRetryPolicy = Schedule.spaced(Duration.seconds(1)).pipe(
@@ -101,9 +101,8 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 	);
 	const rdbBuf = yield* Net.Socket.waitForMessage(socket);
 
-	const fsync = yield* Protocol.decodeBuffer(fsyncBuf);
+	yield* Protocol.decodeBuffer(fsyncBuf);
 	const rdb = yield* RDB.decodeNetworkBuffer(rdbBuf);
 
-	yield* Effect.log(fsync);
-	yield* Effect.log(RDB.format(rdb));
+	return { rdb };
 });

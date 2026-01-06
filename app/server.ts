@@ -32,7 +32,9 @@ const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 	return decoded;
 }, Log.withSpan("decode"));
 
-const handleConnection = Effect.fn(function* (socket: Net.Socket.Socket) {
+export const handleConnection = Effect.fn(function* (
+	socket: Net.Socket.Socket,
+) {
 	yield* Effect.logInfo("Connection opened");
 
 	const command = yield* Command.Processor;
