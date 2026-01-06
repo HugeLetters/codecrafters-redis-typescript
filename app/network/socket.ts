@@ -161,8 +161,9 @@ export const request = Effect.fn("request")(function* (
 	socket: Socket,
 	data: SocketInput,
 ) {
+	const message = yield* waitForMessage(socket).pipe(Effect.fork);
 	yield* writeToSocket(socket, data);
-	return yield* waitForMessage(socket);
+	return yield* message;
 });
 
 export type { Socket };
