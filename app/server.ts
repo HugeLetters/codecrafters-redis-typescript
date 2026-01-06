@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect";
 import { flow } from "effect/Function";
+import * as Iterable from "effect/Iterable";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { Net } from "$/network";
@@ -17,7 +18,33 @@ export const StartServer = Effect.gen(function* () {
 	});
 	yield* Log.logInfo("Listening", { HOST: config.host, PORT: config.port });
 
-	return yield* Net.Server.handleConnections(server, handleConnection);
+	const replicas = new Set<Net.Socket.Socket>();
+	const notifyReplicas: ConnectionContext["notifyReplicas"] = Effect.fn(
+		function* (command) {
+			yield* Effect.logInfo("Notify");
+			if (replicas.size === 0) {
+				return true;
+			}
+
+			yield* Log.logInfo("Replicating", {
+				replicas: replicas.size,
+				command: Protocol.format(command),
+			});
+
+			yield* Effect.all(
+				Iterable.map(replicas, (socket) => writeValue(socket, command)),
+				{ concurrency: "unbounded" },
+			).pipe(Effect.fork);
+			return true;
+		},
+	);
+
+	return yield* Net.Server.handleConnections(server, (socket) =>
+		handleConnection(socket, {
+			notifyReplicas,
+			registerReplica: Effect.sync(() => replicas.add(socket)),
+		}),
+	);
 });
 
 const encodeResponse = Effect.fn(function* (input: Protocol.Value) {
@@ -26,23 +53,35 @@ const encodeResponse = Effect.fn(function* (input: Protocol.Value) {
 	return encoded;
 }, Log.withSpan("encode"));
 
+const writeValue = Effect.fn(function* (
+	socket: Net.Socket.Socket,
+	data: Protocol.Value,
+) {
+	const encoded = yield* encodeResponse(data);
+	yield* Net.Socket.write(socket, encoded);
+});
+
 const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 	const decoded = yield* Protocol.decodeBuffer(buffer);
 	yield* Log.logInfo("Decoded", { data: Protocol.format(decoded) });
 	return decoded;
 }, Log.withSpan("decode"));
 
+interface ConnectionContext {
+	readonly notifyReplicas: (command: Protocol.Value) => Effect.Effect<boolean>;
+	readonly registerReplica: Effect.Effect<void>;
+}
 export const handleConnection = Effect.fn(function* (
 	socket: Net.Socket.Socket,
+	ctx?: ConnectionContext,
 ) {
 	yield* Effect.logInfo("Connection opened");
 
 	const command = yield* Command.Processor;
 
-	const write = Effect.fn(function* (data: Protocol.Value) {
-		const encoded = yield* encodeResponse(data);
-		yield* Net.Socket.write(socket, encoded);
-	});
+	function write(data: Protocol.Value) {
+		return writeValue(socket, data);
+	}
 
 	const SendFallbackError = Protocol.fail("Internal Error").pipe(
 		write,
@@ -61,8 +100,12 @@ export const handleConnection = Effect.fn(function* (
 				.run({
 					respond: write,
 					rawRespond(data) {
-						return Net.Socket.write(socket, data);
+						return Effect.log("Raw Response sent").pipe(
+							Effect.andThen(Net.Socket.write(socket, data)),
+						);
 					},
+					notifyReplicas: ctx?.notifyReplicas ?? (() => Effect.succeed(false)),
+					registerReplica: ctx?.registerReplica ?? Effect.void,
 				})
 				.pipe(Effect.catchTag("RespError", write));
 		}

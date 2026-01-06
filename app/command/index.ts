@@ -31,6 +31,10 @@ export namespace Command {
 	export interface InstructionContext<E = never, R = never> {
 		readonly respond: (data: Protocol.Value) => Effect.Effect<void, E, R>;
 		readonly rawRespond: (data: Buffer | string) => Effect.Effect<void, E, R>;
+		readonly notifyReplicas: (
+			command: Protocol.Value,
+		) => Effect.Effect<boolean, E, R>;
+		readonly registerReplica: Effect.Effect<void, E, R>;
 	}
 	export class Instruction extends Data.TaggedClass("Instruction")<{
 		run: <E, R>(
@@ -141,6 +145,8 @@ export namespace Command {
 									`${Resp.V2.String.BulkStringPrefix}${encodedRdb.length}\r\n`,
 								);
 								yield* ctx.rawRespond(Buffer.concat([meta, encodedRdb]));
+
+								yield* ctx.registerReplica;
 							}),
 						});
 
@@ -181,6 +187,8 @@ export namespace Command {
 		{
 			effect: Effect.gen(function* () {
 				const executor = yield* Executor;
+				const replication = yield* Replication.Service;
+
 				type Result = Effect.Effect<Response, Error>;
 
 				const matchReplConf = Match.type<Input>().pipe(
@@ -221,21 +229,30 @@ export namespace Command {
 						executor.echo(message),
 					),
 					Match.when(["GET", Match.string], ([_, key]) => executor.get(key)),
-					Match.when(
-						["SET", Match.string, Match.string],
-						([_, key, value, ...rest]) => {
-							return Effect.gen(function* () {
-								const opts = yield* parseSetOptions(rest).pipe(
-									Effect.mapError((message) =>
-										fail(`SET: ${formatCommandOptionError(message)}`),
-									),
-								);
-								return yield* executor
-									.set(key, value, opts)
-									.pipe(Effect.map(Protocol.simple));
-							});
-						},
-					),
+					Match.when(["SET", Match.string, Match.string], (cmd) => {
+						const [_, key, value, ...rest] = cmd;
+
+						return Effect.succeed(
+							new Instruction({
+								run: Effect.fn(function* (ctx) {
+									const opts = yield* parseSetOptions(rest).pipe(
+										Effect.mapError((message) =>
+											fail(`SET: ${formatCommandOptionError(message)}`),
+										),
+									);
+
+									yield* ctx.notifyReplicas(cmd);
+									const res = yield* executor.set(key, value, opts);
+
+									if (replication.data.role === "slave") {
+										return;
+									}
+
+									yield* ctx.respond(Protocol.simple(res));
+								}),
+							}),
+						);
+					}),
 					Match.when(["KEYS", Match.string], ([_, pattern]) =>
 						executor.keys(pattern),
 					),

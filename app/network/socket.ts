@@ -103,6 +103,8 @@ export function writeToSocket(socket: Socket, data: SocketInput) {
 }
 class SocketWriteError extends Data.TaggedError("SocketWrite") {}
 
+export type { SocketWriteError };
+
 type SocketHandler = (data: Buffer) => Effect.Effect<void>;
 /** Resolves when socket connection ends */
 export const handleSocketMessages = Effect.fn(function* (
