@@ -7,6 +7,7 @@ import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { Net } from "$/network";
 import { Protocol } from "$/protocol";
+import { RDB } from "$/rdb";
 import { StartServer } from "$/server";
 
 export const StartSlave = Effect.gen(function* () {
@@ -27,8 +28,8 @@ export const StartSlave = Effect.gen(function* () {
 
 	const HandleMasterMessages = Net.Socket.handleMessages(socket, (d) =>
 		Protocol.decode(d.toString()).pipe(
-			Effect.catchAll(Effect.logError),
 			Effect.tap(Effect.log),
+			Effect.catchAll(Effect.logError),
 		),
 	);
 
@@ -94,5 +95,15 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 		);
 	}
 
-	yield* Net.Socket.write(socket, yield* Protocol.encode(["PSYNC", "?", "-1"]));
+	const fsyncBuf = yield* Net.Socket.request(
+		socket,
+		yield* Protocol.encode(["PSYNC", "?", "-1"]),
+	);
+	const rdbBuf = yield* Net.Socket.waitForMessage(socket);
+
+	const fsync = yield* Protocol.decodeBuffer(fsyncBuf);
+	const rdb = yield* RDB.decodeNetworkBuffer(rdbBuf);
+
+	yield* Effect.log(fsync);
+	yield* Effect.log(RDB.format(rdb));
 });
