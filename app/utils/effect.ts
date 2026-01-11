@@ -26,6 +26,7 @@ export const flatMapError = Fn.dual<
 	);
 });
 
+// TODO master | delete this fn - its unwieldy i think | by Evgenii Perminov at Sun, 11 Jan 2026 16:33:55 GMT
 export const whileLoop = Effect.fn("whileLoop")(function* <T, E, R>(
 	initial: T,
 	body: (state: T) => Effect.Effect<Option.Option<T>, E, R>,
