@@ -91,17 +91,20 @@ export type SocketInput = Buffer | Uint8Array | string;
 
 export function writeToSocket(socket: Socket, data: SocketInput) {
 	if (!socket.writable) {
-		return new SocketWriteError();
+		return new SocketWriteError({ message: "Socket is not writable" });
 	}
 
 	return Effect.async<void, SocketWriteError>((resume) => {
 		socket.write(data, (err) => {
-			const result = err ? new SocketWriteError() : Effect.void;
+			const result = err ? new SocketWriteError({ cause: err }) : Effect.void;
 			resume(result);
 		});
 	});
 }
-class SocketWriteError extends Data.TaggedError("SocketWrite") {}
+class SocketWriteError extends Data.TaggedError("SocketWrite")<{
+	readonly message?: string;
+	readonly cause?: unknown;
+}> {}
 
 export type { SocketWriteError };
 
