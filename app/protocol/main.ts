@@ -5,7 +5,6 @@ import * as Match from "effect/Match";
 import * as EffSchema from "effect/Schema";
 import * as Str from "effect/String";
 import { Resp } from "$/resp";
-import { CR, CRLF, LF } from "../resp/constants";
 
 const Schema = Resp.V2.RespValue;
 type Schema = typeof Schema;
@@ -36,7 +35,7 @@ export type Value<V extends Decoded = Decoded> = V | Boxed<V>;
 export type Encoded = Schema["Encoded"];
 
 const stripForbidden = Str.replaceAll(
-	regex(`(?:${CRLF})|(?:${CR})|(?:${LF})`, "g"),
+	regex(`(?:${Resp.CRLF})|(?:${Resp.CR})|(?:${Resp.LF})`, "g"),
 	" ",
 );
 export function fail(message: string) {
