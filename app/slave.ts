@@ -86,7 +86,7 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 	if (portOk !== "OK") {
 		return yield* Effect.fail(
 			new Error(
-				`Expected a OK response from master server. Received ${Protocol.format(pong)} instead.`,
+				`Expected a OK response from master server. Received ${Protocol.format(portOk)} instead.`,
 			),
 		);
 	}
@@ -99,7 +99,7 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 	if (psyncOk !== "OK") {
 		return yield* Effect.fail(
 			new Error(
-				`Expected a OK response from master server. Received ${Protocol.format(pong)} instead.`,
+				`Expected a OK response from master server. Received ${Protocol.format(psyncOk)} instead.`,
 			),
 		);
 	}
