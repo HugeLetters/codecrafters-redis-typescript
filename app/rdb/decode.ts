@@ -16,6 +16,7 @@ import { Resp } from "$/resp";
 import { IntegerFromString } from "$/schema/number";
 import { whileLoop } from "$/utils/effect";
 import { concatInteger } from "$/utils/number";
+import { normalize } from "$/utils/string";
 import {
 	ENCODING,
 	LengthEncodingType,
@@ -593,17 +594,20 @@ export const decodeNetworkBuffer = Effect.fn("decodeNetworkBuffer")(function* (
 	if (!match) {
 		return yield* Effect.fail(
 			new Error(
-				`RDB network-string does not match pattern. Received ${string}`,
+				`RDB network-string does not match pattern. Received ${normalize(string)}`,
 			),
 		);
 	}
 
-	const length = yield* Schema.decode(IntegerFromString)(match.groups.length);
-	const contents = buffer.subarray(match[0].length);
-	if (length !== contents.length) {
+	const expectedLength = yield* Schema.decode(IntegerFromString)(
+		match.groups.length,
+	);
+	const contentStart = match[0].length;
+	const contents = buffer.subarray(contentStart);
+	if (expectedLength !== contents.length) {
 		return yield* Effect.fail(
 			new Error(
-				`RDB network-string length doesn't match. Expected ${length}. Received ${contents.length}`,
+				`RDB network-string length doesn't match. Expected ${expectedLength}. Received ${contents.length}`,
 			),
 		);
 	}
