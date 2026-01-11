@@ -3,12 +3,14 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { KV } from "$/kv";
 import { Net } from "$/network";
 import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
+import { LeftoverSimpleString } from "$/resp/v2/string/simple";
 import { handleConnection, StartServer } from "$/server";
 
 export const StartSlave = Effect.gen(function* () {
@@ -104,14 +106,54 @@ const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
 		);
 	}
 
-	const fsyncBuf = yield* Net.Socket.request(
+	return yield* doPsync(socket);
+});
+
+const doPsync = Effect.fn(function* (socket: Net.Socket.Socket) {
+	const messages = {
+		fsync: Option.none<string>(),
+		rdb: Option.none<RDB.RDB>(),
+	};
+	const messagesFiber = yield* Net.Socket.handleMessages(
 		socket,
-		yield* Protocol.encode(["PSYNC", "?", "-1"]),
-	);
-	const rdbBuf = yield* Net.Socket.waitForMessage(socket);
+		function (data, interrupt) {
+			return Effect.gen(function* () {
+				if (Option.isNone(messages.fsync)) {
+					const [_, fsync] = yield* Schema.decodeUnknown(LeftoverSimpleString)(
+						data.toString("ascii"),
+					);
 
-	yield* Protocol.decodeBuffer(fsyncBuf);
-	const rdb = yield* RDB.decodeNetworkBuffer(rdbBuf);
+					messages.fsync = Option.some(fsync.data);
+					if (fsync.leftover === "") {
+						return;
+					}
 
-	return { rdb };
+					data = data.subarray(-fsync.leftover.length);
+				}
+
+				const rdb = yield* RDB.decodeNetworkBuffer(data);
+				messages.rdb = Option.some(rdb);
+				interrupt();
+			}).pipe(
+				Effect.tapError(Effect.logFatal),
+				Effect.catchAll(() => Effect.succeed(interrupt())),
+			);
+		},
+	).pipe(Effect.fork);
+
+	yield* Net.Socket.write(socket, yield* Protocol.encode(["PSYNC", "?", "-1"]));
+	yield* messagesFiber;
+
+	const { fsync, rdb } = messages;
+	if (Option.isNone(fsync)) {
+		return yield* Effect.die(new Error("Expected fsync to exist"));
+	}
+	if (Option.isNone(rdb)) {
+		return yield* Effect.die(new Error("Expected rdb to exist"));
+	}
+
+	yield* Effect.log(fsync.value);
+	yield* Effect.log(RDB.format(rdb.value));
+
+	return { rdb: rdb.value };
 });
