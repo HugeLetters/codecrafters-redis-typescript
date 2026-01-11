@@ -19,29 +19,50 @@ export const StartServer = Effect.gen(function* () {
 	yield* Log.logInfo("Listening", { HOST: config.host, PORT: config.port });
 
 	const replicas = new Set<Net.Socket.Socket>();
-	const notifyReplicas: ConnectionContext["notifyReplicas"] = Effect.fn(
-		function* (command) {
-			yield* Effect.logInfo("Notify");
-			if (replicas.size === 0) {
-				return;
-			}
-
-			yield* Log.logInfo("Replicating", {
-				replicas: replicas.size,
-				command: Protocol.format(command),
-			});
-
-			yield* Effect.all(
-				Iterable.map(replicas, (socket) => writeValue(socket, command)),
-				{ concurrency: "unbounded" },
-			).pipe(Effect.fork);
-		},
-	);
 
 	return yield* Net.Server.handleConnections(server, (socket) =>
 		handleConnection(socket, {
-			notifyReplicas,
+			notifyReplicas: Effect.fn(
+				function* (command) {
+					if (replicas.size === 0) {
+						return;
+					}
+
+					yield* Log.logInfo("Replicating", {
+						replicas: replicas.size,
+						command: Protocol.format(command),
+					});
+
+					const message = yield* Protocol.encode(command);
+					yield* Effect.all(
+						Iterable.map(replicas, (socket) => {
+							return Net.Socket.write(socket, message).pipe(
+								Effect.tapError((error) =>
+									Log.logError("Failed to notify replica", {
+										command: Protocol.format(command),
+										error: error,
+										replica: `${socket.remoteAddress}:${socket.remotePort}`,
+									}),
+								),
+							);
+						}),
+						{ concurrency: "unbounded", mode: "either" },
+					);
+				},
+				Effect.catchTag("ParseError", (e) =>
+					Log.logError("Failed to encode replica notification", { error: e }),
+				),
+				Effect.ensureErrorType<never>(),
+				Effect.fork,
+			),
 			registerReplica: Effect.sync(() => replicas.add(socket)),
+			unregisterReplica: Effect.zip(
+				Log.logInfo("Unregistered replica", {
+					replica: `${socket.remoteAddress}:${socket.remotePort}`,
+				}),
+				Effect.sync(() => replicas.delete(socket)),
+				{ concurrent: true },
+			),
 		}),
 	);
 });
@@ -69,12 +90,14 @@ const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 interface ConnectionContext {
 	readonly notifyReplicas: (command: Protocol.Value) => Effect.Effect<void>;
 	readonly registerReplica: Effect.Effect<void>;
+	readonly unregisterReplica: Effect.Effect<void>;
 }
 export const handleConnection = Effect.fn(function* (
 	socket: Net.Socket.Socket,
 	ctx?: ConnectionContext,
 ) {
 	yield* Effect.logInfo("Connection opened");
+	yield* Effect.addFinalizer(() => ctx?.unregisterReplica ?? Effect.void);
 
 	const command = yield* Command.Processor;
 
