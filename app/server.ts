@@ -23,7 +23,7 @@ export const StartServer = Effect.gen(function* () {
 		function* (command) {
 			yield* Effect.logInfo("Notify");
 			if (replicas.size === 0) {
-				return true;
+				return;
 			}
 
 			yield* Log.logInfo("Replicating", {
@@ -35,7 +35,6 @@ export const StartServer = Effect.gen(function* () {
 				Iterable.map(replicas, (socket) => writeValue(socket, command)),
 				{ concurrency: "unbounded" },
 			).pipe(Effect.fork);
-			return true;
 		},
 	);
 
@@ -68,7 +67,7 @@ const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
 }, Log.withSpan("decode"));
 
 interface ConnectionContext {
-	readonly notifyReplicas: (command: Protocol.Value) => Effect.Effect<boolean>;
+	readonly notifyReplicas: (command: Protocol.Value) => Effect.Effect<void>;
 	readonly registerReplica: Effect.Effect<void>;
 }
 export const handleConnection = Effect.fn(function* (
@@ -104,7 +103,7 @@ export const handleConnection = Effect.fn(function* (
 							Effect.andThen(Net.Socket.write(socket, data)),
 						);
 					},
-					notifyReplicas: ctx?.notifyReplicas ?? (() => Effect.succeed(false)),
+					notifyReplicas: ctx?.notifyReplicas ?? (() => Effect.void),
 					registerReplica: ctx?.registerReplica ?? Effect.void,
 				})
 				.pipe(Effect.catchTag("RespError", write));

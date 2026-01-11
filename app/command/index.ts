@@ -33,7 +33,7 @@ export namespace Command {
 		readonly rawRespond: (data: Buffer | string) => Effect.Effect<void, E, R>;
 		readonly notifyReplicas: (
 			command: Protocol.Value,
-		) => Effect.Effect<boolean, E, R>;
+		) => Effect.Effect<void, E, R>;
 		readonly registerReplica: Effect.Effect<void, E, R>;
 	}
 	export class Instruction extends Data.TaggedClass("Instruction")<{
