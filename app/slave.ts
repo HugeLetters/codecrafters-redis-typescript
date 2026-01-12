@@ -43,8 +43,8 @@ export const StartSlave = Effect.gen(function* () {
 		[
 			Net.Socket.handleMessages(socket, (data) =>
 				Effect.zip(
-					replication.addReplicationOffset(data.length),
 					handler(data),
+					replication.addReplicationOffset(data.length),
 				),
 			),
 			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
@@ -77,9 +77,6 @@ const ping = Effect.fn(function* (socket: Net.Socket.Socket) {
 		yield* Protocol.encode(["PING"]),
 	);
 
-	const replication = yield* Replication.Replication;
-	yield* replication.addReplicationOffset(res.length);
-
 	const message = yield* Protocol.decodeBuffer(res);
 
 	if (message !== "PONG") {
@@ -101,9 +98,6 @@ const port = Effect.fn(function* (socket: Net.Socket.Socket) {
 			config.port.toString(),
 		]),
 	);
-	const replication = yield* Replication.Replication;
-	yield* replication.addReplicationOffset(res.length);
-
 	const message = yield* Protocol.decodeBuffer(res);
 	if (message !== "OK") {
 		return yield* Effect.fail(
@@ -119,9 +113,6 @@ const capabilites = Effect.fn(function* (socket: Net.Socket.Socket) {
 		socket,
 		yield* Protocol.encode(["REPLCONF", "capa", "psync2"]),
 	);
-	const replication = yield* Replication.Replication;
-	yield* replication.addReplicationOffset(res.length);
-
 	const message = yield* Protocol.decodeBuffer(res);
 
 	if (message !== "OK") {
@@ -145,8 +136,6 @@ const psync = Effect.fn(function* (socket: Net.Socket.Socket) {
 		socket,
 		function (data, interrupt) {
 			return Effect.gen(function* () {
-				yield* replication.addReplicationOffset(data.length);
-
 				if (Option.isNone(messages.fsync)) {
 					const [_, fsync] = yield* Schema.decodeUnknown(LeftoverSimpleString)(
 						data.toString("ascii"),
@@ -164,6 +153,7 @@ const psync = Effect.fn(function* (socket: Net.Socket.Socket) {
 				messages.rdb = Option.some(rdb.rdb);
 				if (rdb.rest.length !== 0) {
 					yield* commandHandler(rdb.rest);
+					yield* replication.addReplicationOffset(rdb.rest.length);
 				}
 
 				interrupt();
