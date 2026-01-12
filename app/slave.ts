@@ -12,6 +12,7 @@ import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
 import { LeftoverSimpleString } from "$/resp/v2/string/simple";
 import { createSocketCommandsHandler, StartServer } from "$/server";
+import { Replication } from "./replication";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
@@ -37,9 +38,15 @@ export const StartSlave = Effect.gen(function* () {
 	const handler = yield* createSocketCommandsHandler(socket).pipe(
 		Effect.provide(MasterCommandProcessor),
 	);
+	const replication = yield* Replication.Replication;
 	yield* Effect.all(
 		[
-			Net.Socket.handleMessages(socket, handler),
+			Net.Socket.handleMessages(socket, (data) =>
+				Effect.zip(
+					replication.addReplicationOffset(data.length),
+					handler(data),
+				),
+			),
 			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
 		],
 		{ concurrency: "unbounded" },
@@ -58,63 +65,88 @@ const ConnectionRetryPolicy = Schedule.spaced(Duration.seconds(1)).pipe(
 );
 
 const performMasterHandshake = Effect.fn(function* (socket: Net.Socket.Socket) {
-	const pong = yield* Net.Socket.request(
+	yield* ping(socket);
+	yield* port(socket);
+	yield* capabilites(socket);
+	return yield* psync(socket);
+});
+
+const ping = Effect.fn(function* (socket: Net.Socket.Socket) {
+	const res = yield* Net.Socket.request(
 		socket,
 		yield* Protocol.encode(["PING"]),
-	).pipe(Effect.flatMap(Protocol.decodeBuffer));
+	);
 
-	if (pong !== "PONG") {
+	const replication = yield* Replication.Replication;
+	yield* replication.addReplicationOffset(res.length);
+
+	const message = yield* Protocol.decodeBuffer(res);
+
+	if (message !== "PONG") {
 		return yield* Effect.fail(
 			new Error(
-				`Expected a PONG response from master server. Received ${Protocol.format(pong)} instead.`,
+				`Expected a PONG response from master server. Received ${Protocol.format(message)} instead.`,
 			),
 		);
 	}
+});
 
+const port = Effect.fn(function* (socket: Net.Socket.Socket) {
 	const config = yield* AppConfig;
-	const portOk = yield* Net.Socket.request(
+	const res = yield* Net.Socket.request(
 		socket,
 		yield* Protocol.encode([
 			"REPLCONF",
 			"listening-port",
 			config.port.toString(),
 		]),
-	).pipe(Effect.flatMap(Protocol.decodeBuffer));
+	);
+	const replication = yield* Replication.Replication;
+	yield* replication.addReplicationOffset(res.length);
 
-	if (portOk !== "OK") {
+	const message = yield* Protocol.decodeBuffer(res);
+	if (message !== "OK") {
 		return yield* Effect.fail(
 			new Error(
-				`Expected a OK response from master server. Received ${Protocol.format(portOk)} instead.`,
+				`Expected a OK response from master server. Received ${Protocol.format(message)} instead.`,
 			),
 		);
 	}
-
-	const psyncOk = yield* Net.Socket.request(
-		socket,
-		yield* Protocol.encode(["REPLCONF", "capa", "psync2"]),
-	).pipe(Effect.flatMap(Protocol.decodeBuffer));
-
-	if (psyncOk !== "OK") {
-		return yield* Effect.fail(
-			new Error(
-				`Expected a OK response from master server. Received ${Protocol.format(psyncOk)} instead.`,
-			),
-		);
-	}
-
-	return yield* doPsync(socket);
 });
 
-const doPsync = Effect.fn(function* (socket: Net.Socket.Socket) {
+const capabilites = Effect.fn(function* (socket: Net.Socket.Socket) {
+	const res = yield* Net.Socket.request(
+		socket,
+		yield* Protocol.encode(["REPLCONF", "capa", "psync2"]),
+	);
+	const replication = yield* Replication.Replication;
+	yield* replication.addReplicationOffset(res.length);
+
+	const message = yield* Protocol.decodeBuffer(res);
+
+	if (message !== "OK") {
+		return yield* Effect.fail(
+			new Error(
+				`Expected a OK response from master server. Received ${Protocol.format(message)} instead.`,
+			),
+		);
+	}
+});
+
+const psync = Effect.fn(function* (socket: Net.Socket.Socket) {
 	const messages = {
 		fsync: Option.none<string>(),
 		rdb: Option.none<RDB.RDB>(),
 	};
 	const commandHandler = yield* createSocketCommandsHandler(socket);
+
+	const replication = yield* Replication.Replication;
 	const messagesFiber = yield* Net.Socket.handleMessages(
 		socket,
 		function (data, interrupt) {
 			return Effect.gen(function* () {
+				yield* replication.addReplicationOffset(data.length);
+
 				if (Option.isNone(messages.fsync)) {
 					const [_, fsync] = yield* Schema.decodeUnknown(LeftoverSimpleString)(
 						data.toString("ascii"),
