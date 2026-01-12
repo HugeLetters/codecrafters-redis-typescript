@@ -59,9 +59,12 @@ export namespace Command {
 		psync: (replicationId: string, offset: number) => InstructionEffect;
 	}
 
-	function fullResyncResponse(data: Replication.MasterData) {
-		return `FULLRESYNC ${data.replicationId} ${data.replicationOffset}` as const;
-	}
+	const fullResyncResponse = Effect.fn(function* (
+		data: Replication.MasterData,
+	) {
+		const offset = yield* data.replicationOffset;
+		return `FULLRESYNC ${data.replicationId} ${offset}` as const;
+	});
 
 	export class Executor extends Effect.Service<Executor>()(
 		"@codecrafters/redis/app/command/index/Executor",
@@ -138,9 +141,8 @@ export namespace Command {
 									);
 								}
 
-								yield* ctx.respond(
-									Protocol.simple(fullResyncResponse(replication.data)),
-								);
+								const fsync = yield* fullResyncResponse(replication.data);
+								yield* ctx.respond(Protocol.simple(fsync));
 
 								const rdb = yield* kv.asRDB;
 								const encodedRdb = yield* RDB.encode(rdb).pipe(
