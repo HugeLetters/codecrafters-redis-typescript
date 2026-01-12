@@ -15,7 +15,7 @@ import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
 import { Replication } from "$/replication";
 import { Resp } from "$/resp";
-import { Integer, IntegerFromString } from "$/schema/number";
+import { type Integer, IntegerFromString } from "$/schema/number";
 import { getInfo } from "./info";
 import { CommandOption } from "./options";
 
@@ -54,7 +54,7 @@ export namespace Command {
 		replconf: {
 			listeningPort: (port: Integer) => Result<"OK">;
 			capabilites: (protocol: string) => Result<"OK">;
-			getAck: () => Result<["REPLCONF", "ACK", Integer]>;
+			getAck: () => Result<["REPLCONF", "ACK", string]>;
 		};
 		psync: (replicationId: string, offset: number) => InstructionEffect;
 	}
@@ -126,7 +126,7 @@ export namespace Command {
 							return Effect.succeed([
 								"REPLCONF",
 								"ACK",
-								Integer.make(replication.data.replicationOffset),
+								replication.data.replicationOffset.toString(),
 							]);
 						},
 					},
