@@ -24,49 +24,60 @@ export const StartServer = Effect.gen(function* () {
 
 	const replicas = new Set<Net.Socket.Socket>();
 
-	return yield* Net.Server.handleConnections(server, (socket) =>
-		handleConnection(socket, {
-			notifyReplicas: Effect.fn(
-				function* (command) {
-					if (replicas.size === 0) {
-						return;
-					}
+	yield* Net.Server.handleConnections(
+		server,
+		Effect.fn(function* (socket) {
+			yield* Effect.logInfo("Connection opened");
 
-					yield* Log.logInfo("Replicating", {
-						replicas: replicas.size,
-						command: Protocol.format(command),
-					});
-
-					const message = yield* Protocol.encode(command);
-					yield* Effect.all(
-						Iterable.map(replicas, (socket) => {
-							return Net.Socket.write(socket, message).pipe(
-								Effect.tapError((error) =>
-									Log.logError("Failed to notify replica", {
-										command: Protocol.format(command),
-										error: error,
-										replica: `${socket.remoteAddress}:${socket.remotePort}`,
-									}),
-								),
-							);
-						}),
-						{ concurrency: "unbounded", mode: "either" },
-					);
-				},
-				Effect.catchTag("ParseError", (e) =>
-					Log.logError("Failed to encode replica notification", { error: e }),
+			yield* Effect.addFinalizer(() =>
+				Effect.zip(
+					Log.logInfo("Unregistered replica", {
+						replica: `${socket.remoteAddress}:${socket.remotePort}`,
+					}),
+					Effect.sync(() => replicas.delete(socket)),
+					{ concurrent: true },
 				),
-				Effect.ensureErrorType<never>(),
-				Effect.fork,
-			),
-			registerReplica: Effect.sync(() => replicas.add(socket)),
-			unregisterReplica: Effect.zip(
-				Log.logInfo("Unregistered replica", {
-					replica: `${socket.remoteAddress}:${socket.remotePort}`,
-				}),
-				Effect.sync(() => replicas.delete(socket)),
-				{ concurrent: true },
-			),
+			);
+
+			const handler = yield* createSocketCommandsHandler(socket, {
+				notifyReplicas: Effect.fn(
+					function* (command) {
+						if (replicas.size === 0) {
+							return;
+						}
+
+						yield* Log.logInfo("Replicating", {
+							replicas: replicas.size,
+							command: Protocol.format(command),
+						});
+
+						const message = yield* Protocol.encode(command);
+						yield* Effect.all(
+							Iterable.map(replicas, (socket) => {
+								return Net.Socket.write(socket, message).pipe(
+									Effect.tapError((error) =>
+										Log.logError("Failed to notify replica", {
+											command: Protocol.format(command),
+											error: error,
+											replica: `${socket.remoteAddress}:${socket.remotePort}`,
+										}),
+									),
+								);
+							}),
+							{ concurrency: "unbounded", mode: "either" },
+						);
+					},
+					Effect.catchTag("ParseError", (e) =>
+						Log.logError("Failed to encode replica notification", { error: e }),
+					),
+					Effect.ensureErrorType<never>(),
+					Effect.fork,
+				),
+				registerReplica: Effect.sync(() => replicas.add(socket)),
+			});
+			yield* Net.Socket.handleMessages(socket, handler);
+
+			yield* Effect.logInfo("Connection closed");
 		}),
 	);
 });
@@ -113,19 +124,16 @@ const decodeCommands = Effect.fn(function* (buffer: Buffer) {
 interface ConnectionContext {
 	readonly notifyReplicas: (command: Protocol.Value) => Effect.Effect<void>;
 	readonly registerReplica: Effect.Effect<void>;
-	readonly unregisterReplica: Effect.Effect<void>;
 }
-export const handleConnection = Effect.fn(function* (
-	socket: Net.Socket.Socket,
-	ctx: ConnectionContext = {
-		notifyReplicas: () => Effect.void,
-		registerReplica: Effect.void,
-		unregisterReplica: Effect.void,
-	},
-) {
-	yield* Effect.logInfo("Connection opened");
-	yield* Effect.addFinalizer(() => ctx.unregisterReplica);
 
+const DefaultConnectionContext: ConnectionContext = {
+	notifyReplicas: () => Effect.void,
+	registerReplica: Effect.void,
+};
+export const createSocketCommandsHandler = Effect.fn(function* (
+	socket: Net.Socket.Socket,
+	ctx: ConnectionContext = DefaultConnectionContext,
+) {
 	const command = yield* Command.Processor;
 
 	function write(data: Protocol.Value) {
@@ -236,7 +244,7 @@ export const handleConnection = Effect.fn(function* (
 	type Context = Effect.Effect.Context<ReturnType<typeof processPipeline>>;
 	const messageQueue = yield* JobQueue.make<Context>(Integer.make(1));
 
-	const onMessage = flow(
+	return flow(
 		decodeCommands,
 		Effect.flatMap((commands) =>
 			JobQueue.offer(messageQueue, processCommands(commands)),
@@ -254,9 +262,6 @@ export const handleConnection = Effect.fn(function* (
 		Effect.catchTag("ParseError", (error) =>
 			Log.logError("Invalid message", { error: error.message }),
 		),
+		Effect.asVoid,
 	);
-
-	yield* Net.Socket.handleMessages(socket, onMessage);
-	yield* Effect.logInfo("Connection closed");
 });
-

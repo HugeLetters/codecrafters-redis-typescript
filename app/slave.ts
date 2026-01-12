@@ -11,7 +11,7 @@ import { Net } from "$/network";
 import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
 import { LeftoverSimpleString } from "$/resp/v2/string/simple";
-import { handleConnection, StartServer } from "$/server";
+import { createSocketCommandsHandler, StartServer } from "$/server";
 
 export const StartSlave = Effect.gen(function* () {
 	const config = yield* AppConfig;
@@ -27,14 +27,19 @@ export const StartSlave = Effect.gen(function* () {
 		port: replicaof.port,
 	}).pipe(Effect.retry(ConnectionRetryPolicy));
 
-	const { rdb } = yield* performMasterHandshake(socket);
+	const { rdb } = yield* performMasterHandshake(socket).pipe(
+		Effect.provide(MasterCommandProcessor),
+	);
 	const kv = yield* KV.KvStorage;
 	const syncedKv = yield* KV.rdbToKv(rdb);
 	yield* kv.setMany(syncedKv);
 
+	const handler = yield* createSocketCommandsHandler(socket).pipe(
+		Effect.provide(MasterCommandProcessor),
+	);
 	yield* Effect.all(
 		[
-			handleConnection(socket).pipe(Effect.provide(MasterCommandProcessor)),
+			Net.Socket.handleMessages(socket, handler),
 			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
 		],
 		{ concurrency: "unbounded" },
@@ -105,6 +110,7 @@ const doPsync = Effect.fn(function* (socket: Net.Socket.Socket) {
 		fsync: Option.none<string>(),
 		rdb: Option.none<RDB.RDB>(),
 	};
+	const commandHandler = yield* createSocketCommandsHandler(socket);
 	const messagesFiber = yield* Net.Socket.handleMessages(
 		socket,
 		function (data, interrupt) {
@@ -124,6 +130,10 @@ const doPsync = Effect.fn(function* (socket: Net.Socket.Socket) {
 
 				const rdb = yield* RDB.decodeNetworkBuffer(data);
 				messages.rdb = Option.some(rdb.rdb);
+				if (rdb.rest.length !== 0) {
+					yield* commandHandler(rdb.rest);
+				}
+
 				interrupt();
 			}).pipe(
 				Effect.tapError(Effect.logFatal),
