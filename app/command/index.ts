@@ -15,7 +15,7 @@ import { Protocol } from "$/protocol";
 import { RDB } from "$/rdb";
 import { Replication } from "$/replication";
 import { Resp } from "$/resp";
-import { type Integer, IntegerFromString } from "$/schema/number";
+import { Integer, IntegerFromString } from "$/schema/number";
 import { getInfo } from "./info";
 import { CommandOption } from "./options";
 
@@ -54,6 +54,7 @@ export namespace Command {
 		replconf: {
 			listeningPort: (port: Integer) => Result<"OK">;
 			capabilites: (protocol: string) => Result<"OK">;
+			getAck: () => Result<["REPLCONF", "ACK", Integer]>;
 		};
 		psync: (replicationId: string, offset: number) => InstructionEffect;
 	}
@@ -117,6 +118,17 @@ export namespace Command {
 						listeningPort(_port) {
 							return Effect.succeed("OK");
 						},
+						getAck() {
+							if (replication.data._tag === "master") {
+								return fail("GETACK is not available for master servers");
+							}
+
+							return Effect.succeed([
+								"REPLCONF",
+								"ACK",
+								Integer.make(replication.data.replicationOffset),
+							]);
+						},
 					},
 					psync(_replicationId, _offset) {
 						const instruction = new Instruction({
@@ -162,6 +174,7 @@ export namespace Command {
 				return fail("SET command is not available for slave servers");
 			},
 			replconf: {
+				...master.replconf,
 				capabilites() {
 					return fail("REPLCONF command is not available for slave servers");
 				},
@@ -273,6 +286,9 @@ export namespace Command {
 										return yield* executor.psync(id, offset);
 									});
 								},
+							),
+							Match.when(["REPLCONF", "GETACK", Match.string], ([_, _2, _3]) =>
+								executor.replconf.getAck(),
 							),
 							Match.when([Match.string], ([command]) =>
 								fail(`Unexpected command: ${command}`),

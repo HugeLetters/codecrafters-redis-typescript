@@ -13,6 +13,7 @@ export namespace Replication {
 	export interface SlaveData {
 		readonly _tag: "slave";
 		readonly role: "slave";
+		readonly replicationOffset: number;
 	}
 	export type ReplicationData = MasterData | SlaveData;
 
@@ -38,6 +39,7 @@ export namespace Replication {
 						const res: SlaveData = {
 							_tag: "slave",
 							role: "slave",
+							replicationOffset: 0,
 						};
 						return Effect.succeed(res);
 					}),
