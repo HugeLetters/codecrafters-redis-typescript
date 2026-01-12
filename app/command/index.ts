@@ -222,6 +222,9 @@ export namespace Command {
 							.capabilites(protocol)
 							.pipe(Effect.map(Protocol.simple)),
 					),
+					Match.when(["GETACK", Match.string], ([_, _pattern]) =>
+						executor.replconf.getAck(),
+					),
 					Match.when([Match.string], ([command]) =>
 						fail(`Unexpected REPLCONF subcommand: ${command}`),
 					),
@@ -286,9 +289,6 @@ export namespace Command {
 										return yield* executor.psync(id, offset);
 									});
 								},
-							),
-							Match.when(["REPLCONF", "GETACK", Match.string], ([_, _2, _3]) =>
-								executor.replconf.getAck(),
 							),
 							Match.when([Match.string], ([command]) =>
 								fail(`Unexpected command: ${command}`),
