@@ -108,16 +108,16 @@ class SocketWriteError extends Data.TaggedError("SocketWrite")<{
 
 export type { SocketWriteError };
 
-type SocketHandler = (
+type SocketHandler<R> = (
 	data: Buffer,
 	interrupt: () => void,
-) => Effect.Effect<void>;
+) => Effect.Effect<void, never, R>;
 /** Resolves when socket connection ends */
-export const handleSocketMessages = Effect.fn(function* (
+export const handleSocketMessages = Effect.fn(function* <R>(
 	socket: Socket,
-	handler: SocketHandler,
+	handler: SocketHandler<R>,
 ) {
-	const run = yield* FiberSet.makeRuntime<never, void, never>();
+	const run = yield* FiberSet.makeRuntime<R, void, never>();
 	return yield* Effect.async<void>((resume) => {
 		const dataHandler = Fn.flow(
 			(data: Buffer) => handler(data, endHandler),
