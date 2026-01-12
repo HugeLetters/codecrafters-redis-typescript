@@ -34,16 +34,7 @@ export const StartSlave = Effect.gen(function* () {
 
 	yield* Effect.all(
 		[
-			handleConnection(socket).pipe(
-				Effect.andThen(
-					Effect.zip(
-						Effect.logWarning("Master connection ended. Shutting down replica"),
-						Effect.interrupt,
-						{ concurrent: true },
-					),
-				),
-				Effect.provide(MasterCommandProcessor),
-			),
+			handleConnection(socket).pipe(Effect.provide(MasterCommandProcessor)),
 			StartServer.pipe(Effect.provide(SlaveCommandProcessor)),
 		],
 		{ concurrency: "unbounded" },
