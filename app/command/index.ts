@@ -69,7 +69,7 @@ export namespace Command {
 			effect: Effect.gen(function* () {
 				const kv = yield* KV.KvStorage;
 				const appConfig = yield* AppConfig;
-				const replication = yield* Replication.Service;
+				const replication = yield* Replication.Replication;
 
 				const service: ExecutorImpl = {
 					ping: Effect.succeed("PONG"),
@@ -109,7 +109,7 @@ export namespace Command {
 
 							return getInfo(headers);
 						},
-						Effect.provideService(Replication.Service, replication),
+						Effect.provideService(Replication.Replication, replication),
 					),
 					replconf: {
 						capabilites(_protocol) {
@@ -195,7 +195,7 @@ export namespace Command {
 		{
 			effect: Effect.gen(function* () {
 				const executor = yield* Executor;
-				const replication = yield* Replication.Service;
+				const replication = yield* Replication.Replication;
 
 				type Result<E, R> = Effect.Effect<Response, Error | E, R>;
 

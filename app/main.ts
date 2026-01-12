@@ -13,7 +13,7 @@ import { StartSlave } from "$/slave";
 import { argvConfigProvider } from "$/utils/config/argv";
 
 const Main = Effect.gen(function* () {
-	const replication = yield* Replication.Service;
+	const replication = yield* Replication.Replication;
 	if (replication.data.role === "master") {
 		return yield* StartMaster;
 	}
@@ -27,7 +27,7 @@ const DevToolsLive = DevTools.layerWebSocket().pipe(
 
 const BunLive = BunContext.layer;
 const AppConfigLive = AppConfig.Default.pipe(Layer.provide(BunLive));
-const ReplicationLive = Replication.Service.Default.pipe(
+const ReplicationLive = Replication.Replication.Default.pipe(
 	Layer.provide(AppConfigLive),
 );
 const KvStorageLive = KV.KvStorage.Default.pipe(

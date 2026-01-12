@@ -17,8 +17,8 @@ export namespace Replication {
 	}
 	export type ReplicationData = MasterData | SlaveData;
 
-	export class Service extends Effect.Service<Service>()(
-		"@codecrafters/redis/app/replication/index/Service",
+	export class Replication extends Effect.Service<Replication>()(
+		"@codecrafters/redis/app/replication/index/Replication",
 		{
 			effect: Effect.gen(function* () {
 				const config = yield* AppConfig;

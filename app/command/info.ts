@@ -41,7 +41,7 @@ const getHeaderInfo = Effect.fn("getHeaderInfo")(function* (header: string) {
 }, Effect.ensureSuccessType<HeaderEntries>());
 
 const getReplicationInfo = Effect.fn("getReplicationInfo")(function* () {
-	const replication = yield* Replication.Service;
+	const replication = yield* Replication.Replication;
 	const res: HeaderEntries = Chunk.of(["role", replication.data.role]);
 
 	return Match.value(replication.data).pipe(
