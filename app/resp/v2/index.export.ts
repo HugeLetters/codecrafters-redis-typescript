@@ -1,6 +1,7 @@
 export { ArrayPrefix, RespArray as Array } from "./array";
 export { Integer, IntegerPrefix } from "./integer";
 export {
+	decodeLeftoverValue as decodeLeftover,
 	formatRespValue as format,
 	type RespArrayValue,
 	RespValue,

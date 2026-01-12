@@ -1,6 +1,10 @@
+import * as Arr from "effect/Array";
+import * as Chunk from "effect/Chunk";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import { flow } from "effect/Function";
 import * as Iterable from "effect/Iterable";
+import * as Option from "effect/Option";
 import { Command } from "$/command";
 import { AppConfig } from "$/config";
 import { Net } from "$/network";
@@ -81,10 +85,29 @@ const writeValue = Effect.fn(function* (
 	yield* Net.Socket.write(socket, encoded);
 });
 
-const decodeBuffer = Effect.fn(function* (buffer: Buffer) {
-	const decoded = yield* Protocol.decodeBuffer(buffer);
-	yield* Log.logInfo("Decoded", { data: Protocol.format(decoded) });
-	return decoded;
+const TOO_MANY_COMMANDS_THRESHOLD = 1_000;
+class TooManyCommandsError extends Data.TaggedError("TooManyCommands") {}
+
+const decodeCommands = Effect.fn(function* (buffer: Buffer) {
+	let commands = Chunk.empty<Protocol.Decoded>();
+	const Pull = Protocol.createDecodePull(Protocol.bufferToString(buffer));
+
+	while (true) {
+		if (commands.length > TOO_MANY_COMMANDS_THRESHOLD) {
+			return yield* new TooManyCommandsError();
+		}
+
+		const pulled = yield* Pull;
+		if (Option.isNone(pulled)) {
+			break;
+		}
+
+		const command = pulled.value;
+		yield* Log.logInfo("Decoded", { data: Protocol.format(command) });
+		commands = Chunk.append(commands, command);
+	}
+
+	return commands;
 }, Log.withSpan("decode"));
 
 interface ConnectionContext {
@@ -94,10 +117,14 @@ interface ConnectionContext {
 }
 export const handleConnection = Effect.fn(function* (
 	socket: Net.Socket.Socket,
-	ctx?: ConnectionContext,
+	ctx: ConnectionContext = {
+		notifyReplicas: () => Effect.void,
+		registerReplica: Effect.void,
+		unregisterReplica: Effect.void,
+	},
 ) {
 	yield* Effect.logInfo("Connection opened");
-	yield* Effect.addFinalizer(() => ctx?.unregisterReplica ?? Effect.void);
+	yield* Effect.addFinalizer(() => ctx.unregisterReplica);
 
 	const command = yield* Command.Processor;
 
@@ -114,31 +141,87 @@ export const handleConnection = Effect.fn(function* (
 		}),
 	);
 
-	const handleProcessResponse = Effect.fn(function* (
-		response: Command.Response,
-	) {
+	const CommandCtx = {
+		respond: write,
+		rawRespond(data) {
+			return Effect.log("Raw Response sent").pipe(
+				Effect.andThen(Net.Socket.write(socket, data)),
+			);
+		},
+		notifyReplicas: ctx.notifyReplicas,
+		registerReplica: ctx.registerReplica,
+	} satisfies Command.CommandContext<unknown, unknown>;
+
+	const processCommand = Effect.fn(function* (self: Protocol.Decoded) {
+		const response = yield* command.process(self, CommandCtx);
+
 		if (response instanceof Command.Instruction) {
 			return yield* response
-				.run({
-					respond: write,
-					rawRespond(data) {
-						return Effect.log("Raw Response sent").pipe(
-							Effect.andThen(Net.Socket.write(socket, data)),
-						);
-					},
-					notifyReplicas: ctx?.notifyReplicas ?? (() => Effect.void),
-					registerReplica: ctx?.registerReplica ?? Effect.void,
-				})
-				.pipe(Effect.catchTag("RespError", write));
+				.run(CommandCtx)
+				.pipe(Effect.map(() => Option.none()));
 		}
 
-		yield* write(response);
+		return Option.some(response);
 	});
 
-	const onMessage = flow(
-		command.process,
-		Effect.catchTag("RespError", (error) => Effect.succeed(error)),
-		Effect.flatMap(handleProcessResponse),
+	const processSingle = Effect.fn(
+		function* (command: Protocol.Decoded) {
+			const response = yield* processCommand(command);
+			if (Option.isNone(response)) {
+				return;
+			}
+
+			yield* write(response.value);
+		},
+		Effect.catchTag("RespError", (error) => write(error)),
+	);
+
+	const processPipeline = Effect.fn(function* (
+		commands: Chunk.NonEmptyChunk<Protocol.Decoded>,
+	) {
+		let responses = Chunk.empty<Protocol.Value>();
+
+		const ProcessResponses = Effect.forEach(
+			commands,
+			(command) => {
+				return processCommand(command).pipe(
+					Effect.tap((response) => {
+						responses = Chunk.append(responses, Option.getOrNull(response));
+					}),
+				);
+			},
+			{ discard: true },
+		);
+
+		yield* ProcessResponses.pipe(
+			Effect.catchTag("RespError", (error) => {
+				responses = Chunk.append(responses, error);
+				return Effect.void;
+			}),
+		);
+
+		const encoded = yield* Effect.all(Chunk.map(responses, encodeResponse), {
+			concurrency: "unbounded",
+		});
+
+		yield* Net.Socket.write(socket, Arr.join(encoded, ""));
+	});
+
+	const processCommands = Effect.fn(
+		function* (commands: Chunk.Chunk<Protocol.Decoded>) {
+			if (!Chunk.isNonEmpty(commands)) {
+				yield* write(Protocol.fail("Empty request"));
+				return;
+			}
+
+			if (commands.length === 1) {
+				const command = Chunk.headNonEmpty(commands);
+				yield* processSingle(command);
+				return;
+			}
+
+			yield* processPipeline(commands);
+		},
 		Effect.catchTag("ParseError", (error) => {
 			return Log.logError("Invalid Response", { error: error.message }).pipe(
 				Effect.andThen(SendFallbackError),
@@ -150,17 +233,30 @@ export const handleConnection = Effect.fn(function* (
 		Log.withSpan("message"),
 	);
 
-	type Context = Effect.Effect.Context<ReturnType<typeof onMessage>>;
+	type Context = Effect.Effect.Context<ReturnType<typeof processPipeline>>;
 	const messageQueue = yield* JobQueue.make<Context>(Integer.make(1));
 
-	const enqueueMessage = flow(
-		decodeBuffer,
-		Effect.flatMap(flow(onMessage, (job) => JobQueue.offer(messageQueue, job))),
+	const onMessage = flow(
+		decodeCommands,
+		Effect.flatMap((commands) =>
+			JobQueue.offer(messageQueue, processCommands(commands)),
+		),
+		Effect.catchTag("TooManyCommands", () =>
+			write(
+				Protocol.fail(
+					`Cannot pipeline more than ${TOO_MANY_COMMANDS_THRESHOLD} commands`,
+				),
+			),
+		),
+		Effect.catchTag("SocketWrite", (error) => {
+			return Log.logError("Socket write failed", { error: error.message });
+		}),
 		Effect.catchTag("ParseError", (error) =>
 			Log.logError("Invalid message", { error: error.message }),
 		),
 	);
 
-	yield* Net.Socket.handleMessages(socket, enqueueMessage);
+	yield* Net.Socket.handleMessages(socket, onMessage);
 	yield* Effect.logInfo("Connection closed");
 });
+

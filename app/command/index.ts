@@ -25,10 +25,7 @@ export namespace Command {
 		Protocol.Value<V>;
 	export type Error = Protocol.Error;
 
-	export type RespondFn<E, R> = (
-		data: Protocol.Value,
-	) => Effect.Effect<void, E, R>;
-	export interface InstructionContext<E = never, R = never> {
+	export interface CommandContext<E = never, R = never> {
 		readonly respond: (data: Protocol.Value) => Effect.Effect<void, E, R>;
 		readonly rawRespond: (data: Buffer | string) => Effect.Effect<void, E, R>;
 		readonly notifyReplicas: (
@@ -37,9 +34,7 @@ export namespace Command {
 		readonly registerReplica: Effect.Effect<void, E, R>;
 	}
 	export class Instruction extends Data.TaggedClass("Instruction")<{
-		run: <E, R>(
-			ctx: InstructionContext<E, R>,
-		) => Effect.Effect<void, E | Error, R>;
+		run: <E, R>(ctx: CommandContext<E, R>) => Effect.Effect<void, E | Error, R>;
 	}> {}
 	type InstructionEffect = Effect.Effect<Instruction, Error>;
 	type Result<V extends Protocol.Decoded> = Effect.Effect<V, Error>;
@@ -189,10 +184,12 @@ export namespace Command {
 				const executor = yield* Executor;
 				const replication = yield* Replication.Service;
 
-				type Result = Effect.Effect<Response, Error>;
+				type Result<E, R> = Effect.Effect<Response, Error | E, R>;
+
+				const NOOP = new Instruction({ run: () => Effect.void });
 
 				const matchReplConf = Match.type<Input>().pipe(
-					Match.withReturnType<Result>(),
+					Match.withReturnType<Result<never, never>>(),
 					Match.when(["listening-port", Match.string], ([_, rawPort]) => {
 						return Effect.gen(function* () {
 							const port = yield* Schema.decode(IntegerFromString)(
@@ -220,21 +217,23 @@ export namespace Command {
 					),
 				);
 
-				const process: (value: Input) => Result = Match.type<Input>().pipe(
-					Match.withReturnType<Result>(),
-					Match.when(["PING"], () => {
-						return executor.ping.pipe(Effect.map(Protocol.simple));
-					}),
-					Match.when(["ECHO", Match.string], ([_, message]) =>
-						executor.echo(message),
-					),
-					Match.when(["GET", Match.string], ([_, key]) => executor.get(key)),
-					Match.when(["SET", Match.string, Match.string], (cmd) => {
-						const [_, key, value, ...rest] = cmd;
+				return {
+					process<E, R>(value: Input, ctx: CommandContext<E, R>): Result<E, R> {
+						return Match.value(value).pipe(
+							Match.withReturnType<Result<E, R>>(),
+							Match.when(["PING"], () => {
+								return executor.ping.pipe(Effect.map(Protocol.simple));
+							}),
+							Match.when(["ECHO", Match.string], ([_, message]) =>
+								executor.echo(message),
+							),
+							Match.when(["GET", Match.string], ([_, key]) =>
+								executor.get(key),
+							),
+							Match.when(["SET", Match.string, Match.string], (cmd) => {
+								const [_, key, value, ...rest] = cmd;
 
-						return Effect.succeed(
-							new Instruction({
-								run: Effect.fn(function* (ctx) {
+								return Effect.gen(function* () {
 									const opts = yield* parseSetOptions(rest).pipe(
 										Effect.mapError((message) =>
 											fail(`SET: ${formatCommandOptionError(message)}`),
@@ -245,57 +244,50 @@ export namespace Command {
 									const res = yield* executor.set(key, value, opts);
 
 									if (replication.data.role === "slave") {
-										return;
+										return NOOP;
 									}
 
-									yield* ctx.respond(Protocol.simple(res));
-								}),
+									return Protocol.simple(res);
+								});
 							}),
-						);
-					}),
-					Match.when(["KEYS", Match.string], ([_, pattern]) =>
-						executor.keys(pattern),
-					),
-					Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
-						executor.config.get(key),
-					),
-					Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
-					Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
-					Match.when(
-						["PSYNC", Match.string, Match.string],
-						([_, id, rawOffset]) => {
-							return Effect.gen(function* () {
-								const offset = yield* Schema.decode(IntegerFromString)(
-									rawOffset,
-								).pipe(
-									Effect.mapError(() =>
-										fail("Expected offset to be an integer-string"),
-									),
-								);
+							Match.when(["KEYS", Match.string], ([_, pattern]) =>
+								executor.keys(pattern),
+							),
+							Match.when(["CONFIG", "GET", Match.string], ([_, _2, key]) =>
+								executor.config.get(key),
+							),
+							Match.when(["INFO"], ([_, ...headers]) => executor.info(headers)),
+							Match.when(["REPLCONF"], ([_, ...rest]) => matchReplConf(rest)),
+							Match.when(
+								["PSYNC", Match.string, Match.string],
+								([_, id, rawOffset]) => {
+									return Effect.gen(function* () {
+										const offset = yield* Schema.decode(IntegerFromString)(
+											rawOffset,
+										).pipe(
+											Effect.mapError(() =>
+												fail("Expected offset to be an integer-string"),
+											),
+										);
 
-								return yield* executor.psync(id, offset);
-							});
-						},
-					),
-					Match.when([Match.string], ([command]) =>
-						fail(`Unexpected command: ${command}`),
-					),
-					Match.when(Protocol.isError, (err) => {
-						return Effect.succeed(
-							new Instruction({
-								run() {
-									return Effect.logError(Protocol.format(err));
+										return yield* executor.psync(id, offset);
+									});
 								},
+							),
+							Match.when([Match.string], ([command]) =>
+								fail(`Unexpected command: ${command}`),
+							),
+							Match.when(Protocol.isError, (err) => {
+								return Effect.gen(function* () {
+									yield* Effect.logError(err);
+									return NOOP;
+								});
 							}),
+							Match.orElse((value) =>
+								fail(`Unexpected input: ${Protocol.format(value)}`),
+							),
 						);
-					}),
-					Match.orElse((value) =>
-						fail(`Unexpected input: ${Protocol.format(value)}`),
-					),
-				);
-
-				return {
-					process,
+					},
 				};
 			}),
 		},
