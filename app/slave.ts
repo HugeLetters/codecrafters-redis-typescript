@@ -123,7 +123,7 @@ const doPsync = Effect.fn(function* (socket: Net.Socket.Socket) {
 				}
 
 				const rdb = yield* RDB.decodeNetworkBuffer(data);
-				messages.rdb = Option.some(rdb);
+				messages.rdb = Option.some(rdb.rdb);
 				interrupt();
 			}).pipe(
 				Effect.tapError(Effect.logFatal),

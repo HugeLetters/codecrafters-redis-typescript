@@ -604,7 +604,7 @@ export const decodeNetworkBuffer = Effect.fn("decodeNetworkBuffer")(function* (
 	);
 	const contentStart = match[0].length;
 	const contents = buffer.subarray(contentStart);
-	if (expectedLength !== contents.length) {
+	if (expectedLength > contents.length) {
 		return yield* Effect.fail(
 			new Error(
 				`RDB network-string length doesn't match. Expected ${expectedLength}. Received ${contents.length}`,
@@ -612,7 +612,9 @@ export const decodeNetworkBuffer = Effect.fn("decodeNetworkBuffer")(function* (
 		);
 	}
 
-	return yield* decode(contents, config);
+	const rest = contents.subarray(expectedLength);
+	const rdb = yield* decode(contents.subarray(0, expectedLength), config);
+	return { rdb, rest };
 });
 
 export class DecodeError extends Data.TaggedError("DecodeError")<{
