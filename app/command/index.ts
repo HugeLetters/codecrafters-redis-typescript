@@ -118,17 +118,16 @@ export namespace Command {
 						listeningPort(_port) {
 							return Effect.succeed("OK");
 						},
-						getAck() {
+						getAck: Effect.fn(function* () {
 							if (replication.data._tag === "master") {
-								return fail("GETACK is not available for master servers");
+								return yield* fail(
+									"GETACK is not available for master servers",
+								);
 							}
 
-							return Effect.succeed([
-								"REPLCONF",
-								"ACK",
-								replication.data.replicationOffset.toString(),
-							]);
-						},
+							const offset = yield* replication.data.replicationOffset;
+							return ["REPLCONF", "ACK", offset.toString()] as const;
+						}),
 					},
 					psync(_replicationId, _offset) {
 						const instruction = new Instruction({

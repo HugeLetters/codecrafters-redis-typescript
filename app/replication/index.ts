@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as SynchronizedRef from "effect/SynchronizedRef";
 import { AppConfig } from "$/config";
 import { AlphanumericAlphabet, randomString } from "$/utils/random";
 
@@ -8,12 +9,12 @@ export namespace Replication {
 		readonly _tag: "master";
 		readonly role: "master";
 		readonly replicationId: string;
-		readonly replicationOffset: number;
+		readonly replicationOffset: Effect.Effect<number>;
 	}
 	export interface SlaveData {
 		readonly _tag: "slave";
 		readonly role: "slave";
-		readonly replicationOffset: number;
+		readonly replicationOffset: Effect.Effect<number>;
 	}
 	export type ReplicationData = MasterData | SlaveData;
 
@@ -22,6 +23,7 @@ export namespace Replication {
 		{
 			effect: Effect.gen(function* () {
 				const config = yield* AppConfig;
+				const ReplicationOffset = yield* SynchronizedRef.make(0);
 
 				const data: ReplicationData = yield* Option.match(config.replicaof, {
 					onNone: Effect.fn(function* () {
@@ -30,7 +32,7 @@ export namespace Replication {
 						const res: MasterData = {
 							_tag: "master",
 							role: "master",
-							replicationOffset: 0,
+							replicationOffset: ReplicationOffset.get,
 							replicationId: replicationId,
 						};
 						return res;
@@ -39,7 +41,7 @@ export namespace Replication {
 						const res: SlaveData = {
 							_tag: "slave",
 							role: "slave",
-							replicationOffset: 0,
+							replicationOffset: ReplicationOffset.get,
 						};
 						return Effect.succeed(res);
 					}),
@@ -47,6 +49,12 @@ export namespace Replication {
 
 				return {
 					data,
+					addReplicationOffset(bytes: number) {
+						return SynchronizedRef.update(
+							ReplicationOffset,
+							(offset) => offset + bytes,
+						);
+					},
 				};
 			}),
 		},
